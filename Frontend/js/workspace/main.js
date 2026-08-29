@@ -907,7 +907,7 @@ window.applyFilters = function () {
 
   // 2. Domain filter
   if (currentDomain && currentDomain !== 'all') {
-    const targetDomain = currentDomain.toLowerCase();
+    const targetDomain = currentDomain.toLowerCase().trim();
     filtered = filtered.filter(p => {
       const pDomain = (p.domain || 'General').toLowerCase();
       if (pDomain === targetDomain) return true;
@@ -918,13 +918,19 @@ window.applyFilters = function () {
 
   // 3. Status filter
   if (currentStatus && currentStatus !== 'all') {
-    filtered = filtered.filter(p => (p.status || 'unread') === currentStatus);
+    const targetStatus = currentStatus.toLowerCase().trim();
+    filtered = filtered.filter(p => (p.status || 'unread').toLowerCase() === targetStatus);
   }
 
   // 4. Search query filter (Specific column or Global across all columns)
   if (searchQuery) {
     const q = searchQuery.toLowerCase().trim();
     const colTarget = window.searchColumnTarget || (document.getElementById('search-column-select')?.value) || 'all';
+
+    // Retrieve column definitions for robust key/ID matching
+    const allColDefs = (typeof window.getOrderedColumnsList === 'function')
+      ? window.getOrderedColumnsList()
+      : (window.activeDataColumns || []);
 
     filtered = filtered.filter(p => {
       // If user selected a specific standard column:
@@ -940,11 +946,18 @@ window.applyFilters = function () {
 
       // If user selected a specific custom dynamic column:
       if (colTarget.startsWith('dyn_')) {
-        const dynKey = colTarget.replace(/^dyn_/, '');
+        const dynKey = colTarget.replace(/^dyn_/, '').toLowerCase();
+        const colDef = (allColDefs || []).find(c => (c.key && c.key.toLowerCase() === colTarget.toLowerCase()) || (c.name && c.name.toLowerCase() === dynKey));
+
         if (p.custom_columns && typeof p.custom_columns === 'object') {
           for (const [k, v] of Object.entries(p.custom_columns)) {
-            if (k.toLowerCase() === dynKey.toLowerCase() || String(k) === String(dynKey)) {
-              return v !== null && v !== undefined && String(v).toLowerCase().includes(q);
+            const matchesKey = k.toLowerCase() === dynKey ||
+              String(k) === String(dynKey) ||
+              (colDef && (String(k) === String(colDef.id) || String(k) === `col_${colDef.id}` || k.toLowerCase() === (colDef.name || '').toLowerCase()));
+
+            if (matchesKey && v !== null && v !== undefined) {
+              const strVal = typeof v === 'object' ? JSON.stringify(v) : String(v);
+              if (strVal.toLowerCase().includes(q)) return true;
             }
           }
         }
@@ -962,7 +975,7 @@ window.applyFilters = function () {
       if ((p.doi || '').toLowerCase().includes(q)) return true;
       if ((p.pdf_url || '').toLowerCase().includes(q)) return true;
 
-      // Legacy conceptual columns
+      // Conceptual columns
       if ((p.intuition || '').toLowerCase().includes(q)) return true;
       if ((p.equation || '').toLowerCase().includes(q)) return true;
       if ((p.strengths || '').toLowerCase().includes(q)) return true;
@@ -971,17 +984,17 @@ window.applyFilters = function () {
       // Keywords array
       if (Array.isArray(p.keywords) && p.keywords.some(k => (k || '').toLowerCase().includes(q))) return true;
 
-      // Dynamic custom columns
+      // Dynamic custom columns (search both keys and stringified values)
       if (p.custom_columns && typeof p.custom_columns === 'object') {
-        const customValues = Object.values(p.custom_columns);
-        for (const val of customValues) {
-          if (val !== null && val !== undefined && String(val).toLowerCase().includes(q)) {
-            return true;
+        for (const [k, val] of Object.entries(p.custom_columns)) {
+          if (val !== null && val !== undefined) {
+            const strVal = typeof val === 'object' ? JSON.stringify(val) : String(val);
+            if (strVal.toLowerCase().includes(q)) return true;
           }
         }
       }
 
-      // Fallback
+      // Fallback object properties
       for (const [key, val] of Object.entries(p)) {
         if (key === 'custom_columns' || key === 'keywords') continue;
         if (typeof val === 'string' && val.toLowerCase().includes(q)) return true;
@@ -990,6 +1003,18 @@ window.applyFilters = function () {
 
       return false;
     });
+  }
+
+  // Toggle Reset Filters button visibility in UI
+  const isFiltered = (currentClusterId && currentClusterId !== 'all') ||
+    (currentDomain && currentDomain !== 'all') ||
+    (currentStatus && currentStatus !== 'all') ||
+    (searchQuery && searchQuery.trim() !== '') ||
+    (window.searchColumnTarget && window.searchColumnTarget !== 'all');
+
+  const resetBtn = document.getElementById('btn-reset-filters');
+  if (resetBtn) {
+    resetBtn.style.display = isFiltered ? 'inline-flex' : 'none';
   }
 
   if (typeof renderMasterMatrix === 'function') {
@@ -1062,6 +1087,9 @@ window.resetAllFilters = function () {
     searchInput.value = '';
     searchInput.placeholder = 'Search papers across all columns...';
   }
+
+  const resetBtn = document.getElementById('btn-reset-filters');
+  if (resetBtn) resetBtn.style.display = 'none';
 
   clearClusterFocus();
   applyFilters();

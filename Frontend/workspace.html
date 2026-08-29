@@ -277,20 +277,25 @@
         <input type="text" class="search-input" id="search-input" placeholder="Search papers across all columns...">
       </div>
  
-     <select class="filter-select" id="filter-cluster">
+     <select class="filter-select" id="filter-cluster" title="Filter by Taxonomy Cluster">
        <option value="all">All Clusters</option>
      </select>
  
-     <select class="filter-select" id="filter-domain">
+     <select class="filter-select" id="filter-domain" title="Filter by Research Domain">
        <option value="all">All Domains</option>
      </select>
  
-     <select class="filter-select" id="filter-status">
-       <option value="all">All Statuses</option>
+     <select class="filter-select" id="filter-status" title="Filter by Reading Status">
+       <option value="all">All Status</option>
        <option value="unread">Unread</option>
        <option value="in_progress">In Progress</option>
        <option value="read">Read</option>
      </select>
+
+     <button type="button" class="mini-btn reset-filters-btn" id="btn-reset-filters" onclick="resetAllFilters()" title="Reset all filters and search" style="display: none; height: 38px; padding: 0 0.85rem; border-color: rgba(245, 158, 11, 0.4); color: var(--accent-amber); align-items: center; gap: 0.4rem; font-weight: 600; border-radius: 8px; background: rgba(245, 158, 11, 0.08);">
+       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+       <span>Reset Filters</span>
+     </button>
    </div>
  
    <!-- Main Content: Master Matrix Table View -->

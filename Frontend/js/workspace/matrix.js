@@ -695,15 +695,28 @@ window.renderMasterMatrix = function(papers) {
   matrixTbody.innerHTML = '';
 
   if (!papers || papers.length === 0) {
-    // When no papers exist, keep all table columns completely empty (no headers)
+    const isFiltered = (typeof allPapers !== 'undefined' && Array.isArray(allPapers) && allPapers.length > 0);
     const emptyRow = document.createElement('tr');
-    emptyRow.innerHTML = `
-      <td colspan="100" style="text-align: center; padding: 4rem 2rem; color: var(--text-tertiary);">
-        <div style="margin-bottom: 0.75rem; color: var(--accent-primary); opacity: 0.8;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>
-        <div style="font-size: 1.05rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.35rem;">No Papers in Master Matrix</div>
-        <div style="font-size: 0.85rem; max-width: 400px; margin: 0 auto; line-height: 1.5;">Add papers to your survey workspace to explore clusters, populate custom taxonomy columns, and benchmark literature.</div>
-      </td>
-    `;
+    if (isFiltered) {
+      emptyRow.innerHTML = `
+        <td colspan="100" style="text-align: center; padding: 3.5rem 2rem; color: var(--text-tertiary);">
+          <div style="margin-bottom: 0.75rem; color: var(--accent-amber); display: flex; justify-content: center;">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          </div>
+          <div style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.35rem;">No Matching Papers Found</div>
+          <div style="font-size: 0.86rem; color: var(--text-secondary); max-width: 440px; margin: 0 auto 1.25rem; line-height: 1.5;">No papers in the Master Matrix match your active search and filter criteria. Try adjusting the search query, column selector, cluster, domain, or status filter.</div>
+          <button type="button" class="mini-btn gold" onclick="if(typeof resetAllFilters === 'function') resetAllFilters();" style="padding: 0.45rem 1.15rem; font-weight: 600; font-size: 0.86rem;">Reset All Filters</button>
+        </td>
+      `;
+    } else {
+      emptyRow.innerHTML = `
+        <td colspan="100" style="text-align: center; padding: 4rem 2rem; color: var(--text-tertiary);">
+          <div style="margin-bottom: 0.75rem; color: var(--accent-primary); opacity: 0.8; display: flex; justify-content: center;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>
+          <div style="font-size: 1.05rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.35rem;">No Papers in Master Matrix</div>
+          <div style="font-size: 0.85rem; max-width: 400px; margin: 0 auto; line-height: 1.5;">Add papers to your survey workspace to explore clusters, populate custom taxonomy columns, and benchmark literature.</div>
+        </td>
+      `;
+    }
     matrixTbody.appendChild(emptyRow);
     if (typeof window.renderClusterSummary === 'function') {
       window.renderClusterSummary([]);
