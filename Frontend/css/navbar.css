@@ -1,0 +1,351 @@
+/* ==========================================================================
+   LITNEXIS CHOICE 2: OXFORD / OVERLEAF PRESTIGE ACADEMIC NAVBAR STYLESHEET
+   ========================================================================== */
+
+header.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  width: 100%;
+  background: rgba(8, 13, 24, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1.5px solid rgba(212, 175, 55, 0.35);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), inset 0 -1px 0 rgba(212, 175, 55, 0.15);
+  transition: all 0.25s ease;
+}
+
+[data-theme="light"] header.site-header {
+  background: rgba(252, 250, 246, 0.96);
+  border-bottom: 1.5px solid rgba(180, 83, 9, 0.28);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.05), inset 0 -1px 0 rgba(180, 83, 9, 0.12);
+}
+
+.nav-container {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0.75rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+/* Left Brand Group */
+.brand-group {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.brand-logo-crest {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: linear-gradient(145deg, #182238, #0a0f1d);
+  border: 1.5px solid #d4af37;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #e5c07b;
+  font-weight: 800;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+  box-shadow: 0 2px 10px rgba(212, 175, 55, 0.25);
+  transition: all 0.25s ease;
+}
+
+[data-theme="light"] .brand-logo-crest {
+  background: linear-gradient(145deg, #fbf7ee, #eee5d3);
+  border: 1.5px solid #b45309;
+  color: #92400e;
+  box-shadow: 0 2px 8px rgba(180, 83, 9, 0.15);
+}
+
+.brand-title-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-name {
+  font-size: 1.25rem;
+  font-weight: 800;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  line-height: 1.15;
+}
+
+.brand-subtitle {
+  font-size: 0.72rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: #e5c07b;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+[data-theme="light"] .brand-subtitle {
+  color: #92400e;
+}
+
+/* Right Navigation Actions */
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.nav-link-academic {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.92rem;
+  font-weight: 600;
+  height: 38px;
+  padding: 0 0.95rem;
+  border-radius: 8px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  background: transparent;
+  border: 1.5px solid transparent;
+  position: relative;
+  box-sizing: border-box;
+}
+
+[data-theme="light"] .nav-link-academic {
+  background: transparent;
+  border: 1.5px solid transparent;
+  color: var(--text-secondary);
+}
+
+.nav-link-academic:hover:not(.active) {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transform: translateY(-1px);
+}
+
+[data-theme="light"] .nav-link-academic:hover:not(.active) {
+  color: #1c1917;
+  background: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.nav-link-academic.active {
+  color: #e5c07b;
+  background: rgba(212, 175, 55, 0.14);
+  border: 1.5px solid #d4af37;
+  box-shadow: 0 0 16px rgba(212, 175, 55, 0.25), inset 0 0 8px rgba(212, 175, 55, 0.08);
+  font-weight: 700;
+}
+
+.nav-link-academic.active:hover {
+  background: rgba(212, 175, 55, 0.2);
+  border-color: #e5c07b;
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.35);
+  transform: translateY(-1px);
+}
+
+[data-theme="light"] .nav-link-academic.active {
+  color: #92400e;
+  background: rgba(180, 83, 9, 0.1);
+  border: 1.5px solid #b45309;
+  box-shadow: 0 0 12px rgba(180, 83, 9, 0.18);
+}
+
+.nav-link-academic.active::after {
+  content: '';
+  position: absolute;
+  bottom: -7px;
+  left: 18%;
+  right: 18%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #d4af37 50%, transparent);
+  border-radius: 2px;
+}
+
+[data-theme="light"] .nav-link-academic.active::after {
+  background: linear-gradient(90deg, transparent, #b45309 50%, transparent);
+}
+
+/* Academic Theme Toggle */
+.theme-toggle-academic {
+  background: transparent;
+  border: 1.5px solid transparent;
+  color: var(--text-primary);
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.05rem;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+[data-theme="light"] .theme-toggle-academic {
+  background: transparent;
+  border: 1.5px solid transparent;
+}
+
+.theme-toggle-academic:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transform: translateY(-1px);
+}
+
+[data-theme="light"] .theme-toggle-academic:hover {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* Account / Username Academic Dropdown */
+.account-dropdown-wrapper {
+  position: relative;
+}
+
+.account-academic-btn {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  height: 38px;
+  background: transparent;
+  border: 1.5px solid transparent;
+  color: #d4af37;
+  padding: 0 0.95rem;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s ease;
+  outline: none;
+  box-sizing: border-box;
+}
+
+[data-theme="light"] .account-academic-btn {
+  background: transparent;
+  border: 1.5px solid transparent;
+  color: #92400e;
+}
+
+.account-academic-btn:hover,
+.account-academic-btn.open {
+  background: rgba(212, 175, 55, 0.14);
+  border-color: rgba(212, 175, 55, 0.4);
+  box-shadow: 0 4px 14px rgba(212, 175, 55, 0.2);
+  transform: translateY(-1px);
+}
+
+.account-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 250px;
+  background: var(--bg-surface);
+  border: 1.5px solid rgba(212, 175, 55, 0.35);
+  border-radius: 10px;
+  padding: 0.75rem;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(212, 175, 55, 0.15);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: none;
+  flex-direction: column;
+  gap: 0.35rem;
+  z-index: 1000;
+  animation: academicDropdownFade 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+[data-theme="light"] .account-dropdown-menu {
+  background: #ffffff;
+  border-color: rgba(180, 83, 9, 0.3);
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(180, 83, 9, 0.1);
+}
+
+.account-dropdown-menu.show {
+  display: flex;
+}
+
+@keyframes academicDropdownFade {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown-user-header {
+  padding: 0.55rem 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--border-base);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.dropdown-user-name {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dropdown-user-email {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+}
+
+.dropdown-item:hover {
+  background: var(--bg-surface-raised);
+  color: var(--accent-gold);
+}
+
+.dropdown-item.danger {
+  color: var(--accent-rose);
+  border-top: 1px solid var(--border-base);
+  margin-top: 0.25rem;
+  padding-top: 0.65rem;
+}
+
+.dropdown-item.danger:hover {
+  background: rgba(244, 63, 94, 0.12);
+  color: #fb7185;
+}

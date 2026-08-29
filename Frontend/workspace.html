@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Literature Review Platform | Master Matrix & Benchmark</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20'/%3E%3Cpath d='M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'/%3E%3C/svg%3E">
+
+  <!-- Typography & Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+  <!-- Modular Stylesheets -->
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/navbar.css">
+  <link rel="stylesheet" href="/css/modal.css">
+  <link rel="stylesheet" href="/css/toast.css">
+  <link rel="stylesheet" href="/css/footer.css">
+  <link rel="stylesheet" href="/css/workspace.css">
+
+  <!-- KaTeX & MathJax Libraries for Math Formulation -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('litnexis_theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      if (savedTheme === 'light') document.body?.classList.add('light-mode');
+    })();
+  </script>
+</head>
+<body>
+ 
+   <!-- Choice 2: Oxford / Overleaf Prestige Academic Header -->
+   <header class="site-header">
+     <div class="nav-container">
+       <!-- Left: Logo Crest + Name -->
+       <a href="/" class="brand-group">
+         <div class="brand-logo-crest">LN</div>
+         <div class="brand-title-wrap">
+           <span class="brand-name">LitNexis</span>
+           <span class="brand-subtitle">Academic Intelligence</span>
+         </div>
+       </a>
+ 
+       <div class="nav-actions">
+         <a href="/" class="nav-link-academic">Home</a>
+         <a href="/about" class="nav-link-academic">About</a>
+         <a href="/dashboard" class="nav-link-academic">Dashboard</a>
+         <a href="/admin" id="nav-admin-link" class="nav-link-academic" style="display: none; color: var(--accent-rose);">Admin</a>
+ 
+         <button class="theme-toggle-academic theme-toggle-pill" id="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+           <span id="theme-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></span>
+         </button>
+ 
+         <div class="account-dropdown-wrapper" id="account-dropdown-wrap">
+           <button type="button" class="account-academic-btn" id="account-dropdown-toggle" onclick="toggleAccountDropdown(event)" aria-haspopup="true" aria-expanded="false" title="Account Menu">
+             <span id="user-nav-name">Username</span>
+             <span style="font-size: 0.72rem; margin-left: 0.2rem; opacity: 0.7;">▼</span>
+           </button>
+ 
+           <div class="account-dropdown-menu" id="account-dropdown-menu">
+             <div class="dropdown-user-header">
+               <div class="dropdown-user-name">
+                 <span id="dropdown-user-name-txt">Researcher</span>
+                 <span id="nav-user-role-badge" class="role-badge-pill role-user">USER</span>
+               </div>
+               <div class="dropdown-user-email" id="dropdown-user-email-txt">researcher@litnexis.ac</div>
+             </div>
+ 
+             <a href="/profile" class="dropdown-item">
+               <span>Profile & Settings</span>
+             </a>
+ 
+             <a href="/dashboard" class="dropdown-item">
+               <span>Surveys Dashboard</span>
+             </a>
+ 
+             <a href="/admin" class="dropdown-item" id="dropdown-admin-link" style="display: none; color: var(--accent-rose);">
+               <span>Admin Console</span>
+             </a>
+ 
+             <button type="button" class="dropdown-item danger" onclick="handleLogout()">
+               <span>Sign Out</span>
+             </button>
+           </div>
+         </div>
+       </div>
+     </div>
+   </header>
+ 
+    <!-- PROJECT HERO HEADER -->
+    <div class="hero" id="hero-section">
+      <div class="eyebrow-tag">Add papers, Clustering, Review Papers, Smart &amp; dynamic Filtering....</div>
+      <h1 class="hero-title" id="project-title">Literature Survey on <span style="color: var(--accent-gold);">Literature Survey</span></h1>
+      <div class="hero-desc-wrapper">
+        <p class="hero-desc" id="project-description">
+          Comprehensive systematic literature review, multi-level taxonomy benchmarking, and master matrix synthesis.
+        </p>
+        <button type="button" class="hero-desc-toggle" id="desc-read-more-btn" onclick="window.toggleHeroDesc()" aria-expanded="false" style="display:none;">
+          Read more
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+
+      <div class="workspace-action-toolbar">
+        <div class="active-survey-pill" id="active-survey-pill" title="Current Active Literature Survey" style="cursor: default;">
+          <span class="pulse-dot"></span>
+          <span style="font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 700; font-family: 'JetBrains Mono', monospace;">SURVEY:</span>
+          <select id="active-project-select" class="active-survey-select" style="background: transparent; color: var(--text-primary); font-weight: 700; font-size: 0.92rem; border: none; outline: none; cursor: pointer; max-width: 280px; font-family: inherit;">
+            <option value="" id="active-survey-pill-name">Loading Survey...</option>
+          </select>
+          <a href="/dashboard" style="font-size: 0.78rem; color: var(--accent-primary); font-weight: 600; margin-left: 0.35rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.2rem;" title="View all surveys in Dashboard">
+            <span>All Surveys ↗</span>
+          </a>
+        </div>
+
+        <div class="workspace-action-buttons">
+          <span id="workspace-role-badge" class="role-badge-pill role-owner" style="font-size: 0.78rem; font-weight: 700;">OWNER</span>
+          <button type="button" class="action-btn" id="btn-open-team" onclick="openTeamModal()" style="background: rgba(16, 185, 129, 0.15); border-color: var(--accent-emerald); color: var(--accent-emerald);">Team & Roles</button>
+          <button type="button" class="action-btn" id="btn-share-project" onclick="openShareModal()" style="background: rgba(99, 102, 241, 0.15); border-color: var(--accent-indigo); color: var(--accent-indigo);">Share</button>
+          <button type="button" class="action-btn" id="btn-open-export" onclick="openExportModal()" style="background: rgba(56,189,248,0.15);">Export</button>
+          <button type="button" class="action-btn" id="btn-open-survey-settings" onclick="openSurveySettingsModal()" style="background: rgba(245, 158, 11, 0.15); border-color: var(--accent-amber); color: var(--accent-amber);">Settings</button>
+          <button type="button" class="action-btn btn-add-paper" id="btn-add-paper" onclick="openAddPaperModal()" style="border-color: var(--accent-emerald); color: var(--accent-emerald); background: rgba(16,185,129,0.1);">+ Add Paper</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DEDICATED CLUSTER FOCUS HEADER BANNER (TOPMOST FIRST ROW IN CLUSTER PAGE) -->
+    <div class="cluster-banner-wrapper" id="cluster-banner-wrapper" style="max-width: 1560px; margin: 1.25rem auto 1.25rem; padding: 0 2rem; display: none;">
+      <div id="cluster-focus-banner" class="cluster-focus-banner" style="margin-bottom: 0; display: none;">
+
+        <!-- LEFT: Back nav + Cluster identity -->
+        <div style="display: flex; align-items: center; gap: 1.1rem; flex: 1; min-width: 0;">
+          <button type="button" class="mini-btn" onclick="clearClusterFocus()" style="flex-shrink: 0; font-weight: 700; display: inline-flex; align-items: center; gap: 0.35rem; border-color: var(--border-gold); color: var(--accent-gold);">
+            ← All Clusters
+          </button>
+
+          <!-- Color accent bar + name block -->
+          <div style="display: flex; align-items: center; gap: 0.85rem; min-width: 0;">
+            <div id="cluster-color-bar" style="width: 5px; height: 52px; border-radius: 3px; background: #38bdf8; flex-shrink: 0;"></div>
+            <div style="min-width: 0;">
+              <div id="focus-banner-badge" style="
+                font-family: 'Inter', 'JetBrains Mono', sans-serif;
+                font-size: 1.55rem;
+                font-weight: 800;
+                letter-spacing: 0.01em;
+                color: #38bdf8;
+                line-height: 1.2;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 680px;
+                text-shadow: 0 0 18px rgba(56,189,248,0.35);
+              ">Cluster Focus</div>
+              <div id="focus-banner-desc" style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 680px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Paper count + actions -->
+        <div style="display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0;">
+          <span id="focus-banner-count" style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; font-weight: 700; color: var(--text-primary); background: var(--bg-surface-raised); padding: 0.25rem 0.65rem; border-radius: 6px; border: 1px solid var(--border-base);">
+            0 Papers
+          </span>
+          <button type="button" class="mini-btn" id="focus-banner-add-btn" onclick="openAddPaperModal()" style="color: var(--accent-emerald); border-color: var(--accent-emerald); font-weight: 600;">+ Add Paper</button>
+          <button type="button" class="mini-btn" id="focus-banner-edit-btn" onclick="if(currentClusterId && currentClusterId !== 'all') editCluster(parseInt(currentClusterId, 10))">Edit Cluster</button>
+          <button type="button" class="mini-btn" id="focus-banner-settings-btn" onclick="if(currentClusterId && currentClusterId !== 'all') openClusterSettingsMasterModal(parseInt(currentClusterId, 10))" style="background: rgba(245, 158, 11, 0.12); border-color: var(--accent-amber); color: var(--accent-amber); font-weight: 600; display: inline-flex; align-items: center; gap: 0.35rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            Setting
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- LIVE TELEMETRY KPI STATS GRID (GLOBAL OR CLUSTER-SPECIFIC) -->
+    <div class="telemetry-stats-section" id="telemetry-stats-section" style="max-width: 1560px; margin: 0 auto 1.75rem; padding: 0 2rem;">
+      <div class="stats-grid" id="workspace-stats-grid" style="margin-top: 0; margin-bottom: 0;">
+        <!-- Card 1: Total Papers -->
+        <div class="stat-box" style="--stat-accent: var(--accent-primary);">
+          <div class="stat-number" id="stat-total-papers">0</div>
+          <div class="stat-label" id="stat-total-label">Total Papers</div>
+          <div class="stat-sub" id="stat-total-sub">In Active Project</div>
+        </div>
+        <!-- Card 2: Read -->
+        <div class="stat-box" style="--stat-accent: var(--accent-emerald);">
+          <div class="stat-number" id="stat-read-count" style="color: var(--accent-emerald);">0</div>
+          <div class="stat-label" id="stat-read-label">Read</div>
+          <div class="stat-sub" id="stat-read-pct">(0% of corpus)</div>
+        </div>
+        <!-- Card 3: Pending -->
+        <div class="stat-box" style="--stat-accent: var(--accent-amber);">
+          <div class="stat-number" id="stat-pending-count" style="color: var(--accent-amber);">0</div>
+          <div class="stat-label" id="stat-pending-label">Pending</div>
+          <div class="stat-sub" id="stat-pending-sub">0 unread • 0 in progress</div>
+        </div>
+        <!-- Card 4: Total Clusters (Global) OR Matrix Columns (Cluster Page) -->
+        <div class="stat-box" style="--stat-accent: var(--accent-indigo);">
+          <div class="stat-number" id="stat-clusters-count">0</div>
+          <div class="stat-label" id="stat-clusters-label">Total Clusters</div>
+          <div class="stat-sub" id="stat-clusters-sub">Taxonomy Categories</div>
+        </div>
+        <!-- Card 5: Keywords -->
+        <div class="stat-box" style="--stat-accent: var(--accent-pink);">
+          <div class="stat-number" id="stat-keywords-count">0</div>
+          <div class="stat-label" id="stat-keywords-label">Keywords</div>
+          <div class="stat-sub" id="stat-keywords-sub">Dynamic Tags</div>
+        </div>
+      </div>
+    </div>
+ 
+   <!-- UNASSIGNED PAPERS TRIGGER CARD (Owner & Editor Only) -->
+   <section class="unassigned-section" id="unassigned-section" style="display: none;">
+     <div class="unassigned-trigger-card" id="unassigned-trigger-card" onclick="openUnassignedModal()">
+       <div class="unassigned-card-left">
+         <div class="unassigned-card-icon">
+           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+             <polyline points="14 2 14 8 20 8"></polyline>
+             <line x1="12" y1="18" x2="12" y2="12"></line>
+             <line x1="9" y1="15" x2="15" y2="15"></line>
+           </svg>
+         </div>
+         <div class="unassigned-card-info">
+           <div class="unassigned-card-title-row">
+             <span class="unassigned-card-heading">Unassigned Papers Box</span>
+             <span id="unassigned-count-badge" class="unassigned-badge">0 Papers</span>
+           </div>
+           <p class="unassigned-card-subtext">Click to open the Unassigned Hub, assign papers to taxonomy clusters, or open for review.</p>
+         </div>
+       </div>
+       <div class="unassigned-card-right">
+         <button class="action-btn gold" onclick="event.stopPropagation(); openUnassignedModal();">
+           Open Unassigned Box →
+         </button>
+       </div>
+     </div>
+   </section>
+ 
+    <!-- CLUSTER MANAGEMENT SECTION (Phase 1 #3 CRUD) -->
+    <section class="clusters-section">
+      <div class="section-title-row">
+        <div>
+          <h2 class="section-title">Research Taxonomy Clusters</h2>
+        </div>
+        <button type="button" class="action-btn" id="btn-open-create-cluster" onclick="openCreateClusterModal()" style="background: var(--accent-muted);">+ Add Clusters</button>
+      </div>
+      <div class="clusters-header-divider"></div>
+      <div class="clusters-grid" id="clusters-grid"></div>
+    </section>
+ 
+   <!-- Controls Bar: Global Search & View Switcher -->
+    <div class="controls-container">
+      <div class="search-group">
+        <select class="search-col-select" id="search-column-select" title="Select Column to Search">
+          <option value="all">All Columns</option>
+          <optgroup label="Standard Columns" id="search-base-cols-group">
+            <option value="title">Paper Title</option>
+            <option value="authors">Authors</option>
+            <option value="year">Publish Year</option>
+            <option value="domain">Domain</option>
+            <option value="pub">Pub / Venue</option>
+            <option value="cluster">Cluster Name</option>
+            <option value="status">Reading Status</option>
+            <option value="keywords">Keywords</option>
+            <option value="doi">DOI / Link</option>
+          </optgroup>
+          <optgroup label="Custom Columns" id="search-dyn-cols-group">
+            <!-- Populated dynamically -->
+          </optgroup>
+        </select>
+        <input type="text" class="search-input" id="search-input" placeholder="Search papers across all columns...">
+      </div>
+ 
+     <select class="filter-select" id="filter-cluster">
+       <option value="all">All Clusters</option>
+     </select>
+ 
+     <select class="filter-select" id="filter-domain">
+       <option value="all">All Domains</option>
+     </select>
+ 
+     <select class="filter-select" id="filter-status">
+       <option value="all">All Statuses</option>
+       <option value="unread">Unread</option>
+       <option value="in_progress">In Progress</option>
+       <option value="read">Read</option>
+     </select>
+   </div>
+ 
+   <!-- Main Content: Master Matrix Table View -->
+   <main>
+     <div class="table-container" id="table-container">
+       <div class="matrix-toolbar">
+         <div class="matrix-hint">
+           <span><strong>Excel Freeze &amp; Inline Edit:</strong> Frozen Paper Title &amp; Headers. Double-click any cell to edit inline. Changes auto-save on Enter/Blur.</span>
+         </div>
+         <div style="display: flex; gap: 0.5rem; align-items: center;">
+           <button type="button" class="mini-btn" id="matrix-btn-add-col" onclick="openAddColumnModal()" style="border-color: var(--accent-primary); color: var(--accent-primary); font-weight: 600;">+ Add Column</button>
+           <button type="button" class="mini-btn" id="matrix-btn-split-col" onclick="openSplitColumnModal()" style="border-color: rgba(56, 189, 248, 0.4); color: var(--accent-primary); font-weight: 600;">+ Split Column</button>
+           <button type="button" class="mini-btn" id="matrix-btn-open-export" onclick="openExportModal()">Export (.xlsx / .csv)</button>
+         </div>
+       </div>
+ 
+       <div class="table-scroll-wrapper" id="table-scroll-wrapper">
+         <table class="matrix-table" id="matrix-table">
+           <thead id="matrix-thead"></thead>
+           <tbody id="matrix-tbody"></tbody>
+         </table>
+       </div>
+     </div>
+
+     <!-- CLUSTER INSIGHTS & UNIQUE VALUE SUMMARY (Phase 5 #9) -->
+     <section class="cluster-summary-section" id="cluster-summary-section" aria-label="Cluster Unique Value Summary and Insights"></section>
+   </main>
+ 
+   <!-- Enhanced Multi-Column Academic Footer -->
+    <footer>
+      <div class="footer-top-grid">
+        <!-- Brand & Mission Column -->
+        <div class="footer-brand-col">
+          <div class="footer-brand-header">
+            <div class="brand-logo-crest" style="width: 36px; height: 36px; font-size: 0.95rem;">LN</div>
+            <div>
+              <div style="font-weight: 800; color: var(--text-primary); font-size: 1.05rem;">LitNexis Workspace</div>
+              <div style="font-size: 0.82rem; color: var(--accent-gold); font-family: 'JetBrains Mono', monospace;">Master Matrix Engine</div>
+            </div>
+          </div>
+          <p class="footer-brand-desc">
+            Double-click inline editing, dynamic multi-level column splitting, LaTeX math rendering, and multi-level Excel (.xlsx) export.
+          </p>
+          <div class="footer-status-pill">
+            <span class="footer-status-dot"></span>
+            <span>SQLite WAL Engine Active</span>
+          </div>
+        </div>
+ 
+       <!-- Column 1: Core Navigation -->
+       <div>
+         <h4 class="footer-col-title">Navigation</h4>
+         <ul class="footer-list">
+           <li><a href="/">Home Landing Page</a></li>
+           <li><a href="/workspace">Master Matrix Hub</a></li>
+           <li><a href="javascript:void(0)" onclick="openUploadModal()">Bulk Upload PDF</a></li>
+           <li><a href="javascript:void(0)" onclick="openExportModal()">Export Matrix (.xlsx)</a></li>
+           <li><a href="javascript:void(0)" onclick="openAddPaperModal()">+ Add Paper Record</a></li>
+         </ul>
+       </div>
+ 
+       <!-- Column 2: Taxonomies -->
+       <div>
+         <h4 class="footer-col-title">Taxonomies</h4>
+         <ul class="footer-list">
+           <li><a href="javascript:void(0)" onclick="openCreateClusterModal()">+ Create New Cluster</a></li>
+           <li><a href="javascript:void(0)" onclick="openCreateProjectModal()">+ Switch / New Project</a></li>
+           <li><a href="javascript:void(0)" onclick="toggleSynthesisPanel()">View Synthesis Insights</a></li>
+           <li><a href="javascript:void(0)" onclick="switchView('grid')">Academic Cards View</a></li>
+           <li><a href="javascript:void(0)" onclick="switchView('table')">Master Table View</a></li>
+         </ul>
+       </div>
+ 
+       <!-- Column 3: Tech Stack -->
+       <div>
+         <h4 class="footer-col-title">Engine Specs</h4>
+         <ul class="footer-list">
+           <li><a href="javascript:void(0)">Node.js & Express REST</a></li>
+           <li><a href="javascript:void(0)">SQLite WAL Persistence</a></li>
+           <li><a href="javascript:void(0)">KaTeX LaTeX Rendering</a></li>
+           <li><a href="javascript:void(0)">SheetJS Multi-Level XLSX</a></li>
+           <li><a href="/api/stats" target="_blank">Live REST API Stats</a></li>
+         </ul>
+       </div>
+ 
+       <!-- Column 4: Quick Launch -->
+        <div>
+          <h4 class="footer-col-title">Preferences</h4>
+          <ul class="footer-list">
+            <li><a href="javascript:void(0)" onclick="document.getElementById('theme-toggle').click()">Toggle Dark/Light Mode</a></li>
+            <li><a href="javascript:void(0)" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">Back to Top</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Bottom Sub-Footer Bar -->
+      <div class="footer-bottom-bar">
+        <div class="footer-copyright">
+          © 2026 <strong>LitNexis Technologies Inc.</strong> All rights reserved. Precision Literature Benchmarking &amp; Research Matrix Systems.
+        </div>
+        <div class="footer-badge-group">
+          <span style="font-size: 0.85rem; color: var(--text-tertiary); font-family: 'JetBrains Mono', monospace; font-weight: 500;">developed by Mostafa Kamal @ Cyber Security Lab, JUST</span>
+        </div>
+      </div>
+    </footer>
+ 
+   <!-- EXPORT CUSTOMIZATION MODAL -->
+    <div class="modal-overlay" id="export-modal-overlay">
+      <div class="dialog-box modal-box--export">
+        <!-- Header -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.35rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-base);">
+          <div style="display: flex; align-items: center; gap: 0.85rem;">
+            <div class="export-header-badge">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            </div>
+            <div>
+              <h3 style="font-size: 1.3rem; font-weight: 800; color: var(--text-primary); margin: 0; font-family: 'Outfit', sans-serif; letter-spacing: -0.01em;">Export Research Master Matrix</h3>
+              <p style="font-size: 0.84rem; color: var(--text-secondary); margin: 0.2rem 0 0 0;">
+                Download multi-level tables, raw data, or camera-ready LaTeX &amp; BibTeX files.
+              </p>
+            </div>
+          </div>
+          <button class="close-btn" id="btn-close-export" type="button" onclick="closeExportModal()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        </div>
+
+        <!-- Scope and Format Controls -->
+        <div class="export-grid-two">
+          <div class="export-control-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <label class="form-label" style="margin: 0; font-size: 0.82rem; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.04em;">Export Scope</label>
+              <span style="font-size: 0.72rem; color: var(--text-tertiary);">Cluster Filter</span>
+            </div>
+            <select class="form-select" id="export-cluster-select" style="margin-top: 0.25rem;">
+              <option value="all">Full Project (All Clusters)</option>
+            </select>
+          </div>
+
+          <div class="export-control-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <label class="form-label" style="margin: 0; font-size: 0.82rem; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.04em;">File Format</label>
+              <span style="font-size: 0.72rem; color: var(--accent-gold); font-weight: 700;">Multi-Level</span>
+            </div>
+            <select class="form-select" id="export-format-select" style="margin-top: 0.25rem;">
+              <option value="xlsx">Excel (.xlsx) — Multi-Level Headers</option>
+              <option value="csv">CSV (.csv) — Pandas &amp; R Tables</option>
+              <option value="json">JSON (.json) — Structured Data</option>
+              <option value="tex">LaTeX Table (.tex) — Booktabs Format</option>
+              <option value="bib">BibTeX (.bib) — Citation Library</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Column Checklist -->
+        <div class="form-group" style="margin-bottom: 1.35rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <label class="form-label" style="margin: 0; font-size: 0.82rem; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.04em;">Included Columns</label>
+              <span id="export-selected-count-badge" class="tab-count-chip" style="font-size: 0.74rem;">14 Selected</span>
+            </div>
+            <div style="display: flex; gap: 0.35rem;">
+              <button class="mini-btn" id="btn-export-select-all" type="button" onclick="toggleAllExportCols(true)" style="padding: 0.2rem 0.55rem; font-size: 0.75rem;">Select All</button>
+              <button class="mini-btn" id="btn-export-deselect-all" type="button" onclick="toggleAllExportCols(false)" style="padding: 0.2rem 0.55rem; font-size: 0.75rem;">Clear All</button>
+            </div>
+          </div>
+          <div class="cols-checklist-grid" id="export-cols-checklist">
+            <!-- Rendered dynamically as .col-checkbox-card -->
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-base); padding-top: 1.1rem;">
+          <span style="font-size: 0.78rem; color: var(--text-tertiary); display: flex; align-items: center; gap: 0.35rem;">
+            Direct browser download • Instant generation
+          </span>
+          <div style="display: flex; gap: 0.6rem;">
+            <button class="btn-export-cancel" id="btn-cancel-export" type="button" onclick="closeExportModal()">Cancel</button>
+            <button class="btn-export-download" id="btn-submit-export" type="button" onclick="submitExport()">
+              Download Export
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+ 
+   <!-- PROJECT MODAL -->
+   <div class="modal-overlay" id="project-modal-overlay">
+     <div class="dialog-box">
+       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem;">
+         <h3 style="font-size: 1.25rem; font-weight: 700;">Create New Project</h3>
+         <button class="close-btn" id="btn-close-project-modal"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+       </div>
+ 
+       <div class="form-group" style="margin-bottom: 1rem;">
+         <label class="form-label">Master Benchmark Template (Optional)</label>
+         <select class="form-input" id="modal-project-template">
+           <option value="blank">Blank Project (Empty Taxonomy)</option>
+         </select>
+         <small style="font-size: 0.84rem; color: var(--text-tertiary); display: block; margin-top: 0.35rem;">
+           Select a pre-built taxonomy template to automatically populate benchmark clusters & dynamic columns.
+         </small>
+       </div>
+ 
+       <div class="form-group" style="margin-bottom: 1rem;">
+         <label class="form-label">Project Name</label>
+         <input type="text" class="form-input" id="modal-project-name" placeholder="e.g. Literature Survey on Anomaly Detection">
+       </div>
+ 
+       <div class="form-group" style="margin-bottom: 1.25rem;">
+         <label class="form-label">Project Description</label>
+         <textarea class="form-textarea" id="modal-project-desc" placeholder="Research focus, objective, and scope..."></textarea>
+       </div>
+ 
+       <div style="display: flex; justify-content: flex-end; gap: 0.6rem;">
+         <button class="mini-btn" id="btn-cancel-project">Cancel</button>
+         <button class="action-btn" id="btn-submit-project">Create Project</button>
+       </div>
+     </div>
+   </div>
+ 
+   <!-- SUPERVISOR / PUBLIC SHARE MODAL -->
+    <div class="modal-overlay" id="share-modal-overlay">
+      <div class="dialog-box share-modal-dialog">
+        <div class="share-modal-header">
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+              <div class="share-header-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+              </div>
+              <h3 class="share-modal-title">Supervisor &amp; Public Share Link</h3>
+            </div>
+            <p class="share-modal-subtitle">
+              Share a secure, live, read-only preview of this literature survey.
+            </p>
+          </div>
+          <button class="close-btn" onclick="closeModal('share-modal-overlay')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        </div>
+        
+        <!-- Status Box -->
+        <div class="share-status-card">
+          <div class="share-status-card-header">
+            <span class="share-status-card-label">Link Status:</span>
+            <span id="share-link-status-badge" class="role-badge-pill role-reviewer">ACTIVE</span>
+          </div>
+          <p class="share-status-card-desc">
+            Visitors can review taxonomy clusters, explore matrices, view equations, and export papers without logging in or altering your research data.
+          </p>
+        </div>
+
+        <!-- Direct Public URL Box -->
+        <div class="share-url-container">
+          <label class="form-label share-url-label">
+            <span>Direct Public URL</span>
+            <span class="share-access-tag">Read-Only Preview</span>
+          </label>
+          <div class="share-url-input-wrap">
+            <input type="text" class="form-input share-url-field" id="share-url-input" readonly placeholder="Generating secure share link...">
+            <button class="action-btn share-copy-btn" id="btn-copy-share-url" onclick="copyShareUrl()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              Copy Link
+            </button>
+            <a id="btn-open-share-link" href="#" target="_blank" class="mini-btn gold share-preview-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+              Preview ↗
+            </a>
+          </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="share-modal-footer">
+          <div class="share-modal-footer-left">
+            <button id="btn-revoke-share-link" class="mini-btn danger share-action-revoke" onclick="revokeShareLink()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+              Disable Link
+            </button>
+            <button id="btn-enable-share-link" class="mini-btn gold share-action-enable" style="display: none;" onclick="enableShareLink()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              Enable Link
+            </button>
+          </div>
+          <button class="mini-btn share-close-btn" onclick="closeModal('share-modal-overlay')">Close</button>
+        </div>
+      </div>
+    </div>
+ 
+   <!-- TEAM & COLLABORATION MODAL -->
+   <div class="modal-overlay" id="team-modal-overlay">
+     <div class="dialog-box" style="max-width: 720px; width: 100%;">
+       <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem;">
+         <div>
+           <div style="display: flex; align-items: center; gap: 0.5rem;">
+             <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin: 0;">Project Team &amp; Access Roles</h3>
+           </div>
+           <p style="font-size: 0.86rem; color: var(--text-secondary); margin: 0.3rem 0 0 0;">Manage collaborator access levels, reviewer permissions, and role delegations.</p>
+         </div>
+         <button class="close-btn" onclick="closeModal('team-modal-overlay')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+       </div>
+ 
+       <!-- Role Legend -->
+       <div class="team-role-legend">
+         <div class="role-legend-item">
+           <strong>Owner</strong>
+           <span>Full project control &amp; team management</span>
+         </div>
+         <div class="role-legend-item">
+           <strong>Editor</strong>
+           <span>Add/edit papers, matrix cells &amp; taxonomy</span>
+         </div>
+         <div class="role-legend-item">
+           <strong>Reviewer</strong>
+           <span>PRISMA blind screening, notes &amp; review</span>
+         </div>
+         <div class="role-legend-item">
+           <strong>Viewer</strong>
+           <span>Read-only inspection &amp; data export</span>
+         </div>
+       </div>
+ 
+       <!-- Add Member Bar (Owner Only) -->
+       <div id="team-add-member-bar">
+         <div class="team-add-member-header">
+           <label class="form-label">
+             Invite Research Collaborator
+           </label>
+           <span>Must have an active LitNexis account</span>
+         </div>
+         <div class="team-add-member-controls">
+           <input type="email" class="form-input" id="team-invite-email" placeholder="colleague@university.ac">
+           <select class="form-select" id="team-invite-role">
+             <option value="editor">Editor (Co-Author)</option>
+             <option value="reviewer">Reviewer (Advisor)</option>
+             <option value="viewer">Viewer (Read-Only)</option>
+           </select>
+           <button class="action-btn" onclick="submitInviteCollaborator()">Add Member</button>
+         </div>
+       </div>
+ 
+       <!-- Non-Owner Read-Only Banner (hidden by default) -->
+       <div id="team-readonly-notice" style="display: none; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-secondary);">
+         <span>[Read-Only] You have <strong id="team-current-role-label">VIEWER</strong> access to this project. Only the project Owner can add collaborators or modify role permissions.</span>
+       </div>
+ 
+       <!-- Collaborators List -->
+       <div class="form-group">
+         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+           <label class="form-label" style="margin: 0; font-weight: 700;">Research Team Roster</label>
+           <span id="team-roster-count" style="font-size: 0.78rem; font-family: 'JetBrains Mono', monospace; color: var(--text-tertiary);">1 Member</span>
+         </div>
+         <div id="team-members-list" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 300px; overflow-y: auto; padding-right: 2px;">
+           <!-- Rendered dynamically -->
+         </div>
+       </div>
+ 
+       <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem;">
+         <button class="mini-btn" onclick="closeModal('team-modal-overlay')">Close</button>
+       </div>
+     </div>
+   </div>
+
+    <!-- SURVEY SETTINGS MODAL -->
+    <div class="modal-overlay" id="settings-modal-overlay">
+      <div class="dialog-box modal-box--settings" style="max-width: 760px; width: 100%;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-base); padding-bottom: 0.95rem;">
+          <div style="display: flex; align-items: center; gap: 0.85rem;">
+            <div class="export-header-badge" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(212, 175, 55, 0.15) 100%); border-color: rgba(245, 158, 11, 0.4); color: var(--accent-gold);">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            </div>
+            <div>
+              <h3 style="font-size: 1.25rem; font-weight: 800; font-family: 'Outfit', 'Inter', sans-serif; color: var(--text-primary); margin: 0;">Survey Configuration &amp; Settings</h3>
+              <p style="font-size: 0.84rem; color: var(--text-secondary); margin: 0.2rem 0 0 0;">
+                Configure project metadata, transfer ownership, manage backups, or duplicate research taxonomy.
+              </p>
+            </div>
+          </div>
+          <button class="close-btn" onclick="closeModal('settings-modal-overlay')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="settings-tab-bar" style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-base); padding-bottom: 0.75rem; overflow-x: auto;">
+          <button type="button" class="settings-tab-btn active" data-tab="general" onclick="switchSettingsTab('general')">
+            ⚙️ General
+          </button>
+          <button type="button" class="settings-tab-btn" data-tab="transfer" onclick="switchSettingsTab('transfer')">
+            👥 Transfer Ownership
+          </button>
+          <button type="button" class="settings-tab-btn" data-tab="backup" onclick="switchSettingsTab('backup')">
+            📦 Backup &amp; Clone
+          </button>
+          <button type="button" class="settings-tab-btn danger" data-tab="danger" onclick="switchSettingsTab('danger')">
+            ⚠️ Danger Zone
+          </button>
+        </div>
+
+        <!-- TAB 1: GENERAL -->
+        <div class="settings-tab-pane" id="settings-pane-general">
+          <div style="display: flex; gap: 0.6rem; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap;">
+            <span id="setting-survey-id-badge" class="badge-pill" style="background: var(--bg-surface-raised); border: 1px solid var(--border-base); font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; font-weight: 700; color: var(--text-primary); padding: 0.25rem 0.65rem; border-radius: 6px;">ID #1</span>
+            <span id="setting-survey-role-badge" class="role-badge-pill role-owner">OWNER</span>
+            <span style="font-size: 0.82rem; color: var(--text-tertiary);">Created on: <strong id="setting-survey-created-badge" style="color: var(--text-secondary);">-</strong></span>
+          </div>
+
+          <form onsubmit="saveGeneralSettings(event)">
+            <div class="form-group" style="margin-bottom: 1.15rem;">
+              <label class="form-label" for="setting-survey-name" style="font-weight: 700; display: flex; justify-content: space-between;">
+                <span>Survey Project Title <span style="color: var(--accent-rose);">*</span></span>
+              </label>
+              <input type="text" class="form-input" id="setting-survey-name" placeholder="e.g., Generative AI in Healthcare Systematic Review" required style="font-weight: 600;">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+              <label class="form-label" for="setting-survey-desc" style="font-weight: 700;">
+                <span>Survey Description</span>
+              </label>
+              <textarea class="form-textarea" id="setting-survey-desc" rows="3" placeholder="Two-line summary of analytical literature review objectives, scope, and benchmark parameters." style="resize: vertical;"></textarea>
+              <span style="font-size: 0.78rem; color: var(--text-tertiary); margin-top: 0.25rem; display: block;">Displays as a 2-line summary in your Workspace header and Surveys dashboard.</span>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1.25rem; border-top: 1px solid var(--border-base); padding-top: 1rem;">
+              <button type="button" class="mini-btn" onclick="closeModal('settings-modal-overlay')">Cancel</button>
+              <button type="submit" class="action-btn gold" id="btn-save-survey-settings">Save Changes</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- TAB 2: TRANSFER OWNERSHIP -->
+        <div class="settings-tab-pane" id="settings-pane-transfer" style="display: none;">
+          <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 8px; padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.86rem; color: var(--text-secondary); line-height: 1.55;">
+            <strong style="color: var(--accent-indigo); display: block; margin-bottom: 0.2rem;">👑 Ownership Transfer Mechanics</strong>
+            Transferring ownership assigns full administrative control, team invite rights, and deletion authority to another registered researcher.
+          </div>
+
+          <div id="settings-transfer-role-notice" style="display: none; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px; padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.86rem; color: var(--text-secondary);">
+            <span>[Read-Only] Only the current <strong>Project Owner</strong> or Platform Administrator can initiate an ownership transfer.</span>
+          </div>
+
+          <form id="settings-transfer-form" onsubmit="transferSurveyOwnership(event)">
+            <div class="form-group" style="margin-bottom: 1.15rem;">
+              <label class="form-label" for="setting-transfer-email" style="font-weight: 700;">
+                <span>Recipient Researcher Email Address <span style="color: var(--accent-rose);">*</span></span>
+              </label>
+              <input type="email" class="form-input" id="setting-transfer-email" placeholder="colleague@university.ac" required>
+              <span style="font-size: 0.78rem; color: var(--text-tertiary); margin-top: 0.25rem; display: block;">Recipient must have an existing registered account on LitNexis.</span>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.88rem; color: var(--text-primary);">
+                <input type="checkbox" id="setting-transfer-keep-editor" checked style="accent-color: var(--accent-indigo);">
+                <span>Retain my account as an <strong>Editor</strong> (Co-Author) on this survey</span>
+              </label>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1.25rem; border-top: 1px solid var(--border-base); padding-top: 1rem;">
+              <button type="button" class="mini-btn" onclick="closeModal('settings-modal-overlay')">Cancel</button>
+              <button type="submit" class="action-btn" style="background: rgba(99, 102, 241, 0.2); border-color: var(--accent-indigo); color: var(--accent-indigo);">Transfer Ownership</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- TAB 3: BACKUP & CLONE -->
+        <div class="settings-tab-pane" id="settings-pane-backup" style="display: none;">
+          <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+            <!-- Backup Card -->
+            <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-base); border-radius: 10px; padding: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+              <div style="max-width: 480px;">
+                <div style="font-weight: 700; color: var(--text-primary); font-size: 0.96rem; margin-bottom: 0.25rem;">Export Complete Survey Database (.json)</div>
+                <div style="font-size: 0.84rem; color: var(--text-secondary); line-height: 1.5;">Download a complete structured JSON bundle containing all clusters, dynamic columns, ingested papers, keywords, matrix values, and team roster.</div>
+              </div>
+              <button type="button" class="action-btn gold" onclick="downloadCurrentSurveyBackup()" style="flex-shrink: 0;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Download JSON Backup
+              </button>
+            </div>
+
+            <!-- Clone Card -->
+            <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-base); border-radius: 10px; padding: 1.25rem;">
+              <div style="font-weight: 700; color: var(--text-primary); font-size: 0.96rem; margin-bottom: 0.25rem;">Duplicate / Clone Survey</div>
+              <div style="font-size: 0.84rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 1rem;">Create an independent clone of this survey with its taxonomy clusters, dynamic columns, and optionally the paper corpus.</div>
+              
+              <div class="form-group" style="margin-bottom: 0.85rem;">
+                <label class="form-label" style="font-size: 0.82rem;">Clone Survey Name</label>
+                <input type="text" class="form-input" id="setting-clone-name" placeholder="Survey Title (Copy)">
+              </div>
+
+              <div class="form-group" style="margin-bottom: 1rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.84rem; color: var(--text-primary);">
+                  <input type="checkbox" id="setting-clone-include-papers" checked style="accent-color: var(--accent-emerald);">
+                  <span>Include ingested paper corpus metadata &amp; keyword tags</span>
+                </label>
+              </div>
+
+              <div style="display: flex; justify-content: flex-end;">
+                <button type="button" class="action-btn" onclick="duplicateCurrentSurvey()" style="background: rgba(16, 185, 129, 0.15); border-color: var(--accent-emerald); color: var(--accent-emerald);">
+                  Create Duplicate Survey
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 4: DANGER ZONE -->
+        <div class="settings-tab-pane" id="settings-pane-danger" style="display: none;">
+          <div id="settings-danger-owner-notice" style="display: none; background: rgba(244, 63, 94, 0.08); border: 1px solid rgba(244, 63, 94, 0.25); border-radius: 8px; padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.86rem; color: var(--text-secondary);">
+            <span>[Read-Only] Danger Zone operations (Matrix Reset &amp; Survey Purge) require <strong>Project Owner</strong> authority.</span>
+          </div>
+
+          <div id="settings-danger-actions" style="display: flex; flex-direction: column; gap: 1.25rem;">
+            <!-- Reset Matrix Card -->
+            <div style="background: rgba(245, 158, 11, 0.05); border: 1.5px solid rgba(245, 158, 11, 0.3); border-radius: 10px; padding: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+              <div style="max-width: 480px;">
+                <div style="font-weight: 700; color: var(--accent-amber); font-size: 0.96rem; margin-bottom: 0.25rem;">Reset Master Matrix Cell Data</div>
+                <div style="font-size: 0.84rem; color: var(--text-secondary); line-height: 1.5;">Permanently clears all extracted matrix cell values and resets reading statuses to unread. Papers, clusters, and columns are kept intact.</div>
+              </div>
+              <button type="button" class="mini-btn danger" onclick="resetCurrentSurveyMatrix()" style="border-color: var(--accent-amber); color: var(--accent-amber); background: rgba(245, 158, 11, 0.1);">
+                Reset Matrix Cells
+              </button>
+            </div>
+
+            <!-- Delete Survey Card -->
+            <div style="background: rgba(244, 63, 94, 0.05); border: 1.5px solid rgba(244, 63, 94, 0.35); border-radius: 10px; padding: 1.25rem;">
+              <div style="font-weight: 700; color: var(--accent-rose); font-size: 0.96rem; margin-bottom: 0.25rem;">Permanently Delete This Survey</div>
+              <div style="font-size: 0.84rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 1rem;">
+                Irreversibly deletes this survey and all associated taxonomy clusters, dynamic columns, ingested papers, comments, and matrix values.
+              </div>
+
+              <div style="margin-bottom: 0.85rem;">
+                <label class="form-label" style="font-size: 0.82rem; color: var(--accent-rose);">
+                  Please type <strong id="setting-delete-target-name" style="color: var(--text-primary); font-family: 'JetBrains Mono', monospace;">Survey Name</strong> to confirm:
+                </label>
+                <input type="text" class="form-input" id="setting-delete-confirm-input" placeholder="Type exact survey title to confirm" style="border-color: rgba(244, 63, 94, 0.4);">
+              </div>
+
+              <div style="display: flex; justify-content: flex-end;">
+                <button type="button" class="action-btn danger" onclick="deleteCurrentSurveyFromSettings()">
+                  Permanently Delete Survey
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+ 
+    <!-- CLUSTER MODAL -->
+    <div class="modal-overlay" id="cluster-modal-overlay">
+      <div class="dialog-box modal-box--export" style="max-width: 580px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-base); padding-bottom: 0.95rem;">
+          <div style="display: flex; align-items: center; gap: 0.85rem;">
+            <div class="export-header-badge" style="background: linear-gradient(135deg, rgba(56, 189, 248, 0.2) 0%, rgba(99, 102, 241, 0.15) 100%); border-color: rgba(56, 189, 248, 0.4);">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <div>
+              <h3 style="font-size: 1.25rem; font-weight: 800; font-family: 'Outfit', 'Inter', sans-serif; color: var(--text-primary); margin: 0;" id="cluster-modal-title">Create Taxonomy Cluster</h3>
+              <p style="font-size: 0.84rem; color: var(--text-secondary); margin: 0.2rem 0 0 0;">
+                Organize literature into categorized methodology and sub-domain groups.
+              </p>
+            </div>
+          </div>
+          <button type="button" class="close-btn" id="btn-close-cluster-modal" onclick="closeModal('cluster-modal-overlay')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        </div>
+        
+        <input type="hidden" id="modal-cluster-id">
+
+        <div class="form-group" style="margin-bottom: 0.95rem;">
+          <label class="form-label" style="font-weight: 700; font-size: 0.84rem;">Cluster Name / Identifier <span style="color: var(--accent-rose);">*</span></label>
+          <input type="text" class="form-input" id="modal-cluster-name" placeholder="e.g. Filter Methods (mRMR & ReliefF) or Deep Neural Wrappers" required>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0.95rem;">
+          <label class="form-label" style="font-weight: 700; font-size: 0.84rem;">Description &amp; Research Scope</label>
+          <textarea class="form-textarea" id="modal-cluster-desc" placeholder="Scope, methodologies, benchmark datasets, or key algorithms..."></textarea>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1.35rem;">
+          <label class="form-label" style="font-weight: 700; font-size: 0.84rem;">Badge Color Accent</label>
+          <div style="display: flex; gap: 0.6rem; align-items: center; margin-bottom: 0.65rem;">
+            <input type="color" id="modal-cluster-color" value="#38bdf8" style="background: transparent; border: 1.5px solid var(--border-base); width: 44px; height: 40px; border-radius: 8px; cursor: pointer; padding: 2px;">
+            <input type="text" class="form-input" id="modal-cluster-color-hex" value="#38bdf8" style="font-family: 'JetBrains Mono', monospace; width: 110px; font-weight: 600;">
+          </div>
+          <!-- Preset Palette Swatches -->
+          <div style="display: flex; gap: 0.45rem; flex-wrap: wrap;">
+            <button type="button" class="color-swatch-btn" style="background: #38bdf8;" onclick="setClusterColor('#38bdf8')" title="Cyan"></button>
+            <button type="button" class="color-swatch-btn" style="background: #d4af37;" onclick="setClusterColor('#d4af37')" title="Gold"></button>
+            <button type="button" class="color-swatch-btn" style="background: #10b981;" onclick="setClusterColor('#10b981')" title="Emerald"></button>
+            <button type="button" class="color-swatch-btn" style="background: #a855f7;" onclick="setClusterColor('#a855f7')" title="Purple"></button>
+            <button type="button" class="color-swatch-btn" style="background: #f43f5e;" onclick="setClusterColor('#f43f5e')" title="Rose"></button>
+            <button type="button" class="color-swatch-btn" style="background: #3b82f6;" onclick="setClusterColor('#3b82f6')" title="Blue"></button>
+            <button type="button" class="color-swatch-btn" style="background: #6366f1;" onclick="setClusterColor('#6366f1')" title="Indigo"></button>
+            <button type="button" class="color-swatch-btn" style="background: #f59e0b;" onclick="setClusterColor('#f59e0b')" title="Amber"></button>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.6rem; border-top: 1px solid var(--border-base); padding-top: 1.1rem;">
+          <button type="button" class="btn-export-cancel" id="btn-cancel-cluster" onclick="closeModal('cluster-modal-overlay')">Cancel</button>
+          <button type="button" class="btn-export-download" id="btn-submit-cluster" onclick="submitClusterForm()">Save Cluster</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CLUSTER MASTER SETTINGS MODAL -->
+    <div class="modal-overlay" id="cluster-settings-modal-overlay">
+      <div class="dialog-box modal-box--settings" style="max-width: 720px; width: 100%;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-base); padding-bottom: 0.95rem;">
+          <div style="display: flex; align-items: center; gap: 0.85rem;">
+            <div class="export-header-badge" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(212, 175, 55, 0.15) 100%); border-color: rgba(245, 158, 11, 0.4); color: var(--accent-gold);">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            </div>
+            <div>
+              <h3 style="font-size: 1.25rem; font-weight: 800; font-family: 'Outfit', 'Inter', sans-serif; color: var(--text-primary); margin: 0;" id="csetting-header-title">Cluster Master Settings</h3>
+              <p style="font-size: 0.84rem; color: var(--text-secondary); margin: 0.2rem 0 0 0;">
+                Configure cluster taxonomy details, manage team permissions, or remove cluster.
+              </p>
+            </div>
+          </div>
+          <button class="close-btn" onclick="closeModal('cluster-settings-modal-overlay')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="settings-tab-bar" style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-base); padding-bottom: 0.75rem; overflow-x: auto;">
+          <button type="button" class="settings-tab-btn csettings-tab-btn active" data-ctab="edit" onclick="switchClusterSettingsTab('edit')">
+            ✏️ Edit Cluster
+          </button>
+          <button type="button" class="settings-tab-btn csettings-tab-btn" data-ctab="access" onclick="switchClusterSettingsTab('access')">
+            👥 Access to Other Users
+          </button>
+          <button type="button" class="settings-tab-btn csettings-tab-btn danger" data-ctab="delete" onclick="switchClusterSettingsTab('delete')">
+            🗑️ Delete Cluster
+          </button>
+        </div>
+
+        <!-- TAB 1: EDIT CLUSTER FUNCTIONALITIES -->
+        <div class="csettings-tab-pane" id="csettings-pane-edit">
+          <input type="hidden" id="csetting-cluster-id">
+
+          <form onsubmit="submitClusterSettingsForm(event)">
+            <div class="form-group" style="margin-bottom: 0.95rem;">
+              <label class="form-label" style="font-weight: 700; font-size: 0.84rem;">Cluster Name / Title <span style="color: var(--accent-rose);">*</span></label>
+              <input type="text" class="form-input" id="csetting-cluster-name" placeholder="e.g. Metaheuristic Optimizers or Deep Neural Architectures" required style="font-weight: 600;">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0.95rem;">
+              <label class="form-label" style="font-weight: 700; font-size: 0.84rem;">Research Scope &amp; Methodology Description</label>
+              <textarea class="form-textarea" id="csetting-cluster-desc" rows="3" placeholder="Scope, methodologies, benchmark datasets, or key algorithms..." style="resize: vertical;"></textarea>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.35rem;">
+              <label class="form-label" style="font-weight: 700; font-size: 0.84rem;">Badge Color Accent</label>
+              <div style="display: flex; gap: 0.6rem; align-items: center; margin-bottom: 0.65rem;">
+                <input type="color" id="csetting-cluster-color" value="#38bdf8" style="background: transparent; border: 1.5px solid var(--border-base); width: 44px; height: 40px; border-radius: 8px; cursor: pointer; padding: 2px;">
+                <input type="text" class="form-input" id="csetting-cluster-color-hex" value="#38bdf8" style="font-family: 'JetBrains Mono', monospace; width: 110px; font-weight: 600;">
+              </div>
+              <!-- Preset Palette Swatches -->
+              <div style="display: flex; gap: 0.45rem; flex-wrap: wrap;">
+                <button type="button" class="color-swatch-btn" style="background: #38bdf8;" onclick="setClusterSettingsColor('#38bdf8')" title="Cyan"></button>
+                <button type="button" class="color-swatch-btn" style="background: #d4af37;" onclick="setClusterSettingsColor('#d4af37')" title="Gold"></button>
+                <button type="button" class="color-swatch-btn" style="background: #10b981;" onclick="setClusterSettingsColor('#10b981')" title="Emerald"></button>
+                <button type="button" class="color-swatch-btn" style="background: #a855f7;" onclick="setClusterSettingsColor('#a855f7')" title="Purple"></button>
+                <button type="button" class="color-swatch-btn" style="background: #f43f5e;" onclick="setClusterSettingsColor('#f43f5e')" title="Rose"></button>
+                <button type="button" class="color-swatch-btn" style="background: #3b82f6;" onclick="setClusterSettingsColor('#3b82f6')" title="Blue"></button>
+                <button type="button" class="color-swatch-btn" style="background: #6366f1;" onclick="setClusterSettingsColor('#6366f1')" title="Indigo"></button>
+                <button type="button" class="color-swatch-btn" style="background: #f59e0b;" onclick="setClusterSettingsColor('#f59e0b')" title="Amber"></button>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.6rem; border-top: 1px solid var(--border-base); padding-top: 1rem;">
+              <button type="button" class="mini-btn" onclick="closeModal('cluster-settings-modal-overlay')">Cancel</button>
+              <button type="submit" class="action-btn gold" id="btn-save-csettings">Save Changes</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- TAB 2: ACCESS TO OTHER USERS -->
+        <div class="csettings-tab-pane" id="csettings-pane-access" style="display: none;">
+          <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 8px; padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.86rem; color: var(--text-secondary); line-height: 1.55;">
+            <strong style="color: var(--accent-indigo); display: block; margin-bottom: 0.2rem;">👥 Workspace &amp; Cluster Access Hierarchy</strong>
+            Collaborators invited to this survey can inspect, edit, or review papers in this cluster according to their assigned RBAC role.
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.25rem;">
+            <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-base); border-radius: 8px; padding: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+              <div>
+                <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem;">Manage Project Team Members</div>
+                <div style="font-size: 0.82rem; color: var(--text-secondary);">Invite co-authors, advisors, or peer reviewers (Owner, Editor, Reviewer, Viewer).</div>
+              </div>
+              <button type="button" class="action-btn" onclick="closeModal('cluster-settings-modal-overlay'); openTeamModal();" style="background: rgba(99, 102, 241, 0.15); border-color: var(--accent-indigo); color: var(--accent-indigo);">
+                Team Collaborators →
+              </button>
+            </div>
+
+            <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-base); border-radius: 8px; padding: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+              <div>
+                <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem;">Public / Supervisor Share Link</div>
+                <div style="font-size: 0.82rem; color: var(--text-secondary);">Generate a tokenized, read-only link for supervisors, thesis committees, or external guests.</div>
+              </div>
+              <button type="button" class="action-btn gold" onclick="closeModal('cluster-settings-modal-overlay'); openShareModal();">
+                Share Link Portal →
+              </button>
+            </div>
+          </div>
+
+          <div style="border-top: 1px solid var(--border-base); padding-top: 1rem; display: flex; justify-content: flex-end;">
+            <button type="button" class="mini-btn" onclick="closeModal('cluster-settings-modal-overlay')">Close</button>
+          </div>
+        </div>
+
+        <!-- TAB 3: DELETE FUNCTIONALITIES -->
+        <div class="csettings-tab-pane" id="csettings-pane-delete" style="display: none;">
+          <div style="background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444; padding: 0.95rem 1.1rem; border-radius: 6px; font-size: 0.86rem; color: #fca5a5; line-height: 1.55; margin-bottom: 1.35rem;">
+            <strong style="color: #ef4444; display: block; margin-bottom: 0.25rem;">⚠️ Permanent Cluster Deletion Safeguards</strong>
+            Deleting this cluster will remove the taxonomy classification from the project. <strong>All assigned papers will automatically become Unassigned</strong> in your workspace, preserving all citation data, cell values, and annotations.
+          </div>
+
+          <p style="font-size: 0.92rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+            Are you sure you want to permanently delete the taxonomy cluster <strong id="csetting-delete-cluster-name" style="color: #ef4444; background: rgba(239, 68, 68, 0.12); padding: 0.2rem 0.55rem; border-radius: 5px; font-family: var(--font-mono, monospace);">Cluster Name</strong>?
+          </p>
+
+          <div style="display: flex; justify-content: flex-end; gap: 0.65rem; border-top: 1px solid var(--border-base); padding-top: 1.1rem;">
+            <button type="button" class="mini-btn" onclick="closeModal('cluster-settings-modal-overlay')">Cancel</button>
+            <button type="button" class="action-btn" id="btn-submit-delete-cluster-from-settings" onclick="submitDeleteCurrentClusterFromSettings()" style="background: #ef4444; color: #fff; border-color: #ef4444; font-weight: 700;">
+              Yes, Delete Cluster
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+ 
+    <!-- ADD RESEARCH PAPER & PDF INGESTION MODAL -->
+    <div class="modal-overlay" id="upload-modal-overlay">
+      <div class="dialog-box modal-box--export modal-scroll-hidden" style="max-width: 700px;">
+        <!-- Header -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-base); padding-bottom: 0.95rem;">
+          <div style="display: flex; align-items: center; gap: 0.85rem;">
+            <div class="export-header-badge" style="background: linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(16, 185, 129, 0.15) 100%); border-color: rgba(212, 175, 55, 0.4);">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div>
+              <h3 style="font-size: 1.3rem; font-weight: 800; font-family: 'Outfit', 'Inter', sans-serif; color: var(--text-primary); margin: 0;">Add Research Paper</h3>
+              <p style="font-size: 0.84rem; color: var(--text-secondary); margin: 0.2rem 0 0 0;">
+                Ingest single literature studies or batch upload PDF manuscripts into the Master Matrix.
+              </p>
+            </div>
+          </div>
+          <button type="button" class="close-btn" id="btn-close-upload" onclick="closeModal('upload-modal-overlay')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        </div>
+
+        <!-- Ingestion Mode Tabs -->
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-base); padding-bottom: 0.65rem;">
+          <button type="button" id="tab-btn-add-single" class="mini-btn gold active" style="font-size: 0.88rem; padding: 0.45rem 1rem; font-weight: 700;" onclick="switchAddPaperTab('single')">
+            Single Paper Ingestion
+          </button>
+          <button type="button" id="tab-btn-add-bulk" class="mini-btn" style="font-size: 0.88rem; padding: 0.45rem 1rem; font-weight: 700;" onclick="switchAddPaperTab('bulk')">
+            Bulk PDF Add
+          </button>
+        </div>
+
+        <!-- TAB 1: SINGLE PAPER INGESTION -->
+        <div id="add-paper-tab-single">
+          <!-- Optional DOI Auto-Fetch Bar -->
+          <div class="paper-ingest-doi-box">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+              <label class="form-label" style="color: var(--accent-gold); font-weight: 700; margin: 0; font-size: 0.8rem; font-family: 'JetBrains Mono', monospace;">DOI AUTO-FETCH (OPTIONAL):</label>
+              <span style="font-size: 0.74rem; color: var(--text-tertiary);">CrossRef &amp; OpenAlex Engine</span>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+              <input type="text" class="form-input" id="add-paper-doi" placeholder="e.g. 10.1016/j.knosys.2021.107455 or 2106.01234" style="font-family: 'JetBrains Mono', monospace; font-size: 0.86rem; flex: 1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); fetchPaperDoiMetadata();}">
+              <button type="button" class="action-btn" id="btn-fetch-single-doi" onclick="fetchPaperDoiMetadata()" style="white-space: nowrap; padding: 0.45rem 0.95rem; font-size: 0.86rem;">
+                <span id="doi-fetch-btn-text">Auto-Fetch</span>
+              </button>
+            </div>
+            <div id="doi-fetch-status" style="font-size: 0.82rem; margin-top: 0.4rem; display: none;"></div>
+          </div>
+
+          <form id="form-add-paper" onsubmit="event.preventDefault(); submitAddPaperForm(event);">
+            <!-- Paper Title (Required) -->
+            <div class="form-group" style="margin-bottom: 0.95rem;">
+              <label class="form-label" style="font-weight: 700; font-size: 0.84rem;">Paper Title <span style="color: var(--accent-rose);">*</span></label>
+              <input type="text" class="form-input" id="add-paper-title" placeholder="e.g. Feature Selection for High-Dimensional Data: A Comprehensive Survey" required>
+            </div>
+
+            <!-- Cluster & Domain Symmetrical Row -->
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.85rem; margin-bottom: 0.95rem;">
+              <!-- Cluster Assignment -->
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-weight: 700; font-size: 0.84rem;">Cluster Assignment</label>
+                <select class="form-select" id="add-paper-cluster" onchange="handleClusterSelectChange(this, 'single')">
+                  <option value="unassigned">Unassigned (Organize Later)</option>
+                  <option value="__new__">+ Create &amp; Assign to New Cluster...</option>
+                </select>
+              </div>
+
+              <!-- Domain / Research Field -->
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-weight: 700; font-size: 0.84rem;">Domain / Research Field</label>
+                <select class="form-select" id="add-paper-domain-select" onchange="handleDomainSelectChange(this, 'single')">
+                  <option value="">-- No Domains Created Yet --</option>
+                  <option value="__new__">+ Create &amp; Assign New Domain...</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Inline New Cluster & Domain Inputs (Appears if __new__ chosen) -->
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.85rem; margin-bottom: 0.95rem;">
+              <div class="form-group" id="add-paper-inline-cluster-group" style="display: none; margin-bottom: 0;">
+                <label class="form-label" style="color: var(--accent-emerald); font-weight: 700; font-size: 0.82rem;">New Cluster Name</label>
+                <input type="text" class="form-input" id="add-paper-new-cluster-name" placeholder="e.g. 07_deep_generative_models">
+              </div>
+
+              <div class="form-group" id="add-paper-inline-domain-group" style="display: none; margin-bottom: 0;">
+                <label class="form-label" style="color: var(--accent-gold); font-weight: 700; font-size: 0.82rem;">New Domain Name</label>
+                <input type="text" class="form-input" id="add-paper-new-domain-name" placeholder="e.g. Computer Vision, Generative AI">
+              </div>
+            </div>
+
+            <!-- Authors -->
+            <div class="form-group" style="margin-bottom: 0.95rem;">
+              <label class="form-label" style="font-weight: 700; font-size: 0.84rem;">Authors</label>
+              <input type="text" class="form-input" id="add-paper-authors" placeholder="e.g. Peng, H., Long, F., Ding, C.">
+            </div>
+
+            <!-- Year & Pub / Conf (2-column layout, Reading Status removed) -->
+            <div style="display: grid; grid-template-columns: 120px 1fr; gap: 0.85rem; margin-bottom: 1.15rem;">
+              <!-- Year -->
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-weight: 700; font-size: 0.84rem;">Year</label>
+                <input type="number" class="form-input" id="add-paper-year" placeholder="Year" min="1950" max="2035">
+              </div>
+
+              <!-- Pub / Conf -->
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-weight: 700; font-size: 0.84rem;">Pub / Conf / Journal</label>
+                <input type="text" class="form-input" id="add-paper-pub" placeholder="e.g. IEEE TKDE / Nature / ICML">
+              </div>
+            </div>
+
+            <!-- BROWSE FILE -> UPLOAD -->
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+              <label class="form-label" style="font-weight: 700; font-size: 0.84rem;">Attach Research PDF Document (Optional)</label>
+              <div class="dropzone-box" id="add-paper-dropzone" style="border: 1.5px dashed rgba(212, 175, 55, 0.4); background: var(--bg-surface-raised); border-radius: 10px; padding: 1.25rem; text-align: center; cursor: pointer; transition: all 0.2s ease;" onclick="document.getElementById('add-paper-file-input').click()">
+                <div style="margin-bottom: 0.35rem; color: var(--accent-gold); display: flex; justify-content: center;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+                <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 0.2rem;" id="add-paper-dropzone-label">
+                  Click to Browse PDF or Drag &amp; Drop File Here
+                </div>
+                <div style="font-size: 0.82rem; color: var(--text-tertiary);">
+                  Extracts metadata &amp; attaches document for instant Split-Screen reading
+                </div>
+                <input type="file" id="add-paper-file-input" accept=".pdf" style="display: none;" onchange="handleAddPaperFileSelected(this)">
+              </div>
+
+              <!-- Selected File Badge -->
+              <div id="add-paper-file-preview" style="display: none; align-items: center; justify-content: space-between; background: var(--bg-surface); border: 1px solid var(--border-base); border-radius: 8px; padding: 0.6rem 0.85rem; margin-top: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.6rem; overflow: hidden;">
+                  <span style="font-weight: 700; color: var(--accent-gold); font-size: 0.8rem; font-family: 'JetBrains Mono', monospace; background: rgba(212, 175, 55, 0.15); padding: 0.2rem 0.5rem; border-radius: 4px;">PDF</span>
+                  <span id="selected-file-display-name" style="font-size: 0.88rem; font-weight: 600; color: var(--text-primary); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;"></span>
+                  <span id="selected-file-display-size" style="font-size: 0.78rem; color: var(--text-tertiary); font-family: 'JetBrains Mono', monospace;"></span>
+                </div>
+                <button type="button" class="mini-btn danger" style="padding: 0.2rem 0.5rem; font-size: 0.78rem;" onclick="clearSelectedAddPaperFile(event)">Remove</button>
+              </div>
+            </div>
+
+            <div id="add-paper-status-msg" style="font-size: 0.88rem; margin-bottom: 0.85rem; line-height: 1.45;"></div>
+
+            <!-- Footer Actions -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-base); padding-top: 1.1rem;">
+              <span style="font-size: 0.78rem; color: var(--text-tertiary);">Direct ingestion into project literature matrix</span>
+              <div style="display: flex; gap: 0.6rem;">
+                <button type="button" class="btn-export-cancel" onclick="closeModal('upload-modal-overlay')">Cancel</button>
+                <button type="submit" class="btn-export-download" id="btn-submit-single-paper">
+                  Add Paper to Matrix
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- TAB 2: BULK PDF ADD -->
+        <div id="add-paper-tab-bulk" style="display: none;">
+          <div class="dropzone-box" id="pdf-dropzone" style="border: 1.5px dashed rgba(56, 189, 248, 0.4); background: var(--bg-surface-raised); border-radius: 10px; padding: 1.5rem; text-align: center; cursor: pointer; margin-bottom: 1.15rem; transition: all 0.2s ease;" onclick="document.getElementById('upload-file-input').click()">
+            <div style="margin-bottom: 0.35rem; color: var(--accent-primary); display: flex; justify-content: center;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
+            <div style="font-weight: 700; font-size: 1.05rem; color: var(--text-primary); margin-bottom: 0.25rem;">Drag &amp; Drop Multiple Research PDFs</div>
+            <div style="font-size: 0.84rem; color: var(--text-tertiary); margin-bottom: 0.85rem;">Batch auto-extracts Title, Authors, Year, DOI &amp; Abstract for every file</div>
+            <button class="mini-btn gold" type="button" id="btn-browse-pdf" style="padding: 0.45rem 1.1rem; font-weight: 700;">Browse Multiple PDF Files</button>
+            <input type="file" id="upload-file-input" multiple accept=".pdf" style="display: none;" onchange="handleBulkFilesSelected(this)">
+          </div>
+
+          <!-- Selected Files List -->
+          <div id="selected-files-list" style="max-height: 140px; overflow-y: auto; margin-bottom: 1.15rem; font-size: 0.86rem; color: var(--text-secondary); display: none; background: var(--bg-canvas); border: 1px solid var(--border-base); border-radius: 8px; padding: 0.6rem;"></div>
+
+          <!-- Bulk Target Cluster & Domain Symmetrical Row -->
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.85rem; margin-bottom: 0.95rem;">
+            <!-- Cluster Assignment -->
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" style="font-weight: 700; font-size: 0.84rem;">Cluster Assignment</label>
+              <select class="form-select" id="upload-target-cluster" onchange="handleClusterSelectChange(this, 'bulk')">
+                <option value="unassigned">Unassigned (Organize Later)</option>
+                <option value="__new__">+ Create &amp; Assign to New Cluster...</option>
+              </select>
+            </div>
+
+            <!-- Batch Domain / Research Field -->
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" style="font-weight: 700; font-size: 0.84rem;">Domain / Research Field</label>
+              <select class="form-select" id="bulk-paper-domain-select" onchange="handleDomainSelectChange(this, 'bulk')">
+                <option value="">-- No Domains Created Yet --</option>
+                <option value="__new__">+ Create &amp; Assign New Domain...</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Inline New Cluster & Domain Inputs for Bulk (Appears if __new__ chosen) -->
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.85rem; margin-bottom: 1.15rem;">
+            <div class="form-group" id="bulk-paper-inline-cluster-group" style="display: none; margin-bottom: 0;">
+              <label class="form-label" style="color: var(--accent-emerald); font-weight: 700; font-size: 0.82rem;">New Cluster Name</label>
+              <input type="text" class="form-input" id="bulk-paper-new-cluster-name" placeholder="e.g. 07_deep_generative_models">
+            </div>
+
+            <div class="form-group" id="bulk-paper-inline-domain-group" style="display: none; margin-bottom: 0;">
+              <label class="form-label" style="color: var(--accent-gold); font-weight: 700; font-size: 0.82rem;">New Domain Name</label>
+              <input type="text" class="form-input" id="bulk-paper-new-domain-name" placeholder="e.g. Computer Vision, Generative AI">
+            </div>
+          </div>
+
+          <div id="upload-status" style="font-size: 0.88rem; margin-bottom: 0.85rem; line-height: 1.45;"></div>
+
+          <!-- Footer Actions -->
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-base); padding-top: 1.1rem;">
+            <span style="font-size: 0.78rem; color: var(--text-tertiary);">Smart asynchronous metadata extraction per manuscript</span>
+            <div style="display: flex; gap: 0.6rem;">
+              <button type="button" class="btn-export-cancel" onclick="closeModal('upload-modal-overlay')">Cancel</button>
+              <button type="button" class="btn-export-download" id="btn-submit-upload" onclick="submitBulkPdfUpload()">
+                Batch Add PDFs
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+ 
+    <!-- SPLIT-SCREEN WORKSPACE & PAPER REVIEW MODAL -->
+    <div class="modal-overlay" id="reader-modal-overlay">
+      <div class="reader-modal window-container-modal">
+        <!-- Header Section -->
+        <header class="reader-window-header header">
+          <div class="header-left" id="reader-header-left">
+            <div class="title-main" id="reader-modal-title" onclick="openActivePaperExternal()" title="Click to view full paper in new tab and start review session">Papers Name</div>
+            <div class="title-sub" id="reader-modal-subtitle">[Selected Cluster] [Domain] [..] [keywords]</div>
+          </div>
+          <div class="header-right">
+            <span class="doi-label">DOI AUTO-FETCH:</span>
+            <input type="text" class="doi-input" id="reader-doi-input" placeholder="Enter DOI (e.g. 10.1145/2939672.2939785)" onkeydown="if(event.key==='Enter') handleReaderDoiAutoFetch()">
+            <button type="button" class="fetch-btn" id="reader-btn-fetch-doi" onclick="handleReaderDoiAutoFetch()">Fetch</button>
+            <button type="button" class="close-btn" id="btn-close-reader" title="Close Workspace" style="margin-left: 8px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+        </header>
+
+        <!-- Main Split-Pane Body -->
+        <main class="main-body" id="reader-main-body">
+          <!-- Left Pane: In-Built Interactive PDF Viewer / Previewer -->
+          <div class="left-pane" id="reader-left-pane">
+            <!-- Toolbar for PDF.js when active -->
+            <div class="pdf-viewer-toolbar" id="reader-pdf-toolbar" style="display: none;">
+              <div class="pdf-nav-group">
+                <button class="pdf-tool-btn" id="pdf-prev-page" onclick="onPdfPrevPage()">Prev</button>
+                <span>Page</span>
+                <input type="number" class="pdf-page-input" id="pdf-current-page" value="1" min="1" onchange="queuePdfRenderPage(parseInt(this.value,10))">
+                <span>of <span id="pdf-total-pages">1</span></span>
+                <button class="pdf-tool-btn" id="pdf-next-page" onclick="onPdfNextPage()">Next</button>
+              </div>
+              <div class="pdf-nav-group">
+                <button class="pdf-tool-btn" id="pdf-zoom-out" onclick="onPdfZoomOut()">−</button>
+                <span id="pdf-zoom-level" style="font-family: 'JetBrains Mono', monospace; font-size: 0.82rem;">100%</span>
+                <button class="pdf-tool-btn" id="pdf-zoom-in" onclick="onPdfZoomIn()">+</button>
+                <button class="pdf-tool-btn" id="pdf-fit-width" onclick="onPdfFitWidth()">Fit</button>
+              </div>
+              <div class="pdf-nav-group">
+                <button class="pdf-tool-btn" id="pdf-open-external" title="Open in New Tab">External PDF ↗</button>
+                <button class="pdf-tool-btn" onclick="document.getElementById('reader-pdf-upload-input').click()" title="Browse PDF">Upload</button>
+                <input type="file" id="reader-pdf-upload-input" accept=".pdf" style="display: none;" onchange="handleReaderDirectPdfUpload(this)">
+              </div>
+            </div>
+
+            <!-- PDF Canvas Container -->
+            <div class="pdf-viewport-container" id="pdf-viewport" style="display: none;">
+              <div class="pdf-canvas-wrapper" id="pdf-wrapper">
+                <canvas id="pdf-render-canvas"></canvas>
+                <svg class="highlight-overlay-canvas" id="pdf-highlight-svg"></svg>
+              </div>
+            </div>
+
+            <!-- Fallback Mock Previewer Placeholder -->
+            <div class="pdf-placeholder-hero" id="pdf-empty-notice">
+              <h2>PDF Previewer</h2>
+              <p class="pdf-placeholder-sub" id="pdf-empty-sub">
+                Interactive manuscript preview pane. Click paper title above to open external source or browse a local PDF.
+              </p>
+              <div style="margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: center;">
+                <button type="button" class="mini-btn gold" onclick="document.getElementById('reader-pdf-upload-input').click()">Upload PDF</button>
+                <button type="button" class="mini-btn" id="btn-open-ext-mock" onclick="openActivePaperExternal()">Open Source ↗</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Draggable Resizer Bar (Clean Splitter Handle) -->
+          <div class="resizer-drag-handle" id="reader-resizer-handle" title="Drag left/right to resize previewer & extraction pane">
+            <div class="resizer-handle-pill"></div>
+          </div>
+
+          <!-- Right Pane (Settings / Extraction Metadata) -->
+          <div class="right-pane" id="reader-right-pane">
+            <input type="hidden" id="entry-paper-id">
+
+            <!-- 1. Cluster Section -->
+            <div class="reader-section section" id="section-cluster">
+              <div class="section-header" onclick="toggleReaderSection('section-cluster')">
+                <div class="section-title">Cluster</div>
+                <div class="expand-btn">
+                  <span class="chevron-arrow">&#9662;</span>
+                </div>
+              </div>
+              <div class="section-content">
+                <div class="grid-container" id="reader-clusters-grid">
+                  <!-- Mapped from clusters array + '+ add new' -->
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Domain Section -->
+            <div class="reader-section section" id="section-domain">
+              <div class="section-header" onclick="toggleReaderSection('section-domain')">
+                <div class="section-title">Domain</div>
+                <div class="expand-btn">
+                  <span class="chevron-arrow">&#9662;</span>
+                </div>
+              </div>
+              <div class="section-content">
+                <div class="grid-container" id="reader-domains-grid">
+                  <!-- Mapped from domains array + '+ add new' -->
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Keywords Section -->
+            <div class="reader-section section" id="section-keywords">
+              <div class="section-header" onclick="toggleReaderSection('section-keywords')">
+                <div class="section-title">Keywords</div>
+                <div class="expand-btn">
+                  <span class="chevron-arrow">&#9662;</span>
+                </div>
+              </div>
+              <div class="section-content">
+                <div class="grid-container" id="reader-keywords-grid">
+                  <!-- Mapped from keywords array + '+ add new' -->
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. Columns Section -->
+            <div class="reader-section section" id="section-columns">
+              <div class="section-header" onclick="toggleReaderSection('section-columns')">
+                <div class="section-title">Columns</div>
+                <div class="expand-btn">
+                  <span class="chevron-arrow">&#9662;</span>
+                </div>
+              </div>
+              <div class="section-content">
+                <div id="reader-columns-dashed-container">
+                  <!-- Dashed Boxes dynamically rendered -->
+                </div>
+                <div class="btn-group">
+                  <button type="button" class="action-btn" onclick="handleReaderSplitColumn()">Split Column</button>
+                  <button type="button" class="action-btn" onclick="handleReaderAddColumn()">Add new</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 5. PRISMA Blind Screening & Quality Appraisal Section -->
+            <div class="reader-section section" id="section-prisma">
+              <div class="section-header" onclick="toggleReaderSection('section-prisma')">
+                <div class="section-title">PRISMA Blind Screening &amp; Quality Appraisal</div>
+                <div class="expand-btn">
+                  <span class="chevron-arrow">&#9662;</span>
+                </div>
+              </div>
+              <div class="section-content">
+                <div class="prisma-row-1">
+                  <div class="solid-box prisma-radio-box" id="prisma-box-included" onclick="selectPrismaVote('included')">Include</div>
+                  <div class="solid-box prisma-radio-box" id="prisma-box-excluded" onclick="selectPrismaVote('excluded')">Exclude</div>
+                  <div class="solid-box prisma-radio-box" id="prisma-box-uncertain" onclick="selectPrismaVote('uncertain')">Uncertain</div>
+                </div>
+                <div class="prisma-row-2">
+                  <div class="solid-box long-box">
+                    <select class="prisma-reason-select" id="reader-prisma-reason-select" onchange="handlePrismaReasonChange(this.value)">
+                      <option value="">Selected Reasons</option>
+                      <option value="Not empirical study">Out of scope / non-empirical study</option>
+                      <option value="Duplicate publication">Duplicate publication / preprint</option>
+                      <option value="Incompatible benchmark">Incompatible benchmark / missing dataset</option>
+                      <option value="Language barrier">Language barrier / full text unavailable</option>
+                      <option value="High risk of bias">High risk of bias / quality flaws</option>
+                      <option value="Valid methodology">Valid methodology meeting all criteria</option>
+                    </select>
+                  </div>
+                  <!-- Auto-Save Status Indicator (repurposed from static Save button) -->
+                  <div class="solid-box short-box status-indicator-box status-saved" id="reader-save-status-box" title="Real-Time Background Auto-Save Status">
+                    ✓ Saved
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 6. Summery Section -->
+            <div class="reader-section section" id="section-summary">
+              <div class="section-header">
+                <div class="section-title">Summery</div>
+              </div>
+              <div class="section-content">
+                <div id="reader-summary-dashed-container">
+                  <!-- Dashed boxes for Intuition, Formula, Strengths, Gaps -->
+                </div>
+              </div>
+            </div>
+
+            <!-- 7. Detailed Summery Section -->
+            <div class="reader-section section" id="section-detailed-summary">
+              <div class="section-header" onclick="toggleReaderSection('section-detailed-summary')">
+                <div class="section-title">Detailed Summery:</div>
+                <div class="expand-btn">
+                  <span class="chevron-arrow">&#9662;</span>
+                </div>
+              </div>
+              <div class="section-content">
+                <div class="text-box-container">
+                  <textarea class="detailed-summary-textarea" id="entry-detailed-summary" rows="4" placeholder="[..............................text box.............................]" oninput="handleDetailedSummaryInput(this.value)"></textarea>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <!-- UNASSIGNED PAPERS HUB MODAL (Cards & Table Dual Views) -->
+    <div class="modal-overlay" id="unassigned-modal-overlay">
+      <div class="modal-card unassigned-hub-modal">
+        <div class="modal-header unassigned-modal-header">
+          <div class="unassigned-header-title-group">
+            <div class="unassigned-header-icon-box">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="12" y1="18" x2="12" y2="12"></line>
+                <line x1="9" y1="15" x2="15" y2="15"></line>
+              </svg>
+            </div>
+            <div>
+              <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                <h3 class="modal-title" style="margin: 0; font-size: 1.25rem;">Unassigned Papers Box</h3>
+                <span id="unassigned-modal-count-badge" class="unassigned-badge">0 Papers</span>
+              </div>
+              <div class="unassigned-modal-subtitle">Directly assign literature to taxonomy clusters or open split-screen review</div>
+            </div>
+          </div>
+
+          <div class="unassigned-header-controls">
+            <!-- View Switcher -->
+            <div class="unassigned-view-switcher" role="tablist">
+              <button type="button" class="unassigned-view-btn active" id="btn-view-cards" onclick="switchUnassignedView('cards')" title="Switch to Cards View">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                <span>Cards</span>
+              </button>
+              <button type="button" class="unassigned-view-btn" id="btn-view-table" onclick="switchUnassignedView('table')" title="Switch to Table View">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                <span>Table</span>
+              </button>
+            </div>
+            <button type="button" class="close-btn unassigned-close-btn" onclick="closeModal('unassigned-modal-overlay')" title="Close Unassigned Papers Hub">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Modal Toolbar -->
+        <div class="unassigned-hub-toolbar">
+          <div class="unassigned-toolbar-left">
+            <label class="unassigned-select-all-label">
+              <input type="checkbox" id="unassigned-modal-select-all" onchange="toggleAllUnassigned(this.checked)">
+              <span>Select All</span>
+            </label>
+            <span class="unassigned-selection-count" id="unassigned-selected-label">0 Selected</span>
+            
+            <div class="unassigned-search-box">
+              <input type="text" id="unassigned-filter-search" class="unassigned-search-input" placeholder="🔍 Search papers in unassigned box..." oninput="handleUnassignedSearch(this.value)">
+            </div>
+          </div>
+          <div class="unassigned-toolbar-right">
+            <select class="form-select unassigned-bulk-select" id="unassigned-bulk-cluster-select">
+              <option value="">Move selected to...</option>
+            </select>
+            <button class="action-btn gold unassigned-bulk-btn" id="btn-unassigned-bulk-move" onclick="submitBulkUnassignedMove()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              <span>Transfer Selected</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Dynamic Modal Content (Cards or Table) -->
+        <div class="unassigned-modal-body" id="unassigned-modal-content">
+          <!-- Rendered dynamically by main.js -->
+        </div>
+
+        <div class="modal-footer unassigned-modal-footer">
+          <div class="unassigned-footer-tip">
+            <span class="unassigned-footer-bulb">💡</span>
+            <span><strong>Quick Review:</strong> Click on any paper's title or the <strong>📖 Review</strong> button to open the full split-screen review &amp; classification page.</span>
+          </div>
+          <button class="action-btn" style="background: var(--bg-surface-raised); border: 1px solid var(--border-base); padding: 0.45rem 1.25rem;" onclick="closeModal('unassigned-modal-overlay')">Close</button>
+        </div>
+      </div>
+    </div>
+
+   <!-- ADD DYNAMIC COLUMN MODAL -->
+   <div class="modal-overlay" id="add-column-modal">
+     <div class="dialog-box" style="width: 500px;">
+       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+         <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin: 0;">Add Custom Column</h3>
+         <button type="button" class="close-btn" id="btn-close-add-col" onclick="closeModal('add-column-modal')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+       </div>
+       <div class="form-group" style="margin-bottom: 0.85rem;">
+         <label class="form-label">Column Name</label>
+         <input type="text" class="form-input" id="new-dyn-col-name" placeholder="e.g. Core Concept, Key Equation, Benchmark Dataset, Metric">
+         <div style="font-size: 0.84rem; color: var(--text-tertiary); margin-top: 0.3rem;">This column will automatically be added across all papers in the table.</div>
+       </div>
+       <div class="form-group" style="margin-bottom: 1rem;">
+         <label class="form-label">Column Data Type</label>
+         <select class="form-select" id="new-dyn-col-type">
+           <option value="text">Standard Text / Analysis</option>
+           <option value="formula">Mathematical Formula (LaTeX / KaTeX)</option>
+           <option value="tags">Keywords / Tags (Comma-separated)</option>
+           <option value="number">Numeric / Quantitative Metric</option>
+         </select>
+       </div>
+       <div style="display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1.25rem;">
+         <button type="button" class="mini-btn" id="btn-cancel-add-col" onclick="closeModal('add-column-modal')">Cancel</button>
+         <button type="button" class="action-btn" id="btn-submit-add-col" onclick="submitAddDynamicColumn(event)">Add Column</button>
+       </div>
+     </div>
+   </div>
+ 
+   <!-- RENAME COLUMN MODAL -->
+   <div class="modal-overlay" id="rename-column-modal">
+     <div class="dialog-box" style="width: 480px;">
+       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.15rem;">
+         <div style="display: flex; align-items: center; gap: 0.6rem;">
+           <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin: 0;">Rename Column</h3>
+         </div>
+         <button type="button" class="close-btn" id="btn-close-rename-col" onclick="closeModal('rename-column-modal')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+       </div>
+ 
+       <input type="hidden" id="rename-col-key">
+       <div class="form-group" style="margin-bottom: 1.25rem;">
+         <label class="form-label" style="font-weight: 600; margin-bottom: 0.45rem; display: block;">Column Name</label>
+         <input type="text" class="form-input" id="rename-col-input" placeholder="Enter new column name" style="font-size: 1rem; font-weight: 600;" autocomplete="off">
+         <div style="font-size: 0.82rem; color: var(--text-tertiary); margin-top: 0.45rem;">Updating this column name will instantly synchronize with all papers in the Master Matrix.</div>
+       </div>
+ 
+       <div style="display: flex; justify-content: flex-end; gap: 0.65rem;">
+         <button type="button" class="mini-btn" onclick="closeModal('rename-column-modal')">Cancel</button>
+         <button type="button" class="action-btn" id="btn-submit-rename-col" onclick="submitRenameColumnModal()">Save Changes</button>
+       </div>
+     </div>
+   </div>
+
+    <!-- DELETE COLUMN MODAL -->
+    <div class="modal-overlay" id="delete-column-modal">
+      <div class="dialog-box" style="width: 480px; border: 1.5px solid rgba(239, 68, 68, 0.45); box-shadow: 0 20px 45px rgba(0, 0, 0, 0.85), 0 0 25px rgba(239, 68, 68, 0.25);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.15rem;">
+          <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin: 0;">Delete Column</h3>
+          </div>
+          <button type="button" class="close-btn" id="btn-close-delete-col" onclick="closeModal('delete-column-modal')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        </div>
+
+        <input type="hidden" id="delete-col-key">
+        <div style="margin-bottom: 1.35rem;">
+          <p style="font-size: 0.95rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 0.85rem;">
+            Are you sure you want to permanently delete the column <strong id="delete-col-name-badge" style="color: #ef4444; background: rgba(239, 68, 68, 0.12); padding: 0.2rem 0.55rem; border-radius: 5px; font-family: var(--font-mono, monospace);">Column Name</strong>?
+          </p>
+          <div style="background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444; padding: 0.65rem 0.85rem; border-radius: 4px; font-size: 0.82rem; color: #fca5a5;">
+            <strong>Warning:</strong> All cell data and notes in this column will be permanently removed across all papers in this survey.
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.65rem;">
+          <button type="button" class="mini-btn" onclick="closeModal('delete-column-modal')">Cancel</button>
+          <button type="button" class="action-btn" id="btn-submit-delete-col" onclick="submitDeleteColumnModal()" style="background: #ef4444; color: #fff; border-color: #ef4444;">
+            Yes, Delete Column
+          </button>
+        </div>
+      </div>
+    </div>
+
+   <!-- SPLIT DYNAMIC COLUMN MODAL -->
+   <div class="modal-overlay" id="split-column-modal">
+     <div class="dialog-box" style="width: 540px;">
+       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+         <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin: 0;">Split Column into Sub-Columns</h3>
+         <button class="close-btn" id="btn-close-split-col"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+       </div>
+       <div class="form-group" style="margin-bottom: 0.85rem;">
+         <label class="form-label">Select Parent Column to Split</label>
+         <select class="form-select" id="split-parent-col-select">
+           <!-- Populated dynamically -->
+         </select>
+       </div>
+       <div id="split-subcols-wrapper">
+         <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+           <span>Sub-Columns (at least 2)</span>
+           <span style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: normal;">e.g. Sub 1, Sub 2</span>
+         </label>
+         <div id="split-subcols-list" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.65rem;">
+           <!-- Dynamic Sub-Column Rows populated by JS -->
+         </div>
+         <button type="button" class="mini-btn" id="btn-add-more-subcol" style="font-size: 0.84rem; display: inline-flex; align-items: center; gap: 0.35rem;">
+           Add Another Sub-Column
+         </button>
+       </div>
+
+       <div style="display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1.25rem;">
+         <button class="mini-btn" id="btn-cancel-split-col">Cancel</button>
+         <button class="action-btn" id="btn-submit-split-col">Apply Split</button>
+       </div>
+     </div>
+   </div>
+
+  <!-- Toast Notification Stack -->
+  <div id="toast-container"></div>
+
+  <!-- Modular Workspace Scripts -->
+  <script src="/js/core/api.js"></script>
+  <script src="/js/core/modal.js"></script>
+  <script src="/js/core/toast.js"></script>
+  <script src="/js/core/navbar.js"></script>
+  <script src="/js/workspace/state.js"></script>
+  <script src="/js/workspace/matrix.js"></script>
+  <script src="/js/workspace/cards.js"></script>
+  <script src="/js/workspace/clusters.js"></script>
+  <script src="/js/workspace/paperModal.js"></script>
+  <script src="/js/workspace/reader.js"></script>
+  <script src="/js/workspace/comments.js"></script>
+  <script src="/js/workspace/columns.js"></script>
+  <script src="/js/workspace/synthesis.js"></script>
+  <script src="/js/workspace/summary.js"></script>
+  <script src="/js/workspace/export.js"></script>
+  <script src="/js/workspace/team.js"></script>
+  <script src="/js/workspace/settings.js"></script>
+  <script src="/js/workspace/main.js"></script>
+</body>
+</html>

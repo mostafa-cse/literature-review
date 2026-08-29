@@ -1,0 +1,261 @@
+/* ==========================================================================
+   LITNEXIS CORE DESIGN SYSTEM & THEME TOKENS
+   Oxford / Overleaf Prestige Academic Aesthetics
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap');
+
+:root {
+  /* ── Dark Theme (Obsidian & Deep Midnight Blue) ──────── */
+  --bg-primary:   #090d16;
+  --bg-secondary: #0f172a;
+  --bg-tertiary:  #1e293b;
+  --bg-card:       rgba(15, 23, 42, 0.85);
+  --bg-card-hover: rgba(30, 41, 59, 0.95);
+  --bg-glass:      rgba(15, 23, 42, 0.75);
+
+  /* Extended surface tokens (used by dashboard.css, profile.css, workspace.css) */
+  --bg-canvas:          #060b14;
+  --bg-surface:         #0d1424;
+  --bg-surface-raised:  #111b30;
+  --bg-surface-hover:   #172040;
+
+  --text-primary:   #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-tertiary:  #94a3b8;
+  --text-muted:     #64748b;
+
+  --border-subtle:  rgba(255, 255, 255, 0.08);
+  --border-focus:   rgba(212, 175, 55, 0.5);
+  --border-card:    rgba(212, 175, 55, 0.2);
+  --border-base:    #1e2b48;
+  --border-gold:    rgba(212, 175, 55, 0.35);
+
+  /* Prestige Accents */
+  --accent-gold:         #d4af37;
+  --accent-gold-light:   #e5c07b;
+  --accent-gold-muted:   rgba(212, 175, 55, 0.12);
+  --accent-gold-glow:    rgba(212, 175, 55, 0.25);
+  --accent-primary:      #38bdf8;
+  --accent-primary-hover: #0ea5e9;
+  --accent-primary-muted: rgba(56, 189, 248, 0.12);
+  --accent-primary-glow:  rgba(56, 189, 248, 0.25);
+  --accent-muted:         rgba(56, 189, 248, 0.12);
+  --accent-indigo:        #818cf8;
+  --accent-emerald:       #10b981;
+  --accent-emerald-muted: rgba(16, 185, 129, 0.15);
+  --accent-amber:         #f59e0b;
+  --accent-amber-muted:   rgba(245, 158, 11, 0.15);
+  --accent-rose:          #f43f5e;
+  --accent-rose-muted:    rgba(244, 63, 94, 0.15);
+  --accent-purple:        #a855f7;
+  --accent-purple-muted:  rgba(168, 85, 247, 0.15);
+
+  --nav-bg: rgba(7, 11, 20, 0.95);
+
+  --font-serif:   'Playfair Display', Georgia, serif;
+  --font-display: 'Cinzel', serif;
+  --font-sans:    'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono:    'JetBrains Mono', monospace;
+
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   20px;
+  --radius-full: 9999px;
+
+  --shadow-sm:   0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-md:   0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-lg:   0 16px 40px rgba(0, 0, 0, 0.6);
+  --shadow-xl:   0 20px 40px rgba(0, 0, 0, 0.6);
+  --shadow-gold: 0 8px 24px rgba(212, 175, 55, 0.2);
+
+  --transition-fast:   0.15s ease;
+  --transition-normal: 0.25s ease;
+  --transition-slow:   0.4s ease;
+}
+
+/* ── Light Mode Theme ───────────────────────────────────────── */
+/* Applied both ways: body.light-mode (JS toggle) and
+   [data-theme="light"] (initial flash-prevention) */
+body.light-mode,
+[data-theme="light"] {
+  --bg-primary:   #fcfaf6;
+  --bg-secondary: #f4eee2;
+  --bg-tertiary:  #eadecd;
+  --bg-card:       rgba(255, 255, 255, 0.92);
+  --bg-card-hover: #ffffff;
+  --bg-glass:      rgba(255, 255, 255, 0.88);
+
+  /* Extended surface tokens */
+  --bg-canvas:         #faf8f4;
+  --bg-surface:        #ffffff;
+  --bg-surface-raised: #f4eee1;
+  --bg-surface-hover:  #ede4d0;
+
+  --text-primary:   #1e1b18;
+  --text-secondary: #4a453e;
+  --text-tertiary:  #78716c;
+  --text-muted:     #a8a29e;
+
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-focus:  rgba(180, 83, 9, 0.5);
+  --border-card:   rgba(180, 83, 9, 0.22);
+  --border-base:   #e2d7c3;
+  --border-gold:   rgba(180, 83, 9, 0.35);
+
+  --accent-gold:         #b45309;
+  --accent-gold-light:   #92400e;
+  --accent-gold-muted:   rgba(180, 83, 9, 0.12);
+  --accent-gold-glow:    rgba(180, 83, 9, 0.18);
+  --accent-primary:      #0284c7;
+  --accent-primary-hover: #0369a1;
+  --accent-primary-muted: rgba(2, 132, 199, 0.12);
+  --accent-primary-glow:  rgba(2, 132, 199, 0.18);
+  --accent-muted:         rgba(2, 132, 199, 0.1);
+  --accent-indigo:        #4f46e5;
+  --accent-emerald:       #059669;
+  --accent-emerald-muted: rgba(5, 150, 105, 0.12);
+  --accent-amber:         #d97706;
+  --accent-amber-muted:   rgba(217, 119, 6, 0.15);
+  --accent-rose:          #e11d48;
+  --accent-rose-muted:    rgba(225, 29, 72, 0.12);
+  --accent-purple:        #9333ea;
+  --accent-purple-muted:  rgba(147, 51, 234, 0.12);
+
+  --nav-bg: rgba(250, 248, 244, 0.96);
+
+  --shadow-sm:   0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md:   0 6px 18px rgba(0, 0, 0, 0.07);
+  --shadow-lg:   0 12px 30px rgba(0, 0, 0, 0.1);
+  --shadow-xl:   0 20px 40px rgba(0, 0, 0, 0.16);
+  --shadow-gold: 0 8px 24px rgba(180, 83, 9, 0.12);
+}
+
+/* Base Reset & Typography */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-canvas, var(--bg-primary));
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  border: 2px solid var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-gold);
+}
+
+/* Reusable UI Components */
+.mini-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  text-decoration: none;
+}
+
+.mini-btn:hover {
+  background: var(--accent-muted);
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.mini-btn.gold {
+  background: var(--accent-gold-glow);
+  color: var(--accent-gold);
+  border-color: var(--accent-gold);
+}
+
+.mini-btn.gold:hover {
+  background: var(--accent-gold);
+  color: #000;
+}
+
+.mini-btn.danger {
+  background: var(--accent-rose-muted);
+  color: var(--accent-rose);
+  border-color: var(--accent-rose);
+}
+
+.mini-btn.danger:hover {
+  background: var(--accent-rose);
+  color: #fff;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-full);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-gold {
+  background: var(--accent-gold-glow);
+  color: var(--accent-gold);
+  border: 1px solid var(--accent-gold);
+}
+
+.badge-blue {
+  background: var(--accent-muted);
+  color: var(--accent-primary);
+  border: 1px solid var(--accent-primary);
+}
+
+.badge-emerald {
+  background: var(--accent-emerald-muted);
+  color: var(--accent-emerald);
+  border: 1px solid var(--accent-emerald);
+}
+
+.badge-amber {
+  background: var(--accent-amber-muted);
+  color: var(--accent-amber);
+  border: 1px solid var(--accent-amber);
+}
+
+.badge-rose {
+  background: var(--accent-rose-muted);
+  color: var(--accent-rose);
+  border: 1px solid var(--accent-rose);
+}

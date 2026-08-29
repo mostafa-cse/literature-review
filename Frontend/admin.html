@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin System Operations • LitNexis Security Center</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20'/%3E%3Cpath d='M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'/%3E%3C/svg%3E">
+
+  <!-- Typography & Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+  <!-- Modular Stylesheets -->
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/navbar.css">
+  <link rel="stylesheet" href="/css/modal.css">
+  <link rel="stylesheet" href="/css/toast.css">
+  <link rel="stylesheet" href="/css/footer.css">
+  <link rel="stylesheet" href="/css/admin.css">
+
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('litnexis_theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      if (savedTheme === 'light') document.body?.classList.add('light-mode');
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- Choice 2: Oxford / Overleaf Prestige Academic Header -->
+  <header class="site-header">
+    <div class="nav-container">
+      <!-- Left: Logo Crest + Name -->
+      <a href="/" class="brand-group">
+        <div class="brand-logo-crest">LN</div>
+        <div class="brand-title-wrap">
+          <span class="brand-name">LitNexis</span>
+          <span class="brand-subtitle">Academic Intelligence</span>
+        </div>
+      </a>
+
+      <!-- Right: Authenticated Actions -->
+      <div class="nav-actions">
+        <a href="/" class="nav-link-academic">Home</a>
+        <a href="/about" class="nav-link-academic">About</a>
+        <a href="/dashboard" class="nav-link-academic">Dashboard</a>
+        <a href="/admin" id="nav-admin-link" class="nav-link-academic active" style="color: var(--accent-rose);">Admin</a>
+
+        <button class="theme-toggle-academic theme-toggle-pill" id="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+          <span id="theme-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></span>
+        </button>
+
+        <!-- Account / Username Academic Dropdown -->
+        <div class="account-dropdown-wrapper" id="account-dropdown-wrap">
+          <button type="button" class="account-academic-btn" id="account-dropdown-toggle" onclick="toggleAccountDropdown(event)" aria-haspopup="true" aria-expanded="false" title="Account Menu">
+            <span id="user-nav-name">Administrator</span>
+            <span style="font-size: 0.72rem; margin-left: 0.2rem; opacity: 0.7;">▼</span>
+          </button>
+
+          <div class="account-dropdown-menu" id="account-dropdown-menu">
+            <div class="dropdown-user-header">
+              <div class="dropdown-user-name">
+                <span id="dropdown-user-name-txt">Administrator</span>
+                <span class="role-badge-pill role-admin" style="font-size: 0.72rem; font-family: 'JetBrains Mono', monospace; font-weight: 700; padding: 0.12rem 0.45rem; border-radius: 4px; background: rgba(244,63,94,0.15); color: var(--accent-rose); border: 1px solid rgba(244,63,94,0.3);">ADMIN</span>
+              </div>
+              <div class="dropdown-user-email" id="dropdown-user-email-txt">admin@student.just.edu.bd</div>
+            </div>
+
+            <a href="/profile" class="dropdown-item">
+              <span>Profile & Settings</span>
+            </a>
+            <a href="/dashboard" class="dropdown-item">
+              <span>Systematic Surveys</span>
+            </a>
+            <a href="/admin" class="dropdown-item" style="color: var(--accent-rose);">
+              <span>Admin Console</span>
+            </a>
+            <button type="button" class="dropdown-item danger" onclick="handleLogout()">
+              <span>Sign Out</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="admin-container">
+    <div class="admin-header-row">
+      <div>
+        <h1 class="admin-title">System Administration & Telemetry</h1>
+        <p style="color: var(--text-secondary); font-size: 0.95rem; margin-top: 0.25rem;">Monitor platform health, user quotas, maintenance status, and security audit logs.</p>
+      </div>
+
+      <!-- Maintenance Mode Toggle -->
+      <div style="background: var(--bg-card); border: 1.5px solid var(--border-card); padding: 0.65rem 1.15rem; border-radius: var(--radius-lg); display: flex; align-items: center; gap: 0.75rem;">
+        <span style="font-size: 0.88rem; font-weight: 700; color: var(--text-primary);">Maintenance Mode:</span>
+        <label style="position: relative; display: inline-block; width: 44px; height: 24px; cursor: pointer;">
+          <input type="checkbox" id="toggle-maintenance-mode" onchange="toggleMaintenance(this.checked)" style="opacity: 0; width: 0; height: 0;">
+          <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--bg-tertiary); transition: .3s; border-radius: 24px; border: 1px solid var(--border-subtle);"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Telemetry KPIs -->
+    <div class="admin-kpi-grid">
+      <div class="kpi-card" style="--kpi-accent: var(--accent-primary);">
+        <div class="kpi-num" id="stat-admin-users">0</div>
+        <div class="kpi-label">Registered Researchers</div>
+      </div>
+      <div class="kpi-card" style="--kpi-accent: var(--accent-gold);">
+        <div class="kpi-num" id="stat-admin-projects">0</div>
+        <div class="kpi-label">Survey Projects</div>
+      </div>
+      <div class="kpi-card" style="--kpi-accent: var(--accent-emerald);">
+        <div class="kpi-num" id="stat-admin-papers">0</div>
+        <div class="kpi-label">Indexed Papers</div>
+      </div>
+      <div class="kpi-card" style="--kpi-accent: var(--accent-purple);">
+        <div class="kpi-num" id="stat-admin-heap">0 MB</div>
+        <div class="kpi-label">Process Memory Heap</div>
+      </div>
+    </div>
+
+    <!-- Registered Researchers Table -->
+    <div class="admin-table-card">
+      <div class="admin-table-header">
+        <div class="admin-table-title">
+          <span>Registered Researchers &amp; Roles</span>
+        </div>
+      </div>
+      <div style="overflow-x: auto;">
+        <table class="matrix-table" style="width: 100%;">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Full Name</th>
+              <th>Email</th>
+              <th>System Role</th>
+              <th>Joined Date</th>
+            </tr>
+          </thead>
+          <tbody id="admin-users-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Security Audit Logs Table -->
+    <div class="admin-table-card">
+      <div class="admin-table-header">
+        <div class="admin-table-title">
+          <span>Security &amp; Operation Audit Logs</span>
+        </div>
+      </div>
+      <div style="overflow-x: auto;">
+        <table class="matrix-table" style="width: 100%;">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Action</th>
+              <th>Details</th>
+              <th>IP Address</th>
+            </tr>
+          </thead>
+          <tbody id="admin-audit-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Enhanced Multi-Column Academic Footer -->
+  <footer>
+    <div class="footer-top-grid">
+      <!-- Brand & Mission Column -->
+      <div class="footer-brand-col">
+        <div class="footer-brand-header">
+          <div class="brand-logo-crest" style="width: 36px; height: 36px; font-size: 0.95rem;">LN</div>
+          <div>
+            <div style="font-weight: 800; color: var(--text-primary); font-size: 1.05rem;">LitNexis Admin</div>
+            <div style="font-size: 0.82rem; color: var(--accent-rose); font-family: 'JetBrains Mono', monospace;">Control & Governance Center</div>
+          </div>
+        </div>
+        <p class="footer-brand-desc">
+          System telemetry, RBAC quotas, SQLite WAL metrics, and platform security auditing.
+        </p>
+        <div class="footer-status-pill">
+          <span class="footer-status-dot"></span>
+          <span>SQLite WAL Engine Active</span>
+        </div>
+      </div>
+
+      <!-- Column 1: Core Navigation -->
+      <div>
+        <h4 class="footer-col-title">Navigation</h4>
+        <ul class="footer-list">
+          <li><a href="/">Home Overview</a></li>
+          <li><a href="/about">About Platform</a></li>
+          <li><a href="/dashboard">Surveys Dashboard</a></li>
+          <li><a href="/workspace">Interactive Matrix</a></li>
+          <li><a href="/profile">Profile Settings</a></li>
+        </ul>
+      </div>
+
+      <!-- Column 2: Taxonomies -->
+      <div>
+        <h4 class="footer-col-title">Taxonomies</h4>
+        <ul class="footer-list">
+          <li><a href="/dashboard">+ Create New Survey</a></li>
+          <li><a href="/dashboard">Blueprint Templates</a></li>
+          <li><a href="/workspace">Feature Selection Matrix</a></li>
+          <li><a href="/workspace">Synthesis Insights</a></li>
+        </ul>
+      </div>
+
+      <!-- Column 3: Engine Specs -->
+      <div>
+        <h4 class="footer-col-title">Engine Specs</h4>
+        <ul class="footer-list">
+          <li><a href="javascript:void(0)">Node.js & Express REST</a></li>
+          <li><a href="javascript:void(0)">SQLite WAL Persistence</a></li>
+          <li><a href="javascript:void(0)">KaTeX LaTeX Rendering</a></li>
+          <li><a href="javascript:void(0)">SheetJS Multi-Level XLSX</a></li>
+          <li><a href="/api/stats" target="_blank">Live REST API Stats</a></li>
+        </ul>
+      </div>
+
+      <!-- Column 4: Quick Launch -->
+      <div>
+        <h4 class="footer-col-title">Preferences</h4>
+        <ul class="footer-list">
+          <li><a href="javascript:void(0)" onclick="typeof toggleTheme === 'function' ? toggleTheme() : document.getElementById('theme-toggle')?.click()">Toggle Dark/Light Mode</a></li>
+          <li><a href="javascript:void(0)" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">Back to Top</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Bottom Sub-Footer Bar -->
+    <div class="footer-bottom-bar">
+      <div class="footer-copyright">
+        © 2026 <strong>LitNexis Technologies Inc.</strong> All rights reserved. Precision Literature Benchmarking &amp; Research Matrix Systems.
+      </div>
+      <div class="footer-badge-group">
+        <span style="font-size: 0.85rem; color: var(--text-tertiary); font-family: 'JetBrains Mono', monospace; font-weight: 500;">developed by Mostafa Kamal @ Cyber Security Lab, JUST</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Toast Notification Stack -->
+  <div id="toast-container"></div>
+
+  <!-- Modular Scripts -->
+  <script src="/js/core/api.js"></script>
+  <script src="/js/core/modal.js"></script>
+  <script src="/js/core/toast.js"></script>
+  <script src="/js/core/navbar.js"></script>
+  <script src="/js/admin/admin.js"></script>
+</body>
+</html>

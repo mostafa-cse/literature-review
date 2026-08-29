@@ -1,0 +1,449 @@
+/* ==========================================================================
+   LITNEXIS UNIVERSAL MODAL SYSTEM STYLES
+   Frosted Glass Architecture & Unified Multi-Theme Design System
+   ========================================================================== */
+
+/* 1. Modal Overlay Backdrop */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(4, 7, 13, 0.85);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1.5rem;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.modal-overlay.open {
+  display: flex;
+  opacity: 1;
+}
+
+[data-theme="light"] .modal-overlay,
+body.light-mode .modal-overlay {
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* 2. Modal Containers & Dialog Boxes */
+.modal-container,
+.dialog-box,
+.modal-box,
+.modal-card {
+  background: linear-gradient(180deg, #131926 0%, #0d121f 100%);
+  border: 1.5px solid rgba(212, 175, 55, 0.35);
+  border-radius: 14px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75), 0 0 35px rgba(212, 175, 55, 0.12);
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  max-height: 90dvh;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  box-sizing: border-box;
+  color: var(--text-primary, #f8fafc);
+  transform: translateY(20px) scale(0.97);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+  scrollbar-width: thin;
+}
+
+.modal-overlay.open .modal-container,
+.modal-overlay.open .dialog-box,
+.modal-overlay.open .modal-box,
+.modal-overlay.open .modal-card {
+  transform: translateY(0) scale(1);
+}
+
+.modal-container.large {
+  max-width: 900px;
+}
+
+.modal-container.full-screen-reader {
+  max-width: 96vw;
+  height: 94vh;
+  max-height: 94vh;
+}
+
+[data-theme="light"] .modal-container,
+[data-theme="light"] .dialog-box,
+[data-theme="light"] .modal-box,
+[data-theme="light"] .modal-card,
+body.light-mode .modal-container,
+body.light-mode .dialog-box,
+body.light-mode .modal-box,
+body.light-mode .modal-card {
+  background: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 25px 65px rgba(15, 23, 42, 0.16), 0 0 24px rgba(180, 83, 9, 0.06) !important;
+}
+
+/* 3. Modal Headers & Titles */
+.modal-header {
+  padding: 1.25rem 1.75rem;
+  border-bottom: 1px solid var(--border-base, #1e2b48);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.5);
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .modal-header,
+body.light-mode .modal-header {
+  background: #f8fafc !important;
+  border-bottom-color: #e2e8f0 !important;
+}
+
+.modal-title,
+.modal-header h3,
+.dialog-box h3,
+.modal-box h3 {
+  font-family: var(--font-sans, 'Inter', sans-serif);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary, #f8fafc);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+}
+
+[data-theme="light"] .modal-title,
+[data-theme="light"] .modal-header h3,
+[data-theme="light"] .dialog-box h3,
+[data-theme="light"] .modal-box h3,
+body.light-mode .modal-title,
+body.light-mode .modal-header h3,
+body.light-mode .dialog-box h3,
+body.light-mode .modal-box h3 {
+  color: #0f172a !important;
+}
+
+.modal-subtitle,
+.dialog-box p,
+.modal-box p {
+  color: var(--text-secondary, #cbd5e1);
+}
+
+[data-theme="light"] .modal-subtitle,
+[data-theme="light"] .dialog-box p,
+[data-theme="light"] .modal-box p,
+body.light-mode .modal-subtitle,
+body.light-mode .dialog-box p,
+body.light-mode .modal-box p {
+  color: #475569 !important;
+}
+
+/* 4. Modal Close Buttons */
+.close-btn,
+.btn-close-modal,
+.modal-close-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--bg-surface-raised, #111b30);
+  border: 1px solid var(--border-base, #1e2b48);
+  color: var(--text-secondary, #cbd5e1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.close-btn:hover,
+.btn-close-modal:hover,
+.modal-close-btn:hover {
+  background: rgba(244, 63, 94, 0.15);
+  border-color: var(--accent-rose, #f43f5e);
+  color: var(--accent-rose, #f43f5e);
+}
+
+[data-theme="light"] .close-btn,
+[data-theme="light"] .btn-close-modal,
+[data-theme="light"] .modal-close-btn,
+body.light-mode .close-btn,
+body.light-mode .btn-close-modal,
+body.light-mode .modal-close-btn {
+  background: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+}
+
+[data-theme="light"] .close-btn:hover,
+[data-theme="light"] .btn-close-modal:hover,
+[data-theme="light"] .modal-close-btn:hover,
+body.light-mode .close-btn:hover,
+body.light-mode .btn-close-modal:hover,
+body.light-mode .modal-close-btn:hover {
+  background: #fee2e2 !important;
+  border-color: #e11d48 !important;
+  color: #e11d48 !important;
+}
+
+/* 5. Modal Body & Footer */
+.modal-body {
+  padding: 1.75rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  padding: 1.25rem 1.75rem;
+  border-top: 1px solid var(--border-base, #1e2b48);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.85rem;
+  background: rgba(15, 23, 42, 0.5);
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .modal-footer,
+body.light-mode .modal-footer {
+  background: #f8fafc !important;
+  border-top-color: #e2e8f0 !important;
+}
+
+/* 6. Form Controls: Labels, Inputs, Textareas, Dropdowns */
+.modal-form-group,
+.form-group {
+  margin-bottom: 1.15rem;
+}
+
+.modal-form-group label,
+.form-label,
+label.form-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary, #f8fafc);
+  margin-bottom: 0.45rem;
+  letter-spacing: 0.01em;
+}
+
+[data-theme="light"] .modal-form-group label,
+[data-theme="light"] .form-label,
+[data-theme="light"] label.form-label,
+body.light-mode .modal-form-group label,
+body.light-mode .form-label,
+body.light-mode label.form-label {
+  color: #1e293b !important;
+}
+
+/* Inputs & Textareas */
+.modal-form-input,
+.modal-form-textarea,
+.modal-form-select,
+.form-input,
+.form-textarea,
+.form-select,
+.survey-field-input,
+.survey-field-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.68rem 0.95rem;
+  background: var(--bg-surface, #0d1424);
+  border: 1.5px solid var(--border-base, #1e2b48);
+  border-radius: 8px;
+  color: var(--text-primary, #f8fafc);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.modal-form-input::placeholder,
+.modal-form-textarea::placeholder,
+.form-input::placeholder,
+.form-textarea::placeholder,
+.survey-field-input::placeholder,
+.survey-field-textarea::placeholder {
+  color: var(--text-tertiary, #94a3b8);
+  opacity: 0.85;
+}
+
+.modal-form-input:focus,
+.modal-form-textarea:focus,
+.modal-form-select:focus,
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus,
+.survey-field-input:focus,
+.survey-field-textarea:focus {
+  outline: none;
+  border-color: var(--accent-gold, #d4af37);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2);
+  background: var(--bg-surface-raised, #111b30);
+}
+
+/* Light Mode Overrides for Form Inputs */
+[data-theme="light"] .modal-form-input,
+[data-theme="light"] .modal-form-textarea,
+[data-theme="light"] .modal-form-select,
+[data-theme="light"] .form-input,
+[data-theme="light"] .form-textarea,
+[data-theme="light"] .form-select,
+[data-theme="light"] .survey-field-input,
+[data-theme="light"] .survey-field-textarea,
+body.light-mode .modal-form-input,
+body.light-mode .modal-form-textarea,
+body.light-mode .modal-form-select,
+body.light-mode .form-input,
+body.light-mode .form-textarea,
+body.light-mode .form-select,
+body.light-mode .survey-field-input,
+body.light-mode .survey-field-textarea {
+  background: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .modal-form-input::placeholder,
+[data-theme="light"] .modal-form-textarea::placeholder,
+[data-theme="light"] .form-input::placeholder,
+[data-theme="light"] .form-textarea::placeholder,
+[data-theme="light"] .survey-field-input::placeholder,
+[data-theme="light"] .survey-field-textarea::placeholder,
+body.light-mode .modal-form-input::placeholder,
+body.light-mode .modal-form-textarea::placeholder,
+body.light-mode .form-input::placeholder,
+body.light-mode .form-textarea::placeholder,
+body.light-mode .survey-field-input::placeholder,
+body.light-mode .survey-field-textarea::placeholder {
+  color: #94a3b8 !important;
+  opacity: 0.95 !important;
+}
+
+[data-theme="light"] .modal-form-input:focus,
+[data-theme="light"] .modal-form-textarea:focus,
+[data-theme="light"] .modal-form-select:focus,
+[data-theme="light"] .form-input:focus,
+[data-theme="light"] .form-textarea:focus,
+[data-theme="light"] .form-select:focus,
+[data-theme="light"] .survey-field-input:focus,
+[data-theme="light"] .survey-field-textarea:focus,
+body.light-mode .modal-form-input:focus,
+body.light-mode .modal-form-textarea:focus,
+body.light-mode .modal-form-select:focus,
+body.light-mode .form-input:focus,
+body.light-mode .form-textarea:focus,
+body.light-mode .form-select:focus,
+body.light-mode .survey-field-input:focus,
+body.light-mode .survey-field-textarea:focus {
+  border-color: #b45309 !important;
+  box-shadow: 0 0 0 3px rgba(180, 83, 9, 0.15) !important;
+  background: #ffffff !important;
+}
+
+/* 7. Dropdown Select Options across all OS & Browsers */
+select option,
+.form-select option,
+.modal-form-select option {
+  background: #0d1424;
+  color: #f8fafc;
+}
+
+[data-theme="light"] select option,
+[data-theme="light"] .form-select option,
+[data-theme="light"] .modal-form-select option,
+body.light-mode select option,
+body.light-mode .form-select option,
+body.light-mode .modal-form-select option {
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* 8. Action & Modal Control Buttons */
+.btn-export-download,
+.btn-primary,
+.action-btn.gold {
+  background: linear-gradient(135deg, #d4af37 0%, #f59e0b 100%);
+  border: 1px solid rgba(212, 175, 55, 0.6);
+  color: #090d16;
+  font-weight: 700;
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.btn-export-download:hover,
+.btn-primary:hover,
+.action-btn.gold:hover {
+  box-shadow: 0 4px 18px rgba(212, 175, 55, 0.35);
+  transform: translateY(-1px);
+}
+
+[data-theme="light"] .btn-export-download,
+[data-theme="light"] .btn-primary,
+[data-theme="light"] .action-btn.gold,
+body.light-mode .btn-export-download,
+body.light-mode .btn-primary,
+body.light-mode .action-btn.gold {
+  background: linear-gradient(135deg, #b45309 0%, #92400e 100%) !important;
+  border: 1px solid #b45309 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(180, 83, 9, 0.25) !important;
+}
+
+.btn-export-cancel,
+.btn-secondary {
+  background: var(--bg-surface-raised, #111b30);
+  border: 1px solid var(--border-base, #1e2b48);
+  color: var(--text-secondary, #cbd5e1);
+  font-weight: 600;
+  padding: 0.6rem 1.15rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.btn-export-cancel:hover,
+.btn-secondary:hover {
+  background: var(--bg-surface, #0d1424);
+  color: var(--text-primary, #f8fafc);
+  border-color: var(--border-subtle);
+}
+
+[data-theme="light"] .btn-export-cancel,
+[data-theme="light"] .btn-secondary,
+body.light-mode .btn-export-cancel,
+body.light-mode .btn-secondary {
+  background: #f1f5f9 !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+[data-theme="light"] .btn-export-cancel:hover,
+[data-theme="light"] .btn-secondary:hover,
+body.light-mode .btn-export-cancel:hover,
+body.light-mode .btn-secondary:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}

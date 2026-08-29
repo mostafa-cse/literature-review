@@ -1,0 +1,29 @@
+# Database files (too large for GitHub)
+literature.db
+literature.db-shm
+literature.db-wal
+literature.db.bak
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Node modules
+node_modules/
+
+# Uploads directory (user files)
+uploads/
+
+# macOS
+.DS_Store
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build output
+dist/
+build/

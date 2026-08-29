@@ -1,0 +1,31 @@
+{
+  "name": "literature-review-system",
+  "version": "1.0.0",
+  "description": "Deep Analytical Benchmark & Literature Review System with Express and SQLite",
+  "main": "Backend/server.js",
+  "scripts": {
+    "start": "node Backend/server.js",
+    "dev": "node --watch Backend/server.js",
+    "test": "node Backend/tests/run_all.js",
+    "test:users": "node Backend/tests/user_credentials_rbac.test.js",
+    "test:rbac": "node Backend/tests/collaboration_rbac.test.js",
+    "test:audit": "node Backend/tests/audit.test.js",
+    "seed": "node Backend/src/seed.js"
+  },
+  "keywords": [
+    "literature-review",
+    "express",
+    "sqlite",
+    "research",
+    "feature-selection"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1",
+    "pdf-parse": "^2.4.5",
+    "xlsx": "^0.18.5"
+  }
+}

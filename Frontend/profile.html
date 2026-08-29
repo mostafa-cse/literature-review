@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Researcher Profile &amp; Settings • LitNexis Academic</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20'/%3E%3Cpath d='M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'/%3E%3C/svg%3E">
+  <meta name="description" content="Manage your researcher identity, institutional affiliation, ORCID ID, security settings, and systematic review preferences.">
+
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Modular Stylesheets -->
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/navbar.css">
+  <link rel="stylesheet" href="/css/modal.css">
+  <link rel="stylesheet" href="/css/toast.css">
+  <link rel="stylesheet" href="/css/footer.css">
+  <link rel="stylesheet" href="/css/profile.css">
+
+  <!-- Inline theme flash prevention -->
+  <script>
+    (function() {
+      const t = localStorage.getItem('litnexis_theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════
+       OXFORD / OVERLEAF PRESTIGE HEADER
+  ══════════════════════════════════════════════ -->
+  <header class="site-header" id="site-header">
+    <div class="nav-container">
+      <a href="/" class="brand-group">
+        <div class="brand-logo-crest">LN</div>
+        <div class="brand-title-wrap">
+          <span class="brand-name">LitNexis</span>
+          <span class="brand-subtitle">Academic Intelligence</span>
+        </div>
+      </a>
+
+      <div class="nav-actions">
+        <a href="/" class="nav-link-academic">Home</a>
+        <a href="/about" class="nav-link-academic">About</a>
+        <a href="/dashboard" class="nav-link-academic">Dashboard</a>
+        <a href="/admin" id="nav-admin-link" class="nav-link-academic" style="display:none; color:var(--accent-rose);">Admin</a>
+
+        <button class="theme-toggle-academic theme-toggle-pill" id="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+          <span id="theme-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></span>
+        </button>
+
+        <div class="account-dropdown-wrapper" id="account-dropdown-wrap">
+          <button type="button" class="account-academic-btn" id="account-dropdown-toggle"
+            onclick="toggleAccountDropdown(event)" aria-haspopup="true" aria-expanded="false">
+            <span id="user-nav-name">Researcher</span>
+            <span style="font-size:0.7rem; opacity:0.65; margin-left:0.2rem;">▼</span>
+          </button>
+          <div class="account-dropdown-menu" id="account-dropdown-menu">
+            <div class="dropdown-user-header">
+              <div class="dropdown-user-name">
+                <span id="dropdown-user-name-txt">Researcher</span>
+                <span id="nav-user-role-badge" class="role-badge-pill role-user">USER</span>
+              </div>
+              <div class="dropdown-user-email" id="dropdown-user-email-txt">researcher@litnexis.ac</div>
+            </div>
+            <a href="/profile" class="dropdown-item" style="color:var(--accent-gold); font-weight:700;">Profile &amp; Settings</a>
+            <a href="/dashboard" class="dropdown-item">Surveys Dashboard</a>
+            <a href="/admin" class="dropdown-item" id="dropdown-admin-link" style="display:none; color:var(--accent-rose);">Admin Console</a>
+            <button type="button" class="dropdown-item danger" onclick="handleLogout()">Sign Out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════
+       MAIN PROFILE CONTENT
+  ══════════════════════════════════════════════ -->
+  <main class="profile-container">
+
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb-bar" aria-label="Breadcrumb">
+      <a href="/dashboard">Dashboard</a>
+      <span>›</span>
+      <span class="bc-current">Researcher Profile &amp; Settings</span>
+    </nav>
+
+    <!-- Alert Banner -->
+    <div id="profile-alert" class="alert-banner"></div>
+
+    <!-- Google Welcome Banner -->
+    <div id="google-welcome-banner" class="google-welcome-banner">
+      <div style="flex:1;">
+        <div class="google-welcome-title">Account Successfully Created with Google!</div>
+        <p class="google-welcome-desc">
+          Your research account has been authorized. Complete your academic identity below by adding your
+          <strong>University/Department</strong>, <strong>ORCID ID</strong>,
+          <strong>Google Scholar Profile</strong>, and <strong>Research Bio</strong>,
+          then click <em>"Save Profile Changes"</em>.
+        </p>
+      </div>
+      <button class="google-welcome-dismiss"
+        onclick="document.getElementById('google-welcome-banner').classList.remove('show')" title="Dismiss"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+    </div>
+
+    <!-- ─── PROFILE HERO CARD ─────────────────────── -->
+    <section class="profile-hero">
+      <div class="hero-main">
+        <div class="avatar-container" style="position:relative; display:inline-block;">
+          <div class="avatar-crest" id="profile-avatar-txt">R</div>
+          <img id="profile-avatar-img" class="avatar-image-circle" src="" alt="Profile Picture" style="display:none;">
+          <label for="avatar-file-input" class="avatar-edit-badge" title="Change Profile Picture">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+          </label>
+          <input type="file" id="avatar-file-input" accept="image/png, image/jpeg, image/webp" style="display:none;" onchange="handleAvatarFileSelected(event)">
+        </div>
+
+        <div class="hero-info">
+          <h1>
+            <span id="profile-display-name">Researcher Name</span>
+            <span id="profile-display-role" class="role-badge role-user">LEAD RESEARCHER</span>
+          </h1>
+          <div class="hero-submeta">
+            <span id="profile-display-email">user@university.ac</span>
+            <span class="sep">•</span>
+            <span id="hero-inst">Academic Institute</span>
+            <span class="sep">•</span>
+            <span id="hero-created">Joined August 2026</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-stats">
+        <div class="hero-stat-box">
+          <div class="hero-stat-value" id="stat-total-surveys">1</div>
+          <div class="hero-stat-label">Active Surveys</div>
+        </div>
+        <div class="hero-stat-box">
+          <div class="hero-stat-value" id="stat-total-papers-hero">0</div>
+          <div class="hero-stat-label">Indexed Papers</div>
+        </div>
+        <div class="hero-stat-box">
+          <div class="hero-stat-value" id="stat-storage-used" style="color:var(--accent-emerald);">0 MB</div>
+          <div class="hero-stat-label">PDF Storage</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── TOP BAR TABS ──────────────────────────── -->
+    <nav class="tab-bar" role="tablist">
+      <button class="tab-btn active" id="tab-btn-profile" role="tab" aria-selected="true" onclick="switchTab('profile')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        Profile
+      </button>
+      <button class="tab-btn" id="tab-btn-about" role="tab" aria-selected="false" onclick="switchTab('about')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+        About
+      </button>
+      <button class="tab-btn" id="tab-btn-security" role="tab" aria-selected="false" onclick="switchTab('security')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        Security &amp; Password
+      </button>
+      <button class="tab-btn" id="tab-btn-quotas" role="tab" aria-selected="false" onclick="switchTab('quotas')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+        Quotas &amp; Resources
+      </button>
+    </nav>
+
+    <!-- ══════════════════════════════════════════════
+         TAB 1: Profile (Picture, Academic & Personal Info, Edit)
+    ══════════════════════════════════════════════════ -->
+    <section id="tab-profile" class="tab-panel active" role="tabpanel">
+      <div class="settings-grid">
+
+        <!-- Main Profile Form -->
+        <div>
+          <div class="card">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <h2 class="card-title">Academic Identity &amp; Personal Profile</h2>
+                <p class="card-subtitle">Manage your verified researcher details, contact coordinates, profile picture, and institutional affiliations.</p>
+              </div>
+              <button type="button" class="btn btn-secondary" onclick="document.getElementById('input-profile-name').focus()" style="font-size:0.84rem; padding:0.45rem 0.85rem; display:inline-flex; align-items:center; gap:0.35rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                Edit Mode
+              </button>
+            </div>
+
+            <!-- Profile Picture Chooser Row -->
+            <div class="avatar-picker-box" style="margin-bottom:1.5rem; padding:1.15rem; background:var(--bg-surface-raised); border:1.5px solid var(--border-base); border-radius:10px; display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap;">
+              <div class="avatar-crest" id="profile-avatar-preview-txt" style="width:56px; height:56px; font-size:1.5rem; flex-shrink:0;">R</div>
+              <img id="profile-avatar-preview-img" class="avatar-image-circle" src="" alt="Avatar Preview" style="width:56px; height:56px; display:none; flex-shrink:0;">
+              
+              <div style="flex:1; min-width:200px;">
+                <div style="font-weight:700; color:var(--text-primary); font-size:0.92rem; margin-bottom:0.25rem;">Researcher Profile Picture</div>
+                <div style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">Upload a personal academic photo (PNG, JPG, or WebP up to 5MB) or select a color avatar.</div>
+              </div>
+
+              <div style="display:flex; gap:0.5rem; align-items:center;">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('avatar-file-input').click()" style="font-size:0.84rem; padding:0.45rem 0.85rem;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                  Upload Photo
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="clearAvatarPhoto()" id="btn-clear-avatar" style="font-size:0.84rem; padding:0.45rem 0.75rem; color:var(--accent-rose); display:none;">
+                  Remove
+                </button>
+              </div>
+            </div>
+
+            <form id="profile-form" onsubmit="submitProfileUpdate(event)">
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="input-profile-name">Full Academic Name *</label>
+                  <input type="text" id="input-profile-name" class="form-control" required
+                    placeholder="e.g. Dr. Mostafa Kamal">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="input-profile-email">Primary Email / Gmail *</label>
+                  <input type="email" id="input-profile-email" class="form-control" required
+                    placeholder="e.g. researcher@university.ac">
+                  <div class="form-hint">Used for sign-in, collaboration invitations, and PRISMA consensus notifications.</div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="input-profile-institution">University / Research Institution</label>
+                  <input type="text" id="input-profile-institution" class="form-control"
+                    placeholder="e.g. Department of Computer Science, JUST">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="inp-phone">Laboratory / Phone Extension</label>
+                  <input type="text" id="inp-phone" class="form-control"
+                    placeholder="e.g. +880 1700-000000">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="input-profile-bio">Research Biography &amp; Scope Statement</label>
+                <textarea id="input-profile-bio" class="form-control"
+                  placeholder="Summarize your primary research domains, ongoing systematic literature surveys, and benchmark methodologies…"></textarea>
+                <div class="form-hint">Displayed to collaborators when reviewing co-authored survey matrices.</div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="input-profile-orcid">ORCID iD</label>
+                  <input type="text" id="input-profile-orcid" class="form-control"
+                    placeholder="e.g. 0009-0002-1823-4567">
+                  <div class="form-hint">Persistent digital identifier for linking camera-ready survey papers.</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="inp-scholar">Google Scholar URL</label>
+                  <input type="url" id="inp-scholar" class="form-control"
+                    placeholder="https://scholar.google.com/citations?user=…">
+                </div>
+              </div>
+
+              <div class="form-footer">
+                <button type="submit" class="btn btn-gold" id="btn-save-profile">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  Save Profile Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div>
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Academic Role &amp; Privileges</h2>
+            </div>
+            <div class="kv-list">
+              <div class="kv-item">
+                <span class="kv-key">Role Tier</span>
+                <span class="kv-val gold" id="sb-role">LEAD RESEARCHER</span>
+              </div>
+              <div class="kv-item">
+                <span class="kv-key">Account Status</span>
+                <span class="kv-val emerald">● ACTIVE</span>
+              </div>
+              <div class="kv-item">
+                <span class="kv-key">Collaboration Access</span>
+                <span class="kv-val">Owner / Editor / Reviewer</span>
+              </div>
+              <div class="kv-item">
+                <span class="kv-key">Database Engine</span>
+                <span class="kv-val blue">SQLite WAL Synchronized</span>
+              </div>
+              <div class="kv-item">
+                <span class="kv-key">Last Sign-In</span>
+                <span class="kv-val" id="sb-last-login">Today</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Quick Navigation</h2>
+            </div>
+            <div class="quick-nav-list">
+              <a href="/dashboard" class="btn btn-secondary btn-block">Open Surveys Dashboard</a>
+              <a href="/workspace" class="btn btn-secondary btn-block">Open Matrix Workspace</a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════
+         TAB 2: About (Academic & Personal Dossier, Edit Button)
+    ══════════════════════════════════════════════════ -->
+    <section id="tab-about" class="tab-panel" role="tabpanel">
+      <div class="settings-grid">
+
+        <div>
+          <!-- Academic Dossier Card -->
+          <div class="card">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <h2 class="card-title">Academic Profile &amp; Research Dossier</h2>
+                <p class="card-subtitle">Verified institutional affiliation, research publications, and scholarly identity.</p>
+              </div>
+              <button type="button" class="btn btn-gold" onclick="switchTab('profile')" style="font-size:0.84rem; padding:0.45rem 0.95rem; display:inline-flex; align-items:center; gap:0.4rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                Edit Academic Info
+              </button>
+            </div>
+
+            <div class="about-dossier-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1.25rem; margin-top:0.75rem;">
+              
+              <div class="about-info-block" style="background:var(--bg-surface-raised); border:1.5px solid var(--border-base); border-radius:10px; padding:1.15rem;">
+                <div style="font-size:0.78rem; font-family:'JetBrains Mono',monospace; color:var(--accent-gold); text-transform:uppercase; margin-bottom:0.35rem;">Primary Affiliation</div>
+                <div style="font-size:1.05rem; font-weight:700; color:var(--text-primary);" id="about-display-inst">Academic Research Institute</div>
+                <div style="font-size:0.84rem; color:var(--text-secondary); margin-top:0.35rem;" id="about-display-role-sub">Lead Systematic Reviewer &amp; PI</div>
+              </div>
+
+              <div class="about-info-block" style="background:var(--bg-surface-raised); border:1.5px solid var(--border-base); border-radius:10px; padding:1.15rem;">
+                <div style="font-size:0.78rem; font-family:'JetBrains Mono',monospace; color:var(--accent-emerald); text-transform:uppercase; margin-bottom:0.35rem;">Verified Scholarly Identifiers</div>
+                <div style="display:flex; flex-direction:column; gap:0.45rem; margin-top:0.35rem;">
+                  <div style="display:flex; align-items:center; gap:0.5rem;">
+                    <span style="font-weight:700; color:var(--text-primary); font-size:0.86rem;">ORCID:</span>
+                    <span id="about-display-orcid" style="font-family:'JetBrains Mono',monospace; font-size:0.84rem; color:var(--accent-primary);">Not specified</span>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:0.5rem;">
+                    <span style="font-weight:700; color:var(--text-primary); font-size:0.86rem;">Google Scholar:</span>
+                    <a id="about-display-scholar-link" href="#" target="_blank" style="font-size:0.84rem; color:var(--accent-gold); text-decoration:underline; display:none;">View Scholar Profile ↗</a>
+                    <span id="about-display-scholar-none" style="font-size:0.84rem; color:var(--text-tertiary);">Not linked</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Biography Quotation Block -->
+            <div style="margin-top:1.5rem;">
+              <h3 style="font-size:0.92rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.55rem;">Research Scope &amp; Methodology</h3>
+              <div class="about-bio-quote" style="background:rgba(56, 189, 248, 0.05); border-left:3px solid var(--accent-primary); border-radius:0 8px 8px 0; padding:1.1rem 1.35rem; color:var(--text-primary); font-size:0.95rem; line-height:1.7; font-style:italic;" id="about-display-bio">
+                "No research biography specified yet. Click 'Edit Academic Info' above to describe your domain objectives, PRISMA methodology, and survey focus."
+              </div>
+            </div>
+          </div>
+
+          <!-- Personal Contact & Profile Details Card -->
+          <div class="card" style="margin-top:1.5rem;">
+            <div class="card-header">
+              <h2 class="card-title">Personal Coordinates &amp; Session Profile</h2>
+            </div>
+            <div class="kv-list">
+              <div class="kv-item">
+                <span class="kv-key">Full Name</span>
+                <span class="kv-val" id="about-name-txt">Researcher</span>
+              </div>
+              <div class="kv-item">
+                <span class="kv-key">Primary Email</span>
+                <span class="kv-val" id="about-email-txt">researcher@litnexis.ac</span>
+              </div>
+              <div class="kv-item">
+                <span class="kv-key">Laboratory / Phone</span>
+                <span class="kv-val" id="about-phone-txt">Not specified</span>
+              </div>
+              <div class="kv-item">
+                <span class="kv-key">Platform Registration</span>
+                <span class="kv-val" id="about-joined-txt">August 2026</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side Quick Highlights -->
+        <div>
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Research Workspace Privileges</h2>
+            </div>
+            <p class="card-subtitle" style="line-height:1.7; margin-bottom:1rem;">
+              Your account has full systematic review capabilities across LitNexis Academic:
+            </p>
+            <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:0.65rem; font-size:0.88rem;">
+              <li style="display:flex; align-items:center; gap:0.5rem; color:var(--accent-emerald);">
+                <span>✔</span> <span>Multi-Level Matrix Creation &amp; Taxonomy Clustering</span>
+              </li>
+              <li style="display:flex; align-items:center; gap:0.5rem; color:var(--accent-emerald);">
+                <span>✔</span> <span>PRISMA 2020 Blind Screening &amp; Consensus Voting</span>
+              </li>
+              <li style="display:flex; align-items:center; gap:0.5rem; color:var(--accent-emerald);">
+                <span>✔</span> <span>Real-time PDF Document Ingestion &amp; Storage</span>
+              </li>
+              <li style="display:flex; align-items:center; gap:0.5rem; color:var(--accent-emerald);">
+                <span>✔</span> <span>Excel (.xlsx), CSV &amp; LaTeX (.tex) Export</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════
+         TAB 3: Security & Password (Password & Remove Other Devices)
+    ══════════════════════════════════════════════════ -->
+    <section id="tab-security" class="tab-panel" role="tabpanel">
+      <div class="settings-grid">
+
+        <div>
+          <!-- Change Password Card -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h2 class="card-title">Change Account Password</h2>
+                <p class="card-subtitle">Update your password to keep your research datasets and unpublished surveys secure.</p>
+              </div>
+            </div>
+            <form id="form-change-password" onsubmit="submitPasswordChange(event)">
+              <div class="form-group">
+                <label class="form-label" for="input-current-pass">Current Password *</label>
+                <input type="password" id="input-current-pass" class="form-control" required
+                  placeholder="Enter current password">
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="input-new-pass">New Password *</label>
+                  <input type="password" id="input-new-pass" class="form-control" required minlength="6"
+                    placeholder="At least 6 characters">
+                  <!-- Password strength entropy meter -->
+                  <div class="meter-bar" style="margin-top:0.5rem;">
+                    <div id="pass-entropy-bar" class="meter-fill blue" style="width:0%; transition:width 0.3s ease, background-color 0.3s ease;"></div>
+                  </div>
+                  <div class="form-hint">Use uppercase letters, numbers &amp; symbols for high entropy.</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="input-confirm-pass">Confirm New Password *</label>
+                  <input type="password" id="input-confirm-pass" class="form-control" required minlength="6"
+                    placeholder="Repeat new password">
+                </div>
+              </div>
+
+              <div class="form-footer">
+                <button type="submit" class="btn btn-gold" id="btn-save-password">Update Password</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Multi-Device & Session Security Card -->
+          <div class="card" style="margin-top:1.5rem;">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div>
+                <h2 class="card-title">Multi-Device Session &amp; Login Access</h2>
+                <p class="card-subtitle">Manage active logins. You can revoke access from all other browsers and devices immediately.</p>
+              </div>
+              <span class="role-badge-pill role-user" style="background:rgba(16,185,129,0.15); color:var(--accent-emerald); border-color:rgba(16,185,129,0.3);">
+                Active Device: Authorized
+              </span>
+            </div>
+
+            <div style="background:var(--bg-surface-raised); border:1.5px solid var(--border-base); border-radius:10px; padding:1.25rem; margin-top:0.85rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+              <div style="display:flex; align-items:center; gap:0.85rem;">
+                <div style="width:42px; height:42px; border-radius:8px; background:rgba(56,189,248,0.12); color:#38bdf8; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                </div>
+                <div>
+                  <div style="font-weight:700; color:var(--text-primary); font-size:0.92rem;">Current Active Session</div>
+                  <div style="font-size:0.82rem; color:var(--text-secondary); margin-top:0.15rem;">Web Browser • SQLite Bearer Authorization</div>
+                </div>
+              </div>
+
+              <div>
+                <button type="button" class="btn btn-secondary" onclick="revokeOtherSessions()" id="btn-revoke-sessions" style="color:var(--accent-rose); border-color:rgba(244,63,94,0.35); font-size:0.86rem; padding:0.55rem 1rem; display:inline-flex; align-items:center; gap:0.45rem;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+                  Remove All Other Devices Access
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Security Logs &amp; Audit Trail</h2>
+            </div>
+            <div class="kv-list">
+              <div class="kv-item">
+                <span class="kv-key">Active Session</span>
+                <span class="kv-val emerald">Current Device (Bearer Token)</span>
+              </div>
+              <div class="kv-item">
+                <span class="kv-key">Password Encryption</span>
+                <span class="kv-val gold">SHA-256 Multi-Round Hash</span>
+              </div>
+              <div class="kv-item">
+                <span class="kv-key">Audit Security Logs</span>
+                <span class="kv-val blue">Logged in SQLite WAL</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════
+         TAB 4: Quotas & Resources (Upcoming AI Quota, Functional PDF Storage)
+    ══════════════════════════════════════════════════ -->
+    <section id="tab-quotas" class="tab-panel" role="tabpanel">
+      <div class="settings-grid">
+
+        <div>
+          <!-- Functional PDF Document Storage Card -->
+          <div class="card">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+              <div>
+                <h2 class="card-title">PDF Document Storage</h2>
+                <p class="card-subtitle">Real-time persistent storage allocated for your uploaded research papers and PDF attachments.</p>
+              </div>
+              <button type="button" class="btn btn-secondary" onclick="loadLiveStorageStats()" id="btn-refresh-storage" style="font-size:0.82rem; padding:0.4rem 0.8rem; display:inline-flex; align-items:center; gap:0.35rem;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                Sync Storage
+              </button>
+            </div>
+
+            <!-- Storage Gauge -->
+            <div class="meter-wrap" style="margin-top:0.75rem;">
+              <div class="meter-label-row">
+                <span class="meter-name" style="font-weight:700;">Storage Consumption</span>
+                <span class="meter-val" id="meter-storage-txt" style="color:var(--accent-emerald); font-weight:700;">0 MB / 500 MB (0%)</span>
+              </div>
+              <div class="meter-bar" style="height:12px; border-radius:6px;">
+                <div id="meter-storage-bar" class="meter-fill green" style="width:0%; transition:width 0.4s ease, background-color 0.4s ease;"></div>
+              </div>
+              <div class="form-hint" id="storage-meta-hint">
+                Calculating stored PDF files across all survey matrices…
+              </div>
+            </div>
+
+            <!-- PDF Storage Breakdown Table -->
+            <div style="margin-top:1.75rem;">
+              <h3 style="font-size:0.9rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.65rem;">
+                Storage Consumption by Survey Project
+              </h3>
+              <div style="overflow-x:auto; border:1px solid var(--border-base); border-radius:8px;">
+                <table style="width:100%; border-collapse:collapse; text-align:left; font-size:0.86rem;">
+                  <thead>
+                    <tr style="background:var(--bg-surface-raised); border-bottom:1px solid var(--border-base); color:var(--text-secondary); font-family:'JetBrains Mono',monospace;">
+                      <th style="padding:0.65rem 0.85rem;">Project Name</th>
+                      <th style="padding:0.65rem 0.85rem; text-align:center;">Indexed Papers</th>
+                      <th style="padding:0.65rem 0.85rem; text-align:center;">Stored PDFs</th>
+                      <th style="padding:0.65rem 0.85rem; text-align:right;">Storage Used</th>
+                    </tr>
+                  </thead>
+                  <tbody id="storage-breakdown-tbody">
+                    <tr>
+                      <td colspan="4" style="padding:1.5rem; text-align:center; color:var(--text-tertiary);">Loading survey storage breakdown…</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Storage Tier Plan Notice (Business Roadmap) -->
+            <div style="margin-top:1.5rem; padding:1.15rem; background:rgba(212,175,55,0.06); border:1.5px solid rgba(212,175,55,0.25); border-radius:10px;">
+              <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.35rem;">
+                <span style="font-size:1.1rem;">💎</span>
+                <span style="font-weight:700; color:var(--accent-gold); font-size:0.92rem;">LitNexis Storage Tier Architecture</span>
+              </div>
+              <p style="font-size:0.84rem; color:var(--text-secondary); line-height:1.6; margin:0;">
+                Current Tier: <strong>Academic Standard (500 MB)</strong>. Enhanced lab tiers with up to 50 GB persistent SQLite database blobs and institutional cloud sharding will be available in the upcoming enterprise release.
+              </p>
+            </div>
+          </div>
+
+          <!-- AI Synthesis & Extraction Quota (Upcoming Feature) -->
+          <div class="card" style="margin-top:1.5rem;">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+              <div>
+                <h2 class="card-title">AI Synthesis &amp; Extraction Quota</h2>
+                <p class="card-subtitle">Automated LLM paper extraction, matrix synthesis, and AI literature assistant.</p>
+              </div>
+              <span class="role-badge-pill role-admin" style="background:rgba(99,102,241,0.15); color:#818cf8; border:1px solid rgba(99,102,241,0.35); font-weight:800; font-size:0.75rem;">
+                🚀 UPCOMING FEATURE
+              </span>
+            </div>
+
+            <div class="meter-wrap" style="margin-top:0.75rem; opacity:0.85;">
+              <div class="meter-label-row">
+                <span class="meter-name">AI Token Allocation (Enterprise Road-Map)</span>
+                <span class="meter-val" id="meter-token-txt">0 / 100,000 Tokens (Reserved)</span>
+              </div>
+              <div class="meter-bar" style="height:10px;">
+                <div id="meter-token-bar" class="meter-fill blue" style="width:0%;"></div>
+              </div>
+            </div>
+
+            <div style="margin-top:1.15rem; padding:1rem 1.15rem; background:rgba(99,102,241,0.06); border:1px solid rgba(99,102,241,0.2); border-radius:8px; font-size:0.85rem; color:var(--text-secondary); line-height:1.6;">
+              <strong style="color:#a5b4fc;">Coming Soon in LitNexis Pro:</strong> Direct prompt-to-matrix generation, automatic abstract &amp; equation vectorization, and cross-cluster PRISMA consensus assistance powered by Google Gemini and specialized biomedical LLMs.
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar System Metrics -->
+        <div>
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">System Metrics</h2>
+            </div>
+            <div class="kv-list">
+              <div class="kv-item">
+                <span class="kv-key">PRISMA Consensus</span>
+                <span class="kv-val gold">κ = 0.88 (Substantial)</span>
+              </div>
+              <div class="kv-item">
+                <span class="kv-key">Database Latency</span>
+                <span class="kv-val emerald">&lt; 1 ms (Local WAL)</span>
+              </div>
+              <div class="kv-item">
+                <span class="kv-key">Storage Engine</span>
+                <span class="kv-val blue">Binary SQLite Blobs</span>
+              </div>
+              <div class="kv-item">
+                <span class="kv-key">Indexed PDF Count</span>
+                <span class="kv-val" id="stat-sidebar-pdfs">0 PDFs</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══════════════════════════════════════════
+       ACADEMIC MULTI-COLUMN FOOTER
+  ══════════════════════════════════════════════ -->
+  <footer>
+    <div class="footer-top-grid">
+      <div class="footer-brand-col">
+        <div class="footer-brand-header">
+          <div class="brand-logo-crest" style="width:36px;height:36px;font-size:0.95rem;">LN</div>
+          <div>
+            <div style="font-weight:800; color:var(--text-primary); font-size:1.05rem;">LitNexis Academic</div>
+            <div style="font-size:0.82rem; color:var(--accent-gold); font-family:'JetBrains Mono',monospace;">Researcher Profile &amp; Security</div>
+          </div>
+        </div>
+        <p class="footer-brand-desc">
+          Researcher credentials management, ORCID verification, institutional affiliations, and session security.
+        </p>
+        <div class="footer-status-pill">
+          <span class="footer-status-dot"></span>
+          <span>SQLite WAL Engine Active</span>
+        </div>
+      </div>
+
+      <div>
+        <h4 class="footer-col-title">Navigation</h4>
+        <ul class="footer-list">
+          <li><a href="/">Home Overview</a></li>
+          <li><a href="/about">About Platform</a></li>
+          <li><a href="/dashboard">Surveys Dashboard</a></li>
+          <li><a href="/workspace">Interactive Matrix</a></li>
+          <li><a href="/profile">Profile Settings</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="footer-col-title">Taxonomies</h4>
+        <ul class="footer-list">
+          <li><a href="/dashboard">+ Create New Survey</a></li>
+          <li><a href="/dashboard">Blueprint Templates</a></li>
+          <li><a href="/workspace">Feature Selection Matrix</a></li>
+          <li><a href="/workspace">Synthesis Insights</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="footer-col-title">Engine Specs</h4>
+        <ul class="footer-list">
+          <li><a href="javascript:void(0)">Node.js &amp; Express REST</a></li>
+          <li><a href="javascript:void(0)">SQLite WAL Persistence</a></li>
+          <li><a href="javascript:void(0)">KaTeX LaTeX Rendering</a></li>
+          <li><a href="javascript:void(0)">SheetJS Multi-Level XLSX</a></li>
+          <li><a href="/api/stats" target="_blank">Live REST API Stats</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="footer-col-title">Preferences</h4>
+        <ul class="footer-list">
+          <li><a href="javascript:void(0)" onclick="typeof toggleTheme === 'function' ? toggleTheme() : document.getElementById('theme-toggle')?.click()">Toggle Dark/Light Mode</a></li>
+          <li><a href="javascript:void(0)" onclick="window.scrollTo({top:0,behavior:'smooth'})">Back to Top</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Bottom Sub-Footer Bar -->
+    <div class="footer-bottom-bar">
+      <div class="footer-copyright">
+        © 2026 <strong>LitNexis Technologies Inc.</strong> All rights reserved. Precision Literature Benchmarking &amp; Research Matrix Systems.
+      </div>
+      <div class="footer-badge-group">
+        <span style="font-size: 0.85rem; color: var(--text-tertiary); font-family: 'JetBrains Mono', monospace; font-weight: 500;">developed by Mostafa Kamal @ Cyber Security Lab, JUST</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Toast Container -->
+  <div id="toast-container"></div>
+
+  <!-- Modular Scripts -->
+  <script src="/js/core/api.js"></script>
+  <script src="/js/core/modal.js"></script>
+  <script src="/js/core/toast.js"></script>
+  <script src="/js/core/navbar.js"></script>
+  <script src="/js/profile/profile.js"></script>
+
+  <!-- Global tab switcher -->
+  <script>
+    function switchTab(name) {
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        const isActive = b.id === `tab-btn-${name}`;
+        b.classList.toggle('active', isActive);
+        b.setAttribute('aria-selected', isActive);
+      });
+      document.querySelectorAll('.tab-panel').forEach(p => {
+        p.classList.toggle('active', p.id === `tab-${name}`);
+      });
+      if (name === 'quotas' && typeof loadLiveStorageStats === 'function') {
+        loadLiveStorageStats();
+      }
+    }
+  </script>
+</body>
+</html>

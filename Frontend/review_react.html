@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LitNexis - Dynamic React Paper Review</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2'><path d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20'/><path d='M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'/></svg>">
+  
+  <!-- React 18, ReactDOM, and Babel Standalone for Instant In-Browser Execution -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- PDF.js for in-browser PDF rendering -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+  <link rel="stylesheet" href="/review-react/ReviewApp.css">
+</head>
+<body>
+
+  <!-- Root mount container for the React Application -->
+  <div id="root"></div>
+
+  <!-- In-Browser React Application Bundle -->
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    // 1. useDebounce Hook
+    function useDebounce(value, delay = 750) {
+      const [debouncedValue, setDebouncedValue] = useState(value);
+      useEffect(() => {
+        const handler = setTimeout(() => setDebouncedValue(value), delay);
+        return () => clearTimeout(handler);
+      }, [value, delay]);
+      return debouncedValue;
+    }
+
+    // 2. Mock DB Services
+    const INITIAL_PAPER_STATE = {
+      id: 101,
+      title: 'Deep Feature Selection for High-Dimensional Omics Classification',
+      doi: '10.1145/2939672.2939785',
+      pdfUrl: 'https://arxiv.org/pdf/2301.00001.pdf',
+      clusters: ['Deep Learning', 'Feature Selection', 'Bioinformatics', 'Cancer Genomics'],
+      selectedCluster: 'Feature Selection',
+      domains: ['Healthcare AI', 'Genomics', 'Computational Biology'],
+      selectedDomain: 'Genomics',
+      keywords: ['mRMR', 'LASSO', 'Attention Mechanism', 'Biomarkers', 'TCGA'],
+      selectedKeywords: ['mRMR', 'Attention Mechanism'],
+      columns: [
+        { key: 'Architecture', value: 'Multi-head Self-Attention with Gated Residuals' },
+        { key: 'Benchmark Dataset', value: 'TCGA Pan-Cancer (11,000 RNA-seq samples)' },
+        { key: 'Evaluation Metrics', value: 'F1-Score: 94.8%, AUC-ROC: 0.982' },
+        { key: 'Baseline Comparison', value: 'Random Forests, SVM-RFE, DeepLIFT' }
+      ],
+      prismaDecision: 'included',
+      prismaReason: 'Valid methodology',
+      summaryItems: [
+        { key: 'Intuition', value: 'Sparse regularized attention captures nonlinear gene interactions.' },
+        { key: 'Formulation', value: 'L1 + Frobenius norm regularization over dense embedding weights.' },
+        { key: 'Strengths', value: 'High biological interpretability with validated clinical pathway hits.' },
+        { key: 'Research Gaps', value: 'Computational complexity scales quadratically with feature size.' }
+      ],
+      detailedSummary: 'This paper introduces a robust deep learning framework for feature selection in ultra-high-dimensional biological datasets. By coupling sparsity-inducing penalties with multi-head attention, the model identifies minimal prognostic gene signatures while maintaining state-of-the-art diagnostic accuracy across multiple cancer cohorts.'
+    };
+
+    async function savePaperToDb(paperData) {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          try {
+            localStorage.setItem(`litnexis_paper_${paperData.id || 101}`, JSON.stringify(paperData));
+          } catch (e) {}
+          resolve({ success: true, timestamp: new Date().toISOString() });
+        }, 400);
+      });
+    }
+
+    async function fetchPaperByDoi(doiString) {
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          const clean = (doiString || '').trim();
+          if (!clean) return reject(new Error('Please enter a valid DOI string.'));
+          resolve({
+            title: `Deep Review & Benchmarking: [DOI ${clean}]`,
+            doi: clean,
+            pdfUrl: `https://doi.org/${clean}`,
+            clusters: ['Deep Learning', 'Systematic Review', 'Benchmarking'],
+            selectedCluster: 'Deep Learning',
+            domains: ['Artificial Intelligence', 'Data Science'],
+            selectedDomain: 'Artificial Intelligence',
+            keywords: ['Neural Networks', 'Optimization', 'Empirical Study'],
+            selectedKeywords: ['Neural Networks'],
+            detailedSummary: `Auto-extracted abstract and synthesis summary for DOI ${clean}. Grounded in Crossref & OpenAlex academic database.`
+          });
+        }, 750);
+      });
+    }
+
+    // 3. Header Component
+    // 3. Header Component
+    function Header({
+      paperTitle,
+      surveyTitle = 'My Survey',
+      projectId = 1,
+      paperId,
+      selectedCluster,
+      selectedDomain,
+      selectedKeywords = [],
+      doi,
+      saveStatus = 'saved',
+      onDoiFetch,
+      isFetchingDoi,
+      onOpenPaperSource,
+      onBackToWorkspace,
+      onClusterClick,
+      theme = 'dark',
+      onToggleTheme,
+      leftPaneWidthPercent = 42
+    }) {
+      const [doiInput, setDoiInput] = useState(doi || '');
+      const [doiFocused, setDoiFocused] = useState(false);
+
+      const handleFetchClick = () => {
+        if (!doiInput.trim()) return;
+        onDoiFetch(doiInput.trim());
+      };
+
+      const hasAnyMetadata = Boolean(
+        selectedCluster || selectedDomain || (selectedKeywords && selectedKeywords.length > 0)
+      );
+
+      /* Save indicator */
+      const saveIndicator =
+        saveStatus === 'saving'
+          ? { cls: 'save-dot saving', label: 'Saving…' }
+          : saveStatus === 'error'
+          ? { cls: 'save-dot error', label: 'Save error' }
+          : { cls: 'save-dot saved', label: 'All saved' };
+
+      /* Cluster label: show assigned name or "Unassign Cluster" */
+      const isClusterAssigned = Boolean(selectedCluster && selectedCluster.trim() && selectedCluster.trim() !== 'Unassigned Cluster' && selectedCluster.trim() !== 'Unassign Cluster');
+      const clusterLabel = isClusterAssigned ? selectedCluster.trim() : 'Unassign Cluster';
+
+      // Navigation handlers
+      const handleHomeClick = (e) => {
+        e.stopPropagation();
+        if (onBackToWorkspace) {
+          onBackToWorkspace();
+        } else {
+          window.location.href = `/workspace?project=${projectId || 1}`;
+        }
+      };
+
+      const handleSurveyClick = (e) => {
+        e.stopPropagation();
+        window.location.href = `/workspace?project=${projectId || 1}`;
+      };
+
+      const handleClusterNavClick = (e) => {
+        e.stopPropagation();
+        if (onClusterClick) {
+          onClusterClick(selectedCluster);
+        } else {
+          const clusterParam = isClusterAssigned ? encodeURIComponent(selectedCluster.trim()) : 'unassigned';
+          window.location.href = `/workspace?project=${projectId || 1}&cluster=${clusterParam}`;
+        }
+      };
+
+      const handlePaperNavClick = (e) => {
+        e.stopPropagation();
+        if (onOpenPaperSource) {
+          onOpenPaperSource();
+        } else if (paperId) {
+          window.location.href = `/review_react.html?project=${projectId || 1}&paper=${paperId}`;
+        }
+      };
+
+      return (
+        <header className="header">
+          {/* ── LEFT PANE: breadcrumb (row 1) + title & chips (row 2) ── */}
+          <div className="header-left" style={{ flex: `0 0 ${leftPaneWidthPercent}%`, width: `${leftPaneWidthPercent}%` }}>
+
+            {/* Row 1: Breadcrumb */}
+            <div className="header-left-row1">
+              <nav className="header-breadcrumb" aria-label="Breadcrumb">
+                {/* Segment 1: LitNexis (clickable → Home/Matrix) */}
+                <span
+                  className="breadcrumb-item breadcrumb-home"
+                  onClick={handleHomeClick}
+                  title="LitNexis - Return to Survey Matrix"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleHomeClick(e); }}
+                >
+                  LitNexis
+                </span>
+
+                <span className="breadcrumb-sep" aria-hidden="true">›</span>
+
+                {/* Segment 2: Survey / Project Title (clickable → Project Workspace) */}
+                <span
+                  className="breadcrumb-item breadcrumb-survey"
+                  onClick={handleSurveyClick}
+                  title={`Survey: ${surveyTitle} (Click to open Survey Workspace)`}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSurveyClick(e); }}
+                >
+                  {surveyTitle}
+                </span>
+
+                <span className="breadcrumb-sep" aria-hidden="true">›</span>
+
+                {/* Segment 3: Cluster Name or "Unassign Cluster" (clickable → Filtered Workspace / Section) */}
+                <span
+                  className={`breadcrumb-item ${isClusterAssigned ? 'breadcrumb-cluster' : 'breadcrumb-unassigned'}`}
+                  onClick={handleClusterNavClick}
+                  title={isClusterAssigned ? `Taxonomy Cluster: ${selectedCluster} (Click to view in workspace)` : 'Unassign Cluster (Click to manage clusters)'}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleClusterNavClick(e); }}
+                >
+                  {clusterLabel}
+                </span>
+
+                <span className="breadcrumb-sep" aria-hidden="true">›</span>
+
+                {/* Segment 4: Paper Title (clickable → Open Manuscript / Current Session) */}
+                <span
+                  className="breadcrumb-item breadcrumb-paper breadcrumb-current"
+                  onClick={handlePaperNavClick}
+                  title={`Paper: ${paperTitle || 'Untitled Paper'} (Click to open source manuscript)`}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handlePaperNavClick(e); }}
+                >
+                  {paperTitle || 'Untitled Paper'}
+                </span>
+              </nav>
+            </div>
+
+            {/* Row 2: Title & Meta chips */}
+            <div className="header-left-row2">
+              <div className="header-title-row">
+                <div
+                  className="title-main"
+                  onClick={onOpenPaperSource}
+                  title="Open source manuscript in new tab"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onOpenPaperSource(); }}
+                >
+                  {paperTitle || 'Untitled Paper'}
+                </div>
+                <span className="title-open-icon" onClick={onOpenPaperSource} title="Open source">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                    <polyline points="15 3 21 3 21 9"/>
+                    <line x1="10" y1="14" x2="21" y2="3"/>
+                  </svg>
+                </span>
+              </div>
+
+              {/* Metadata chips */}
+              <div className="title-sub-tags">
+                {selectedCluster && (
+                  <span className="meta-chip chip-cluster" title={`Taxonomy Cluster: ${selectedCluster}`}>
+                    <span className="chip-icon">🔬</span>
+                    <span className="chip-label">{selectedCluster}</span>
+                  </span>
+                )}
+                {selectedDomain && (
+                  <span className="meta-chip chip-domain" title={`Research Domain: ${selectedDomain}`}>
+                    <span className="chip-icon">🌐</span>
+                    <span className="chip-label">{selectedDomain}</span>
+                  </span>
+                )}
+                {selectedKeywords && selectedKeywords.length > 0 && selectedKeywords.map((kw, idx) => (
+                  <span className="meta-chip chip-keyword" key={`kw-${idx}`} title={`Keyword: ${kw}`}>
+                    <span className="chip-icon">🏷️</span>
+                    <span className="chip-label">{kw}</span>
+                  </span>
+                ))}
+                {!hasAnyMetadata && (
+                  <span className="meta-chip chip-empty">
+                    No taxonomy or domain assigned
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Bottom gradient accent strip */}
+            <div className="header-left-accent"></div>
+          </div>
+
+          {/* ── RIGHT PANE: actions (row 1) + DOI search (row 2) ── */}
+          <div className="header-right">
+
+            {/* Row 1: Save Status + Actions */}
+            <div className="header-right-row1">
+              {/* Save Status Indicator */}
+              <div className="header-save-status" title="Auto-save status">
+                <span className={saveIndicator.cls}></span>
+                <span className="save-label">{saveIndicator.label}</span>
+              </div>
+
+              {/* Divider */}
+              <div className="header-divider"></div>
+
+              {/* Icon action buttons */}
+              <div className="header-actions">
+                {/* Theme Toggle (icon only) */}
+                <button
+                  type="button"
+                  className="icon-action-btn"
+                  onClick={onToggleTheme}
+                  title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+                >
+                  {theme === 'light' ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="5"/>
+                      <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+                      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                      <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+                      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                  )}
+                </button>
+
+                {/* Open Manuscript Source (icon only) */}
+                <button
+                  type="button"
+                  className="icon-action-btn"
+                  onClick={onOpenPaperSource}
+                  title="Open manuscript source in new tab"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                    <polyline points="15 3 21 3 21 9"/>
+                    <line x1="10" y1="14" x2="21" y2="3"/>
+                  </svg>
+                </button>
+
+                {/* Back to Matrix Button */}
+                <button
+                  type="button"
+                  className="back-workspace-btn"
+                  onClick={onBackToWorkspace}
+                  title="Return to Literature Review Matrix"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"/>
+                    <polyline points="12 19 5 12 12 5"/>
+                  </svg>
+                  <span>Matrix</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Row 2: DOI Search Bar */}
+            <div className="header-right-row2">
+              <div className={`doi-search-bar ${doiFocused ? 'focused' : ''}`}>
+                <span className="doi-search-icon">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                  </svg>
+                </span>
+                <input
+                  type="text"
+                  className="doi-input"
+                  placeholder="Paste DOI to auto-fill metadata…"
+                  value={doiInput}
+                  onChange={(e) => setDoiInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleFetchClick(); }}
+                  onFocus={() => setDoiFocused(true)}
+                  onBlur={() => setDoiFocused(false)}
+                  disabled={isFetchingDoi}
+                />
+                <button
+                  type="button"
+                  className="fetch-btn"
+                  onClick={handleFetchClick}
+                  disabled={isFetchingDoi || !doiInput.trim()}
+                >
+                  {isFetchingDoi ? 'Fetching…' : 'Fetch'}
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </header>
+      );
+    }
+
+    // 4. PdfViewer & Resizer Component
+    function PdfViewer({
+      leftPaneWidthPercent,
+      onResizeDrag,
+      pdfUrl,
+      paperTitle,
+      onOpenPaperSource
+    }) {
+      const [currentPage, setCurrentPage] = useState(1);
+      const [totalPages, setTotalPages] = useState(12);
+      const [zoomScale, setZoomScale] = useState(100);
+      const [hasPdfLoaded, setHasPdfLoaded] = useState(false);
+      const fileInputRef = useRef(null);
+      const isDraggingRef = useRef(false);
+
+      const handleMouseDown = (e) => {
+        e.preventDefault();
+        isDraggingRef.current = true;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+
+        const handleMouseMove = (moveEvent) => {
+          if (!isDraggingRef.current) return;
+          let newPercent = (moveEvent.clientX / window.innerWidth) * 100;
+          if (newPercent < 20) newPercent = 20;
+          if (newPercent > 75) newPercent = 75;
+          onResizeDrag(newPercent);
+        };
+
+        const handleMouseUp = () => {
+          isDraggingRef.current = false;
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          window.removeEventListener('mousemove', handleMouseMove);
+          window.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+      };
+
+      return (
+        <>
+          <div className="left-pane" style={{ flex: `0 0 ${leftPaneWidthPercent}%` }}>
+            {hasPdfLoaded ? (
+              <>
+                <div className="pdf-viewer-toolbar">
+                  <div className="pdf-nav-group">
+                    <button type="button" className="pdf-mini-btn" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage <= 1}>Prev</button>
+                    <span>Page</span>
+                    <input
+                      type="number"
+                      className="pdf-page-input"
+                      value={currentPage}
+                      min={1}
+                      max={totalPages}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10);
+                        if (v >= 1 && v <= totalPages) setCurrentPage(v);
+                      }}
+                    />
+                    <span>of {totalPages}</span>
+                    <button type="button" className="pdf-mini-btn" onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage >= totalPages}>Next</button>
+                  </div>
+                  <div className="pdf-nav-group">
+                    <button type="button" className="pdf-mini-btn" onClick={() => setZoomScale(z => Math.max(z - 25, 50))}>−</button>
+                    <span>{zoomScale}%</span>
+                    <button type="button" className="pdf-mini-btn" onClick={() => setZoomScale(z => Math.min(z + 25, 250))}>+</button>
+                    <button type="button" className="pdf-mini-btn" onClick={onOpenPaperSource}>Open ↗</button>
+                  </div>
+                </div>
+
+                <div className="pdf-viewport-container">
+                  <div 
+                    style={{
+                      transform: `scale(${zoomScale / 100})`,
+                      transformOrigin: 'top center',
+                      width: '90%',
+                      minHeight: '600px',
+                      padding: '30px',
+                      background: '#ffffff',
+                      color: '#111827',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                      borderRadius: '2px',
+                      fontFamily: 'serif',
+                      lineHeight: '1.6'
+                    }}
+                  >
+                    <div style={{ textAlign: 'center', marginBottom: '20px', borderBottom: '1px solid #e5e7eb', paddingBottom: '15px' }}>
+                      <h3 style={{ fontSize: '18px', fontWeight: 'bold' }}>{paperTitle}</h3>
+                      <p style={{ fontSize: '11px', color: '#6b7280', marginTop: '6px' }}>Page {currentPage} of {totalPages} • PDF.js Rendering Viewport</p>
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#374151', textAlign: 'justify' }}>
+                      <h4 style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>Abstract</h4>
+                      <p style={{ marginBottom: '14px' }}>Automated literature synthesis and systematic feature extraction algorithms represent a critical breakthrough in modern meta-analysis workflows.</p>
+                      <h4 style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>1. Introduction &amp; Methodology</h4>
+                      <p>High-dimensional data regimes necessitate robust filtering and embedded feature selection mechanisms across multiple cohorts.</p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                <h2>PDF Previewer</h2>
+                <p className="pdf-subtext">Document preview area. Enter a DOI or attach a manuscript to review page-by-page.</p>
+                <div className="pdf-action-btns">
+                  <button type="button" className="pdf-mini-btn" onClick={() => fileInputRef.current?.click()}>Upload PDF</button>
+                  <button type="button" className="pdf-mini-btn" onClick={() => { setHasPdfLoaded(true); onOpenPaperSource(); }}>Open Link ↗</button>
+                  <input type="file" ref={fileInputRef} accept=".pdf" style={{ display: 'none' }} onChange={() => setHasPdfLoaded(true)} />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Draggable Resizer Bar (Clean Splitter Handle) */}
+          <div className="resizer-drag-bar" onMouseDown={handleMouseDown} title="Drag left/right to resize panes">
+            <div className="resizer-handle-pill" />
+          </div>
+        </>
+      );
+    }
+
+    // 5. SectionWrapper Component
+    function SectionWrapper({ title, defaultExpanded = true, children, id }) {
+      const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+      return (
+        <div className={`section ${!isExpanded ? 'collapsed' : ''}`} id={id}>
+          <div className="section-header" onClick={() => setIsExpanded(p => !p)}>
+            <div className="section-title">{title}</div>
+            <button type="button" className="expand-btn">
+              <span className="chevron-icon" style={{ transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)' }}>&#9662;</span>
+            </button>
+          </div>
+          {isExpanded && <div className="section-content">{children}</div>}
+        </div>
+      );
+    }
+
+    // 6. GridList Component
+    function GridList({ items = [], selectedItems = [], onSelect, onAddItem, isMultiSelect = false, placeholder }) {
+      const [isAdding, setIsAdding] = useState(false);
+      const [newVal, setNewVal] = useState('');
+
+      const isSelected = (item) => isMultiSelect ? (selectedItems || []).includes(item) : selectedItems === item;
+
+      const submitItem = () => {
+        const trimmed = newVal.trim();
+        if (trimmed) {
+          onAddItem(trimmed);
+          setNewVal('');
+          setIsAdding(false);
+        }
+      };
+
+      return (
+        <div className="grid-container">
+          {items.map((item, idx) => (
+            <div
+              key={`${item}-${idx}`}
+              className={`grid-item ${isSelected(item) ? 'selected' : ''}`}
+              onClick={() => onSelect && onSelect(item)}
+            >
+              {item}
+            </div>
+          ))}
+          <div className="grid-item add-new-btn">
+            {isAdding ? (
+              <input
+                type="text"
+                className="inline-add-input"
+                placeholder={placeholder}
+                value={newVal}
+                autoFocus
+                onChange={(e) => setNewVal(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') submitItem();
+                  if (e.key === 'Escape') { setIsAdding(false); setNewVal(''); }
+                }}
+                onBlur={submitItem}
+              />
+            ) : (
+              <a onClick={(e) => { e.preventDefault(); setIsAdding(true); }}>+ add new</a>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // 7. DashedBoxList Component
+    function DashedBoxList({ items = [], onChangeItem, onAddItem, showActions = true, addButtonText = 'Add new', splitButtonText = 'Split Column' }) {
+      const handleKeyChange = (index, k) => {
+        const updated = [...items];
+        updated[index] = { ...updated[index], key: k };
+        onChangeItem(updated);
+      };
+
+      const handleValueChange = (index, v) => {
+        const updated = [...items];
+        updated[index] = { ...updated[index], value: v };
+        onChangeItem(updated);
+      };
+
+      return (
+        <div>
+          {items.map((item, idx) => (
+            <div className="dashed-box" key={`dashed-${idx}`}>
+              <input
+                type="text"
+                className="dashed-col1"
+                value={item.key || ''}
+                placeholder="Column / Key"
+                onChange={(e) => handleKeyChange(idx, e.target.value)}
+              />
+              <input
+                type="text"
+                className="dashed-col2"
+                value={item.value || ''}
+                placeholder="Extracted data or notes..."
+                onChange={(e) => handleValueChange(idx, e.target.value)}
+              />
+            </div>
+          ))}
+
+          {showActions && (
+            <div className="btn-group">
+              {splitButtonText && (
+                <button
+                  type="button"
+                  className="action-btn"
+                  onClick={() => onAddItem([...items, { key: 'Metric (Train)', value: 'Accuracy: 97.4%' }, { key: 'Metric (Test)', value: 'Accuracy: 95.1%' }])}
+                >
+                  {splitButtonText}
+                </button>
+              )}
+              <button
+                type="button"
+                className="action-btn"
+                onClick={() => onAddItem([...items, { key: `Feature_${items.length + 1}`, value: 'Extracted parameter value...' }])}
+              >
+                {addButtonText}
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // 8. PrismaScreening Component
+    function PrismaScreening({ decision = 'included', onDecisionChange, reason = '', onReasonChange, saveStatus = 'saved' }) {
+      const getStatusClass = () => saveStatus === 'saving' ? 'status-saving' : (saveStatus === 'error' ? 'status-error' : 'status-saved');
+      const getStatusText = () => saveStatus === 'saving' ? '⏳ Saving...' : (saveStatus === 'error' ? '⚠ Error' : '✓ Saved');
+
+      return (
+        <div>
+          <div className="prisma-row-1">
+            <div className={`solid-box ${decision === 'included' ? 'active' : ''}`} onClick={() => onDecisionChange('included')}>Include</div>
+            <div className={`solid-box ${decision === 'excluded' ? 'active' : ''}`} onClick={() => onDecisionChange('excluded')}>Exclude</div>
+            <div className={`solid-box ${decision === 'uncertain' ? 'active' : ''}`} onClick={() => onDecisionChange('uncertain')}>Uncertain</div>
+          </div>
+          <div className="prisma-row-2">
+            <div className="solid-box long-box">
+              <select className="prisma-reason-select" value={reason} onChange={(e) => onReasonChange(e.target.value)}>
+                <option value="">Selected Reasons (▼)</option>
+                <option value="Valid methodology">Valid methodology meeting all criteria</option>
+                <option value="Not empirical study">Out of scope / non-empirical study</option>
+                <option value="Duplicate publication">Duplicate publication / preprint</option>
+                <option value="Incompatible benchmark">Incompatible benchmark / missing dataset</option>
+                <option value="Language barrier">Language barrier / full text unavailable</option>
+                <option value="High risk of bias">High risk of bias / quality flaws</option>
+              </select>
+            </div>
+            <div className={`solid-box short-box ${getStatusClass()}`}>
+              {getStatusText()}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 9. DetailedSummary Component
+    function DetailedSummary({ value = '', onChange }) {
+      return (
+        <div className="text-box-placeholder">
+          <textarea
+            className="detailed-summary-textarea"
+            rows={5}
+            placeholder="Enter detailed text synthesis here..."
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        </div>
+      );
+    }
+
+    // 10. Main App Component
+    function PaperReviewApp() {
+      const [theme, setTheme] = useState(() => {
+        return localStorage.getItem('litnexis_theme') || 
+               document.documentElement.getAttribute('data-theme') || 
+               'dark';
+      });
+
+      useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('litnexis_theme', theme);
+      }, [theme]);
+
+      const [leftPaneWidth, setLeftPaneWidth] = useState(() => {
+        try {
+          const saved = localStorage.getItem('litnexis_review_split');
+          if (saved) return Math.max(20, Math.min(75, parseFloat(saved)));
+        } catch (e) {}
+        return 42;
+      });
+
+      const handleResizeDrag = (pct) => {
+        setLeftPaneWidth(pct);
+        try {
+          localStorage.setItem('litnexis_review_split', pct);
+          document.documentElement.style.setProperty('--split-left-width', `${pct}%`);
+        } catch (e) {}
+      };
+      const [paper, setPaper] = useState(() => {
+        try {
+          const saved = localStorage.getItem('litnexis_paper_101');
+          if (saved) return JSON.parse(saved);
+        } catch (e) {}
+        return INITIAL_PAPER_STATE;
+      });
+
+      const [surveyTitle, setSurveyTitle] = useState('My Survey');
+      const [projectId, setProjectId] = useState(1);
+      const [paperId, setPaperId] = useState(101);
+      const [surveyClusters, setSurveyClusters] = useState([]);
+      const [stagedCluster, setStagedCluster] = useState(() => paper.selectedCluster || '');
+
+      useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const pid = parseInt(params.get('project') || params.get('projectId') || '1', 10);
+        const papId = parseInt(params.get('paper') || params.get('paperId') || '101', 10);
+        setProjectId(pid);
+        setPaperId(papId);
+
+        // Fetch Project Info
+        fetch(`/api/projects/${pid}`)
+          .then((r) => r.ok ? r.json() : null)
+          .then((data) => {
+            if (data) {
+              setSurveyTitle(data.name || data.title || 'My Survey');
+            }
+          })
+          .catch(() => {});
+
+        // Fetch Existed Clusters for this specific survey only
+        fetch(`/api/clusters?project_id=${pid}`)
+          .then((r) => r.ok ? r.json() : [])
+          .then((data) => {
+            if (Array.isArray(data)) {
+              setSurveyClusters(data);
+            }
+          })
+          .catch(() => setSurveyClusters([]));
+
+        // Fetch Paper data if real ID exists
+        fetch(`/api/papers/${papId}`)
+          .then((r) => r.ok ? r.json() : null)
+          .then((pData) => {
+            if (pData) {
+              setPaper((prev) => {
+                const clusterObj = pData.cluster_id ? (surveyClusters.find(c => c.id === pData.cluster_id) || { name: pData.cluster_name }) : null;
+                const clusterTitle = clusterObj?.name || pData.cluster_name || '';
+                const updated = {
+                  ...prev,
+                  id: pData.id,
+                  title: pData.title || prev.title,
+                  doi: pData.doi || prev.doi,
+                  selectedCluster: clusterTitle,
+                  selectedDomain: pData.domain || prev.selectedDomain,
+                  selectedKeywords: Array.isArray(pData.keywords) ? pData.keywords : prev.selectedKeywords,
+                  detailedSummary: pData.gaps || pData.intuition || prev.detailedSummary
+                };
+                setStagedCluster(clusterTitle);
+                return updated;
+              });
+            }
+          })
+          .catch(() => {});
+      }, []);
+
+      useEffect(() => {
+        if (paper.selectedCluster !== undefined) {
+          setStagedCluster(paper.selectedCluster);
+        }
+      }, [paper.selectedCluster]);
+
+      const [isFetchingDoi, setIsFetchingDoi] = useState(false);
+      const [saveStatus, setSaveStatus] = useState('saved');
+      const [toastMessage, setToastMessage] = useState(null);
+
+      const debouncedPaper = useDebounce(paper, 750);
+      const isFirstRender = useRef(true);
+
+      const showToast = useCallback((msg) => {
+        setToastMessage(msg);
+        setTimeout(() => setToastMessage(c => c === msg ? null : c), 3000);
+      }, []);
+
+      useEffect(() => {
+        if (isFirstRender.current) {
+          isFirstRender.current = false;
+          return;
+        }
+        setSaveStatus('saving');
+        savePaperToDb(debouncedPaper).then(() => setSaveStatus('saved')).catch(() => setSaveStatus('error'));
+      }, [debouncedPaper]);
+
+      const triggerImmediateSave = (updated) => {
+        setSaveStatus('saving');
+        savePaperToDb(updated).then(() => setSaveStatus('saved')).catch(() => setSaveStatus('error'));
+      };
+
+      const handleOpenPaperSource = () => {
+        const url = paper.doi ? `https://doi.org/${paper.doi}` : (paper.pdfUrl || 'https://scholar.google.com');
+        window.open(url, '_blank', 'noopener,noreferrer');
+        showToast(`📄 Initialized Review Paper session for: "${paper.title}"`);
+      };
+
+      const handleDoiFetch = async (doiString) => {
+        setIsFetchingDoi(true);
+        try {
+          const fetched = await fetchPaperByDoi(doiString);
+          const updated = {
+            ...paper,
+            title: fetched.title,
+            doi: fetched.doi,
+            pdfUrl: fetched.pdfUrl,
+            selectedCluster: fetched.selectedCluster,
+            domains: Array.from(new Set([...paper.domains, ...fetched.domains])),
+            selectedDomain: fetched.selectedDomain,
+            keywords: Array.from(new Set([...paper.keywords, ...fetched.keywords])),
+            selectedKeywords: fetched.selectedKeywords,
+            detailedSummary: fetched.detailedSummary
+          };
+          setPaper(updated);
+          setStagedCluster(fetched.selectedCluster);
+          triggerImmediateSave(updated);
+          showToast(`✓ Fetched DOI: ${doiString}`);
+        } catch (e) {
+          showToast(`⚠ ${e.message}`);
+        } finally {
+          setIsFetchingDoi(false);
+        }
+      };
+
+      const handleSaveClusterTransfer = async (targetClusterName) => {
+        const target = targetClusterName !== undefined ? targetClusterName : stagedCluster;
+        const clObj = surveyClusters.find((c) => c.name === target);
+        const clusterId = clObj ? clObj.id : null;
+
+        const updated = {
+          ...paper,
+          selectedCluster: target || ''
+        };
+        setPaper(updated);
+        setStagedCluster(target || '');
+        triggerImmediateSave(updated);
+
+        try {
+          if (paperId) {
+            await fetch(`/api/papers/${paperId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ cluster_id: clusterId })
+            });
+          }
+        } catch (e) {
+          console.warn('Cluster transfer error:', e);
+        }
+
+        if (target) {
+          showToast(`✓ Transferred paper to cluster: "${target}"`);
+        } else {
+          showToast('✓ Paper set to Unassigned cluster');
+        }
+      };
+
+      const handleAddCluster = async (newClusterTitle) => {
+        const cleanName = (newClusterTitle || '').trim();
+        if (!cleanName) return;
+
+        const exists = surveyClusters.some((c) => c.name?.toLowerCase() === cleanName.toLowerCase());
+        if (exists) {
+          setStagedCluster(cleanName);
+          return;
+        }
+
+        try {
+          const res = await fetch('/api/clusters', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: cleanName, project_id: projectId })
+          });
+
+          let created = null;
+          if (res.ok) {
+            created = await res.json();
+          } else {
+            created = { id: Date.now(), name: cleanName, project_id: projectId };
+          }
+
+          setSurveyClusters((prev) => [...prev, created]);
+          setStagedCluster(cleanName);
+          showToast(`+ Added new cluster: "${cleanName}" to survey`);
+          await handleSaveClusterTransfer(cleanName);
+        } catch (err) {
+          const mockCl = { id: Date.now(), name: cleanName, project_id: projectId };
+          setSurveyClusters((prev) => [...prev, mockCl]);
+          setStagedCluster(cleanName);
+          showToast(`+ Added cluster: "${cleanName}"`);
+          await handleSaveClusterTransfer(cleanName);
+        }
+      };
+
+      return (
+        <div className="window-container">
+          <Header
+            paperTitle={paper.title}
+            surveyTitle={surveyTitle}
+            projectId={projectId}
+            paperId={paperId}
+            selectedCluster={paper.selectedCluster}
+            selectedDomain={paper.selectedDomain}
+            selectedKeywords={paper.selectedKeywords}
+            doi={paper.doi}
+            saveStatus={saveStatus}
+            onDoiFetch={handleDoiFetch}
+            isFetchingDoi={isFetchingDoi}
+            onOpenPaperSource={handleOpenPaperSource}
+            onBackToWorkspace={() => window.location.href = `/workspace?project=${projectId}`}
+            onClusterClick={(cl) => {
+              const el = document.getElementById('section-cluster');
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                el.classList.add('section-highlight-pulse');
+                setTimeout(() => el.classList.remove('section-highlight-pulse'), 1200);
+              }
+            }}
+            theme={theme}
+            onToggleTheme={handleToggleTheme}
+            leftPaneWidthPercent={leftPaneWidth}
+          />
+
+          <main className="main-body">
+            <PdfViewer
+              leftPaneWidthPercent={leftPaneWidth}
+              onResizeDrag={handleResizeDrag}
+              pdfUrl={paper.pdfUrl}
+              paperTitle={paper.title}
+              onOpenPaperSource={handleOpenPaperSource}
+            />
+
+            <div className="right-pane">
+              {/* Section 1: Research Taxonomy Clusters */}
+              <SectionWrapper title="Research Taxonomy Clusters" id="section-cluster">
+                <GridList
+                  items={surveyClusters.map(c => typeof c === 'object' ? c.name : c)}
+                  selectedItems={stagedCluster}
+                  onSelect={(cl) => setStagedCluster(prev => prev === cl ? '' : cl)}
+                  onAddItem={handleAddCluster}
+                  placeholder="Add cluster..."
+                />
+                <div className="cluster-action-bar" id="cluster-action-bar">
+                  <button
+                    type="button"
+                    className="cluster-transfer-save-btn"
+                    id="btn-save-cluster"
+                    onClick={() => handleSaveClusterTransfer(stagedCluster)}
+                  >
+                    <span className="save-icon">💾</span> Save &amp; Transfer to Cluster
+                  </button>
+                  <span className={`cluster-transfer-status ${stagedCluster === paper.selectedCluster ? 'saved' : ''}`}>
+                    {stagedCluster ? (stagedCluster === paper.selectedCluster ? `✓ Current cluster: "${stagedCluster}"` : `Target: "${stagedCluster}" (Unsaved)`) : (paper.selectedCluster ? `Target: Unassign (Current: "${paper.selectedCluster}")` : 'Current status: Unassigned')}
+                  </span>
+                </div>
+              </SectionWrapper>
+
+              {/* Section 2: Domain */}
+              <SectionWrapper title="Domain" id="section-domain">
+                <GridList
+                  items={paper.domains}
+                  selectedItems={paper.selectedDomain}
+                  onSelect={(dm) => {
+                    const u = { ...paper, selectedDomain: paper.selectedDomain === dm ? '' : dm };
+                    setPaper(u);
+                    triggerImmediateSave(u);
+                  }}
+                  onAddItem={(dm) => {
+                    const u = { ...paper, domains: [...paper.domains, dm], selectedDomain: dm };
+                    setPaper(u);
+                    triggerImmediateSave(u);
+                    showToast(`+ Added domain: [${dm}]`);
+                  }}
+                  placeholder="Add domain..."
+                />
+              </SectionWrapper>
+
+              {/* Section 3: Keywords */}
+              <SectionWrapper title="Keywords" id="section-keywords">
+                <GridList
+                  items={paper.keywords}
+                  selectedItems={paper.selectedKeywords}
+                  isMultiSelect={true}
+                  onSelect={(kw) => {
+                    const cur = paper.selectedKeywords || [];
+                    const next = cur.includes(kw) ? cur.filter(k => k !== kw) : [...cur, kw];
+                    const u = { ...paper, selectedKeywords: next };
+                    setPaper(u);
+                    triggerImmediateSave(u);
+                  }}
+                  onAddItem={(kw) => {
+                    const u = { ...paper, keywords: [...paper.keywords, kw], selectedKeywords: [...(paper.selectedKeywords || []), kw] };
+                    setPaper(u);
+                    triggerImmediateSave(u);
+                    showToast(`+ Added keyword: [${kw}]`);
+                  }}
+                  placeholder="Add keyword..."
+                />
+              </SectionWrapper>
+
+              {/* Section 4: Columns */}
+              <SectionWrapper title="Columns" id="section-columns">
+                <DashedBoxList
+                  items={paper.columns}
+                  onChangeItem={(cols) => setPaper(p => ({ ...p, columns: cols }))}
+                  onAddItem={(cols) => { setPaper(p => ({ ...p, columns: cols })); triggerImmediateSave({ ...paper, columns: cols }); }}
+                  showActions={true}
+                  addButtonText="Add new"
+                  splitButtonText="Split Column"
+                />
+              </SectionWrapper>
+
+              {/* Section 5: PRISMA Blind Screening */}
+              <SectionWrapper title="PRISMA Blind Screening & Quality Appraisal" id="section-prisma">
+                <PrismaScreening
+                  decision={paper.prismaDecision}
+                  onDecisionChange={(dec) => {
+                    const u = { ...paper, prismaDecision: dec };
+                    setPaper(u);
+                    triggerImmediateSave(u);
+                  }}
+                  reason={paper.prismaReason}
+                  onReasonChange={(rs) => {
+                    const u = { ...paper, prismaReason: rs };
+                    setPaper(u);
+                    triggerImmediateSave(u);
+                  }}
+                  saveStatus={saveStatus}
+                />
+              </SectionWrapper>
+
+              {/* Section 6: Summary */}
+              <SectionWrapper title="Summary" id="section-summary">
+                <DashedBoxList
+                  items={paper.summaryItems}
+                  onChangeItem={(sum) => setPaper(p => ({ ...p, summaryItems: sum }))}
+                  onAddItem={(sum) => { setPaper(p => ({ ...p, summaryItems: sum })); triggerImmediateSave({ ...paper, summaryItems: sum }); }}
+                  showActions={false}
+                />
+              </SectionWrapper>
+
+              {/* Section 7: Detailed Summary */}
+              <SectionWrapper title="Detailed Summary:" id="section-detailed-summary">
+                <DetailedSummary
+                  value={paper.detailedSummary}
+                  onChange={(txt) => setPaper(p => ({ ...p, detailedSummary: txt }))}
+                />
+              </SectionWrapper>
+            </div>
+          </main>
+
+          {toastMessage && <div className="review-toast-popup">{toastMessage}</div>}
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<PaperReviewApp />);
+  </script>
+</body>
+</html>

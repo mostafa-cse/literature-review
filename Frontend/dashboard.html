@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Systematic Surveys Dashboard • LitNexis Academic</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20'/%3E%3Cpath d='M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'/%3E%3C/svg%3E">
+  <meta name="description" content="Manage your systematic literature reviews, PRISMA screening pipelines, taxonomy clusters, and collaborative benchmarks — all in one unified workspace.">
+
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;1,400&display=swap" rel="stylesheet">
+
+  <!-- Modular Stylesheets -->
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/navbar.css">
+  <link rel="stylesheet" href="/css/footer.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+
+  <!-- Inline theme flash prevention -->
+  <script>
+    (function() {
+      const t = localStorage.getItem('litnexis_theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════
+       OXFORD / OVERLEAF PRESTIGE HEADER
+  ══════════════════════════════════════════════ -->
+  <header class="site-header" id="site-header">
+    <div class="nav-container">
+      <a href="/" class="brand-group">
+        <div class="brand-logo-crest">LN</div>
+        <div class="brand-title-wrap">
+          <span class="brand-name">LitNexis</span>
+          <span class="brand-subtitle">Academic Intelligence</span>
+        </div>
+      </a>
+
+      <div class="nav-actions">
+        <a href="/" class="nav-link-academic">Home</a>
+        <a href="/about" class="nav-link-academic">About</a>
+        <a href="/dashboard" class="nav-link-academic active">Dashboard</a>
+        <a href="/admin" id="nav-admin-link" class="nav-link-academic" style="display:none; color:var(--accent-rose);">Admin</a>
+
+        <button class="theme-toggle-academic theme-toggle-pill" id="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+          <span id="theme-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></span>
+        </button>
+
+        <div class="account-dropdown-wrapper" id="account-dropdown-wrap">
+          <button type="button" class="account-academic-btn" id="account-dropdown-toggle"
+            onclick="toggleAccountDropdown(event)" aria-haspopup="true" aria-expanded="false">
+            <span id="user-nav-name">Researcher</span>
+            <span style="font-size:0.7rem; opacity:0.65; margin-left:0.2rem;">▼</span>
+          </button>
+          <div class="account-dropdown-menu" id="account-dropdown-menu">
+            <div class="dropdown-user-header">
+              <div class="dropdown-user-name">
+                <span id="dropdown-user-name-txt">Researcher</span>
+                <span id="nav-user-role-badge" class="role-badge-pill role-user">USER</span>
+              </div>
+              <div class="dropdown-user-email" id="dropdown-user-email-txt">researcher@litnexis.ac</div>
+            </div>
+            <a href="/profile" class="dropdown-item">Profile &amp; Settings</a>
+            <a href="/dashboard" class="dropdown-item">Surveys Dashboard</a>
+            <a href="/admin" class="dropdown-item" id="dropdown-admin-link" style="display:none; color:var(--accent-rose);">Admin Console</a>
+            <button type="button" class="dropdown-item danger" onclick="handleLogout()">Sign Out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════
+       MAIN DASHBOARD CONTENT
+  ══════════════════════════════════════════════ -->
+  <main class="dashboard-container">
+
+    <!-- 1. WELCOME HERO (dismissible — first visit only) ─────── -->
+    <section class="welcome-hero" id="welcome-hero-banner">
+      <!-- Dismiss button -->
+      <button class="welcome-dismiss-btn" id="btn-dismiss-welcome"
+        onclick="dismissWelcomeBanner()"
+        title="Dismiss welcome banner" aria-label="Close welcome banner"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+
+      <div class="welcome-content">
+        <div class="welcome-tag">Academic Research &amp; Literature Survey Management Deck</div>
+        <h1 class="welcome-title" id="welcome-user-greeting">Welcome back, Researcher</h1>
+        <p class="welcome-desc">
+          Manage your active literature surveys, PRISMA screening pipelines, collaborative annotations,
+          and Excel-like feature selection benchmarks — all in one unified research workspace.
+        </p>
+      </div>
+      <div class="welcome-actions">
+        <button class="btn btn-primary" id="btn-hero-new-survey">+ Create New Survey</button>
+      </div>
+    </section>
+
+    <!-- 2. KPI TELEMETRY GRID ────────────────── -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-header"><span class="kpi-label">Working Surveys</span></div>
+        <div class="kpi-val" id="kpi-total-surveys">--</div>
+        <div class="kpi-sub"><span style="color:var(--accent-emerald);">●</span> Active research projects</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-header"><span class="kpi-label">Ingested Papers</span></div>
+        <div class="kpi-val" id="kpi-total-papers">--</div>
+        <div class="kpi-sub">Across all literature surveys</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-header"><span class="kpi-label">Reading Completion</span></div>
+        <div class="kpi-val" id="kpi-completion-rate">--%</div>
+        <div class="kpi-sub" id="kpi-completion-sub">0 Read • 0 In Progress</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-header"><span class="kpi-label">Screenings &amp; Notes</span></div>
+        <div class="kpi-val" id="kpi-screenings-count">--</div>
+        <div class="kpi-sub">PRISMA blind review decisions</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-header"><span class="kpi-label">Taxonomy Clusters</span></div>
+        <div class="kpi-val" id="kpi-clusters-count">--</div>
+        <div class="kpi-sub">Sub-domains &amp; methodology sets</div>
+      </div>
+    </section>
+
+    <!-- 3. WORKING SURVEYS SECTION ─────────────── -->
+    <section>
+      <!-- Section header -->
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <h2 class="section-title">Active Working Surveys &amp; Literature Reviews</h2>
+          <span class="section-badge" id="surveys-count-badge">0 Surveys</span>
+        </div>
+        <button class="btn btn-primary" id="btn-section-new-survey">+ Add New Survey</button>
+      </div>
+
+      <!-- Tabs + Search/Sort bar -->
+      <div class="surveys-controls">
+        <div class="filter-tabs">
+          <button class="filter-tab active" data-filter="all">All Surveys</button>
+          <button class="filter-tab" data-filter="owned">Created by Me</button>
+          <button class="filter-tab" data-filter="shared">Shared with Me</button>
+        </div>
+        <div class="surveys-search-sort">
+          <div class="search-box">
+            <input type="text" id="survey-search-input" placeholder="Search surveys by title, topic, or role...">
+            <button type="button" id="survey-search-clear" class="search-clear-btn" style="display:none;" onclick="clearSurveySearch()" title="Clear search">✕</button>
+          </div>
+          <select class="sort-select" id="survey-sort-select" title="Sort surveys">
+            <option value="newest">Latest Created</option>
+            <option value="papers">Most Papers</option>
+            <option value="progress">Highest Progress</option>
+            <option value="title">Alphabetical (A-Z)</option>
+          </select>
+          <div class="view-mode-toggle" id="view-mode-toggle" role="group" aria-label="Survey Display Mode">
+            <button type="button" class="view-toggle-btn active" id="btn-view-cards" onclick="setSurveyViewMode('cards')" title="Cards View (Default)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+              <span>Cards</span>
+            </button>
+            <button type="button" class="view-toggle-btn" id="btn-view-table" onclick="setSurveyViewMode('table')" title="Table View">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+              <span>Table</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Surveys Container (Supports both Cards Grid & Interactive Table) -->
+      <div id="surveys-grid-container" class="surveys-grid">
+        <div class="surveys-loading">
+          <div class="loading-spinner"></div>
+          <p>Loading your literature surveys…</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══════════════════════════════════════════
+       ACADEMIC MULTI-COLUMN FOOTER
+  ══════════════════════════════════════════════ -->
+  <footer>
+    <div class="footer-top-grid">
+      <div class="footer-brand-col">
+        <div class="footer-brand-header">
+          <div class="brand-logo-crest" style="width:36px;height:36px;font-size:0.95rem;">LN</div>
+          <div>
+            <div style="font-weight:800; color:var(--text-primary); font-size:1.05rem;">LitNexis Dashboard</div>
+            <div style="font-size:0.82rem; color:var(--accent-gold); font-family:'JetBrains Mono',monospace;">Systematic Review Cloud</div>
+          </div>
+        </div>
+        <p class="footer-brand-desc">
+          Systematic survey management, interactive taxonomy hierarchies, PRISMA 2020 workflows, and blueprint cloning.
+        </p>
+        <div class="footer-status-pill">
+          <span class="footer-status-dot"></span>
+          <span>SQLite WAL Engine Active</span>
+        </div>
+      </div>
+
+      <div>
+        <h4 class="footer-col-title">Navigation</h4>
+        <ul class="footer-list">
+          <li><a href="/">Home Overview</a></li>
+          <li><a href="/about">About Platform</a></li>
+          <li><a href="/dashboard">Surveys Dashboard</a></li>
+          <li><a href="/workspace">Interactive Matrix</a></li>
+          <li><a href="/profile">Profile Settings</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="footer-col-title">Taxonomies</h4>
+        <ul class="footer-list">
+          <li><a href="javascript:void(0)" onclick="openCreateSurveyModal()">+ Create New Survey</a></li>
+          <li><a href="/workspace">Feature Selection Matrix</a></li>
+          <li><a href="/workspace">Taxonomy Cluster Hub</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="footer-col-title">Engine Specs</h4>
+        <ul class="footer-list">
+          <li><a href="javascript:void(0)">Node.js &amp; Express REST</a></li>
+          <li><a href="javascript:void(0)">SQLite WAL Persistence</a></li>
+          <li><a href="javascript:void(0)">KaTeX LaTeX Rendering</a></li>
+          <li><a href="javascript:void(0)">SheetJS Multi-Level XLSX</a></li>
+          <li><a href="/api/stats" target="_blank">Live REST API Stats</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="footer-col-title">Preferences</h4>
+        <ul class="footer-list">
+          <li><a href="javascript:void(0)" onclick="typeof toggleTheme === 'function' ? toggleTheme() : document.getElementById('theme-toggle')?.click()">Toggle Dark/Light Mode</a></li>
+          <li><a href="javascript:void(0)" onclick="window.scrollTo({top:0,behavior:'smooth'})">Back to Top</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Bottom Sub-Footer Bar -->
+    <div class="footer-bottom-bar">
+      <div class="footer-copyright">
+        © 2026 <strong>LitNexis Technologies Inc.</strong> All rights reserved. Precision Literature Benchmarking &amp; Research Matrix Systems.
+      </div>
+      <div class="footer-badge-group">
+        <span style="font-size: 0.85rem; color: var(--text-tertiary); font-family: 'JetBrains Mono', monospace; font-weight: 500;">developed by Mostafa Kamal @ Cyber Security Lab, JUST</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ═══════════════════════════════════════════
+       MODAL: CREATE NEW SURVEY
+  ══════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-create-survey">
+    <div class="modal-box modal-box--survey">
+
+      <!-- Header with gradient accent -->
+      <div class="modal-header modal-header--survey">
+        <div class="survey-modal-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+        <div>
+          <h3 class="modal-title" style="font-size:1.18rem; font-weight:800; letter-spacing:-0.02em;">Create New Literature Survey</h3>
+          <p style="font-size:0.82rem; color:var(--text-tertiary); margin:0; margin-top:0.15rem;">Start a systematic review workspace with taxonomy clusters &amp; matrix analysis</p>
+        </div>
+        <button class="modal-close-btn" onclick="closeCreateSurveyModal()" title="Close" style="margin-left:auto; display:inline-flex; align-items:center; justify-content:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+      </div>
+
+      <div class="modal-body" style="padding: 1.75rem 2rem; display:flex; flex-direction:column; gap:1.4rem;">
+
+        <!-- Survey Name -->
+        <div class="survey-field-group">
+          <label class="survey-field-label" for="new-survey-name">
+            Survey / Project Name
+            <span class="survey-required-star">*</span>
+          </label>
+          <input type="text" id="new-survey-name" class="survey-field-input"
+            placeholder="e.g. Graph Neural Networks for Drug Discovery"
+            maxlength="120"
+            oninput="document.getElementById('survey-name-count').textContent = this.value.length + '/120'">
+          <div class="survey-field-hint">
+            <span>A clear, descriptive name for your review project</span>
+            <span id="survey-name-count" style="font-family:'JetBrains Mono',monospace; font-size:0.78rem; color:var(--text-tertiary);">0/120</span>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div class="survey-field-group">
+          <label class="survey-field-label" for="new-survey-desc">
+            Research Scope &amp; Objectives
+            <span style="font-size:0.78rem; color:var(--text-tertiary); font-weight:400; margin-left:0.4rem;">(optional)</span>
+          </label>
+          <textarea id="new-survey-desc" class="survey-field-textarea"
+            placeholder="Describe the objective, domain criteria, search strategy, and benchmark metrics of this systematic literature review…"
+            rows="4"></textarea>
+          <div class="survey-field-hint">
+            <span>What is the central research question?</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer -->
+      <div class="modal-footer modal-footer--survey">
+        <button class="btn btn-secondary" onclick="closeCreateSurveyModal()">Cancel</button>
+        <button class="btn btn-primary btn--survey-submit" id="btn-submit-new-survey">
+          Create Survey
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════
+       MODAL: EDIT SURVEY
+  ══════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-edit-survey">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="modal-title">Edit Survey Details</h3>
+        <button class="modal-close-btn" onclick="closeEditSurveyModal()" title="Close" style="display:inline-flex; align-items:center; justify-content:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-survey-id">
+        <div class="form-group">
+          <label class="form-label">Survey Name *</label>
+          <input type="text" id="edit-survey-name" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea id="edit-survey-desc" class="form-textarea"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeEditSurveyModal()">Cancel</button>
+        <button class="btn btn-primary" id="btn-submit-edit-survey">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Modular Scripts -->
+  <script src="/js/core/api.js"></script>
+  <script src="/js/core/modal.js"></script>
+  <script src="/js/core/toast.js"></script>
+  <script src="/js/core/navbar.js"></script>
+  <script src="/js/dashboard/dashboard.js"></script>
+
+  <!-- Welcome banner dismiss logic -->
+  <script>
+    (function() {
+      // Key is per-token so each new login session starts fresh
+      const token = localStorage.getItem('litnexis_auth_token') || 'anon';
+      const DISMISS_KEY = 'litnexis_welcome_dismissed_' + token.slice(-12);
+
+      const banner = document.getElementById('welcome-hero-banner');
+      if (!banner) return;
+
+      // If already dismissed this session, hide immediately (no animation)
+      if (localStorage.getItem(DISMISS_KEY) === '1') {
+        banner.style.display = 'none';
+      }
+    })();
+
+    window.dismissWelcomeBanner = function() {
+      const banner = document.getElementById('welcome-hero-banner');
+      if (!banner) return;
+
+      // Slide-up + fade animation
+      banner.style.transition = 'max-height 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease, margin-bottom 0.4s ease, padding 0.3s ease';
+      banner.style.overflow   = 'hidden';
+      banner.style.maxHeight  = banner.offsetHeight + 'px';
+      banner.style.opacity    = '1';
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          banner.style.maxHeight    = '0';
+          banner.style.opacity      = '0';
+          banner.style.marginBottom = '0';
+          banner.style.paddingTop   = '0';
+          banner.style.paddingBottom = '0';
+        });
+      });
+
+      banner.addEventListener('transitionend', () => {
+        banner.style.display = 'none';
+      }, { once: true });
+
+      // Persist the dismissal for this login session
+      const token = localStorage.getItem('litnexis_auth_token') || 'anon';
+      const DISMISS_KEY = 'litnexis_welcome_dismissed_' + token.slice(-12);
+      localStorage.setItem(DISMISS_KEY, '1');
+    };
+  </script>
+</body>
+</html>

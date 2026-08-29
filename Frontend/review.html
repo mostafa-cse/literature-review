@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LitNexis - Papers Preview &amp; Review</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2'><path d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20'/><path d='M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'/></svg>">
+    <!-- PDF.js for in-browser PDF rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- LitNexis Master Unified Review Stylesheet (Dual Theme Dark/Light) -->
+    <link rel="stylesheet" href="/review-react/ReviewApp.css">
+</head>
+<body>
+
+<div class="window-container">
+    <!-- ══ PREMIUM HEADER ══ -->
+    <header class="header">
+
+      <!-- LEFT PANE: breadcrumb (row 1) + title & chips (row 2) -->
+      <div class="header-left" id="review-header-left">
+
+        <!-- Row 1: Breadcrumb -->
+        <div class="header-left-row1">
+          <nav class="header-breadcrumb" aria-label="Breadcrumb" id="header-breadcrumb-nav">
+            <span class="breadcrumb-item breadcrumb-home" id="breadcrumb-home" title="LitNexis - Return to Survey Matrix">LitNexis</span>
+            <span class="breadcrumb-sep" aria-hidden="true">›</span>
+            <span class="breadcrumb-item breadcrumb-survey" id="breadcrumb-survey" title="Click to open Survey Workspace">Survey</span>
+            <span class="breadcrumb-sep" aria-hidden="true">›</span>
+            <span class="breadcrumb-item breadcrumb-unassigned" id="breadcrumb-cluster" title="Cluster assignment">Unassign Cluster</span>
+            <span class="breadcrumb-sep" aria-hidden="true">›</span>
+            <span class="breadcrumb-item breadcrumb-paper breadcrumb-current" id="breadcrumb-paper" title="Current paper">Paper Title</span>
+          </nav>
+        </div>
+
+        <!-- Row 2: Title & Meta chips -->
+        <div class="header-left-row2">
+          <div class="header-title-row">
+            <div
+              class="title-main"
+              id="paper-title-main"
+              onclick="handlePaperTitleClick()"
+              title="Open source manuscript in new tab"
+            >Papers Name</div>
+            <span class="title-open-icon" onclick="handlePaperTitleClick()" title="Open source">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/>
+                <line x1="10" y1="14" x2="21" y2="3"/>
+              </svg>
+            </span>
+          </div>
+
+          <!-- Metadata chips (populated by review.js) -->
+          <div class="title-sub-tags" id="paper-title-sub">
+            <!-- Dynamically populated with professional meta-chips -->
+          </div>
+        </div>
+
+        <!-- Gradient accent strip -->
+        <div class="header-left-accent"></div>
+      </div>
+
+      <!-- RIGHT PANE: save status + actions (row 1) + DOI search (row 2) -->
+      <div class="header-right" id="review-header-right">
+
+        <!-- Row 1: Save Status + Icon Actions -->
+        <div class="header-right-row1">
+          <!-- Save Status -->
+          <div class="header-save-status" title="Auto-save status">
+            <span class="save-dot saved" id="header-save-dot"></span>
+            <span class="save-label" id="header-save-label">All saved</span>
+          </div>
+
+          <!-- Divider -->
+          <div class="header-divider"></div>
+
+          <!-- Icon Actions -->
+          <div class="header-actions">
+            <!-- Theme Toggle (icon only) -->
+            <button
+              type="button"
+              class="icon-action-btn"
+              id="review-theme-toggle-btn"
+              onclick="toggleReviewTheme()"
+              title="Toggle Dark / Light Theme"
+            >
+              <span id="review-theme-icon">
+                <!-- icon injected by review.js -->
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="5"/>
+                  <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                  <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+              </span>
+            </button>
+
+            <!-- Open Source (icon only) -->
+            <button
+              type="button"
+              class="icon-action-btn"
+              onclick="handlePaperTitleClick()"
+              title="Open manuscript source in new tab"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/>
+                <line x1="10" y1="14" x2="21" y2="3"/>
+              </svg>
+            </button>
+
+            <!-- Back to Matrix -->
+            <a href="/workspace" class="back-workspace-btn" id="btn-back-to-workspace" title="Return to Literature Review Matrix">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+              </svg>
+              <span>Matrix</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Row 2: DOI Search Bar -->
+        <div class="header-right-row2">
+          <div class="doi-search-bar" id="doi-search-bar-wrap">
+            <span class="doi-search-icon">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+            </span>
+            <input
+              type="text"
+              class="doi-input"
+              id="doi-input-field"
+              placeholder="Paste DOI to auto-fill metadata…"
+              onkeydown="if(event.key==='Enter') handleDoiFetch()"
+              onfocus="this.closest('.doi-search-bar').classList.add('focused')"
+              onblur="this.closest('.doi-search-bar').classList.remove('focused')"
+            >
+            <button type="button" class="fetch-btn" id="btn-fetch-doi" onclick="handleDoiFetch()">Fetch</button>
+          </div>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-body" id="review-main-body">
+        <!-- Left Pane (PDF Preview) -->
+        <div class="left-pane" id="review-left-pane">
+            <!-- PDF.js Toolbar (Visible when document is loaded) -->
+            <div class="pdf-viewer-toolbar" id="pdf-toolbar" style="display: none;">
+                <div class="pdf-nav-group">
+                    <button type="button" class="pdf-mini-btn" onclick="pdfPrevPage()">Prev</button>
+                    <span>Page</span>
+                    <input type="number" class="pdf-page-input" id="pdf-page-num" value="1" min="1" onchange="pdfGotoPage(parseInt(this.value,10))">
+                    <span>of <span id="pdf-page-count">1</span></span>
+                    <button type="button" class="pdf-mini-btn" onclick="pdfNextPage()">Next</button>
+                </div>
+                <div class="pdf-nav-group">
+                    <button type="button" class="pdf-mini-btn" onclick="pdfZoomOut()">−</button>
+                    <span id="pdf-zoom-val">100%</span>
+                    <button type="button" class="pdf-mini-btn" onclick="pdfZoomIn()">+</button>
+                    <button type="button" class="pdf-mini-btn" onclick="handlePaperTitleClick()">Open ↗</button>
+                </div>
+            </div>
+
+            <!-- PDF Viewport Canvas -->
+            <div class="pdf-viewport-container" id="pdf-viewport" style="display: none;">
+                <div class="pdf-canvas-wrapper">
+                    <canvas id="pdf-canvas"></canvas>
+                </div>
+            </div>
+
+            <!-- Fallback PDF Previewer Placeholder (Matching Reference UI) -->
+            <div id="pdf-placeholder-area" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;">
+                <h2>PDF Previewer</h2>
+                <p class="pdf-subtext" id="pdf-status-subtext">
+                    Document preview area. Enter a DOI or attach a manuscript to review page-by-page.
+                </p>
+                <div class="pdf-action-btns">
+                    <button type="button" class="pdf-mini-btn" onclick="document.getElementById('pdf-upload-input').click()">Upload PDF</button>
+                    <button type="button" class="pdf-mini-btn" onclick="handlePaperTitleClick()">Open Link ↗</button>
+                    <input type="file" id="pdf-upload-input" accept=".pdf" style="display: none;" onchange="handleDirectPdfUpload(this)">
+                </div>
+            </div>
+        </div>
+
+        <!-- Draggable Resizer Bar (Clean Splitter Handle) -->
+        <div class="resizer-drag-bar" id="resizer-drag-bar" title="Drag left/right to resize previewer & settings pane">
+            <div class="resizer-handle-pill"></div>
+        </div>
+
+        <!-- Right Pane (Settings/Options) -->
+        <div class="right-pane" id="review-right-pane">
+
+            <!-- 1. Research Taxonomy Clusters -->
+            <div class="section" id="section-cluster">
+                <div class="section-header" onclick="toggleSection('section-cluster')">
+                    <div class="section-title">Research Taxonomy Clusters</div>
+                    <button type="button" class="expand-btn">
+                        <span class="chevron-icon">&#9662;</span>
+                    </button>
+                </div>
+                <div class="section-content">
+                    <div class="grid-container" id="grid-clusters">
+                        <!-- Populated dynamically: existed clusters only, without brackets, or + add new -->
+                    </div>
+                    <div class="cluster-action-bar" id="cluster-action-bar">
+                        <button type="button" class="cluster-transfer-save-btn" id="btn-save-cluster" onclick="saveClusterTransfer()">
+                            <span class="save-icon">💾</span> Save &amp; Transfer to Cluster
+                        </button>
+                        <span class="cluster-transfer-status" id="cluster-transfer-status">Target: Unassigned</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Domain -->
+            <div class="section" id="section-domain">
+                <div class="section-header" onclick="toggleSection('section-domain')">
+                    <div class="section-title">Domain</div>
+                    <button type="button" class="expand-btn">
+                        <span class="chevron-icon">&#9662;</span>
+                    </button>
+                </div>
+                <div class="section-content">
+                    <div class="grid-container" id="grid-domains">
+                        <!-- Populated dynamically: [domain1], [domain2]... + add new -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Keywords -->
+            <div class="section" id="section-keywords">
+                <div class="section-header" onclick="toggleSection('section-keywords')">
+                    <div class="section-title">Keywords</div>
+                    <button type="button" class="expand-btn">
+                        <span class="chevron-icon">&#9662;</span>
+                    </button>
+                </div>
+                <div class="section-content">
+                    <div class="grid-container" id="grid-keywords">
+                        <!-- Populated dynamically: [keyword1], [keyword2]... + add new -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Columns -->
+            <div class="section" id="section-columns">
+                <div class="section-header" onclick="toggleSection('section-columns')">
+                    <div class="section-title">Columns</div>
+                    <button type="button" class="expand-btn">
+                        <span class="chevron-icon">&#9662;</span>
+                    </button>
+                </div>
+                <div class="section-content">
+                    <div id="dashed-columns-container">
+                        <!-- 4 Dashed Boxes dynamically rendered -->
+                    </div>
+                    <!-- Action Buttons -->
+                    <div class="btn-group">
+                        <button type="button" class="action-btn" onclick="handleSplitColumn()">Split Column</button>
+                        <button type="button" class="action-btn" onclick="handleAddColumn()">Add new</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. PRISMA Blind Screening -->
+            <div class="section" id="section-prisma">
+                <div class="section-header" onclick="toggleSection('section-prisma')">
+                    <div class="section-title">PRISMA Blind Screening &amp; Quality Appraisal</div>
+                    <button type="button" class="expand-btn">
+                        <span class="chevron-icon">&#9662;</span>
+                    </button>
+                </div>
+                <div class="section-content">
+                    <div class="prisma-row-1">
+                        <div class="solid-box" id="prisma-include" onclick="setPrismaVote('included')">Include</div>
+                        <div class="solid-box" id="prisma-exclude" onclick="setPrismaVote('excluded')">Exclude</div>
+                        <div class="solid-box" id="prisma-uncertain" onclick="setPrismaVote('uncertain')">Uncertain</div>
+                    </div>
+                    <div class="prisma-row-2">
+                        <div class="solid-box long-box">
+                            <select class="prisma-reason-select" id="prisma-reason-select" onchange="handleReasonChange(this.value)">
+                                <option value="">Selected Reasons (▼)</option>
+                                <option value="Not empirical study">Out of scope / non-empirical study</option>
+                                <option value="Duplicate publication">Duplicate publication / preprint</option>
+                                <option value="Incompatible benchmark">Incompatible benchmark / missing dataset</option>
+                                <option value="Language barrier">Language barrier / full text unavailable</option>
+                                <option value="High risk of bias">High risk of bias / quality flaws</option>
+                                <option value="Valid methodology">Valid methodology meeting all criteria</option>
+                            </select>
+                        </div>
+                        <!-- Live Auto-Save Indicator -->
+                        <div class="solid-box short-box status-saved" id="auto-save-status-box" title="Real-Time Background Auto-Save Engine">
+                            ✓ Saved
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. Summary -->
+            <div class="section" id="section-summary">
+                <div class="section-header">
+                    <div class="section-title">Summary</div>
+                </div>
+                <div class="section-content">
+                    <div id="dashed-summary-container">
+                        <!-- Dashed boxes mapping Intuition, Formulation, Strengths, Gaps -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 7. Detailed Summary -->
+            <div class="section" id="section-detailed-summary">
+                <div class="section-header" onclick="toggleSection('section-detailed-summary')">
+                    <div class="section-title">Detailed Summary:</div>
+                    <button type="button" class="expand-btn">
+                        <span class="chevron-icon">&#9662;</span>
+                    </button>
+                </div>
+                <div class="section-content">
+                    <div class="text-box-placeholder">
+                        <textarea class="detailed-summary-textarea" id="detailed-summary-input" rows="4" placeholder="Enter detailed text here..." oninput="handleDetailedSummaryChange(this.value)"></textarea>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<!-- Toast Notification Element -->
+<div id="review-toast"></div>
+
+<!-- Client-Side Engine for Review Page -->
+<script src="/js/review.js"></script>
+</body>
+</html>
