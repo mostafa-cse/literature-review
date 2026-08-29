@@ -544,6 +544,7 @@ window.toggleColMenu = function(key, event) {
  * Toggle column expand/collapse — shows full text vs 2-line clamp
  */
 const COL_FIXED_W = '200px';
+const COL_SPLIT_W = '260px';
 const COL_EXPANDED_MAX = '540px';
 
 window.toggleColExpand = function(key, btnEl, event) {
@@ -559,11 +560,13 @@ window.toggleColExpand = function(key, btnEl, event) {
   if (!th) return;
 
   const isExpanded = th.getAttribute('data-col-expanded') === 'true';
+  const isSplitCol = th.querySelector('.col-split-header-badge') !== null || th.getAttribute('data-is-split') === 'true';
+  const baseWidth = isSplitCol ? COL_SPLIT_W : COL_FIXED_W;
 
   if (!isExpanded) {
     // EXPAND: unlock width so content dictates size
     th.style.width = COL_EXPANDED_MAX;
-    th.style.minWidth = COL_FIXED_W;
+    th.style.minWidth = baseWidth;
     th.style.maxWidth = COL_EXPANDED_MAX;
     th.style.overflow = 'visible';
     th.style.whiteSpace = 'normal';
@@ -573,9 +576,18 @@ window.toggleColExpand = function(key, btnEl, event) {
       const td = row.querySelectorAll('td')[colIdx];
       if (!td) return;
       td.style.width = COL_EXPANDED_MAX;
-      td.style.minWidth = COL_FIXED_W;
+      td.style.minWidth = baseWidth;
       td.style.maxWidth = COL_EXPANDED_MAX;
       td.style.overflow = 'visible';
+      td.style.whiteSpace = 'normal';
+
+      // Expand split cell values
+      const splitValCells = td.querySelectorAll('.split-cell-val');
+      splitValCells.forEach(svc => {
+        svc.style.whiteSpace = 'normal';
+        svc.style.wordBreak = 'break-word';
+      });
+
       // Remove clamp from the inner cell-clamp-2 div
       const clamp = td.querySelector('.cell-clamp-2');
       if (clamp) {
@@ -596,10 +608,10 @@ window.toggleColExpand = function(key, btnEl, event) {
       btnEl.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>';
     }
   } else {
-    // COLLAPSE: restore fixed 200px
-    th.style.width = COL_FIXED_W;
-    th.style.minWidth = COL_FIXED_W;
-    th.style.maxWidth = COL_FIXED_W;
+    // COLLAPSE: restore base width
+    th.style.width = baseWidth;
+    th.style.minWidth = baseWidth;
+    th.style.maxWidth = isSplitCol ? '580px' : COL_FIXED_W;
     th.style.overflow = 'hidden';
     th.style.whiteSpace = 'nowrap';
     th.setAttribute('data-col-expanded', 'false');
@@ -607,10 +619,19 @@ window.toggleColExpand = function(key, btnEl, event) {
     table.querySelectorAll('tbody tr').forEach(row => {
       const td = row.querySelectorAll('td')[colIdx];
       if (!td) return;
-      td.style.width = COL_FIXED_W;
-      td.style.minWidth = COL_FIXED_W;
-      td.style.maxWidth = COL_FIXED_W;
+      td.style.width = baseWidth;
+      td.style.minWidth = baseWidth;
+      td.style.maxWidth = isSplitCol ? '580px' : COL_FIXED_W;
       td.style.overflow = 'hidden';
+      td.style.whiteSpace = 'nowrap';
+
+      // Restore split cell values nowrap
+      const splitValCells = td.querySelectorAll('.split-cell-val');
+      splitValCells.forEach(svc => {
+        svc.style.whiteSpace = 'nowrap';
+        svc.style.wordBreak = 'normal';
+      });
+
       // Restore 2-line clamp
       const clamp = td.querySelector('.cell-clamp-2');
       if (clamp) {
@@ -739,11 +760,10 @@ window.renderMasterMatrix = function(papers) {
   const thTitle = document.createElement('th');
   thTitle.textContent = 'Paper Title';
   thTitle.className = 'sticky-col-2';
-  trHead.appendChild(thTitle);
+  trHead.appendChild(thTitle);  // Customizable & Reorderable Columns
+  const rawAllCols = window.activeDataColumns || window.activeClusterColumns || [];
 
-  // Customizable & Reorderable Columns
   orderedCols.forEach(col => {
-    const rawAllCols = window.activeDataColumns || window.activeClusterColumns || [];
     const subCols = col.isDynamic ? rawAllCols.filter(c => c.parent_column_id && (c.parent_column_id === col.id || (c.parent_column_name && c.parent_column_name.toLowerCase() === col.name.toLowerCase()))) : [];
     const isSplitCol = col.col_type === 'split' || subCols.length > 0;
     
@@ -755,11 +775,12 @@ window.renderMasterMatrix = function(papers) {
       subBadgeHtml = `<span class="col-split-header-badge" title="Split Column (${subCols.map(s => s.name).join(', ') || 'Sub-Columns'})">${escapeHtml(shortBadges.join(' | '))}</span>`;
     }
 
-    const colWidth = isSplitCol ? '240px' : COL_FIXED_W;
+    const colWidth = isSplitCol ? COL_SPLIT_W : COL_FIXED_W;
 
     const th = document.createElement('th');
     th.setAttribute('draggable', 'true');
     th.setAttribute('data-col-key', col.key);
+    th.setAttribute('data-is-split', isSplitCol ? 'true' : 'false');
     th.setAttribute('data-col-expanded', 'false');
     // Stamp fixed width as inline style — toggleColExpand overrides this directly
     th.style.width = colWidth;
@@ -849,13 +870,18 @@ window.renderMasterMatrix = function(papers) {
 
     // 3. Render cells in the exact order of orderedCols
     orderedCols.forEach(col => {
+      const subCols = col.isDynamic ? rawAllCols.filter(c => c.parent_column_id && (c.parent_column_id === col.id || (c.parent_column_name && c.parent_column_name.toLowerCase() === col.name.toLowerCase()))) : [];
+      const isSplitCol = col.col_type === 'split' || subCols.length > 0;
+      const cellWidth = isSplitCol ? COL_SPLIT_W : COL_FIXED_W;
+
       // Helper to stamp fixed width on a newly created td
       function applyColFixedWidth(td) {
-        td.style.width = COL_FIXED_W;
-        td.style.minWidth = COL_FIXED_W;
-        td.style.maxWidth = COL_FIXED_W;
+        td.style.width = cellWidth;
+        td.style.minWidth = cellWidth;
+        td.style.maxWidth = isSplitCol ? '580px' : COL_FIXED_W;
         td.style.overflow = 'hidden';
         td.setAttribute('data-col-key', col.key);
+        td.setAttribute('data-is-split', isSplitCol ? 'true' : 'false');
       }
 
       if (col.key === 'cluster') {
@@ -921,7 +947,6 @@ window.renderMasterMatrix = function(papers) {
         tr.appendChild(tdCol);
       }
     });
-
 
     matrixTbody.appendChild(tr);
   });

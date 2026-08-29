@@ -246,6 +246,7 @@ function handleExport(req, res) {
     if (format === 'xlsx' || format === 'excel') {
       const wsData = [];
       const merges = [];
+      const rowHeights = [];
 
       if (hasSplitCols) {
         // Multi-level Header Row 1 & Row 2
@@ -295,41 +296,65 @@ function handleExport(req, res) {
 
         wsData.push(headerRow1);
         wsData.push(headerRow2);
+        rowHeights.push({ hpt: 28 });
+        rowHeights.push({ hpt: 22 });
       } else {
         // Single Header Row
         wsData.push(allExportCols.map(c => c.label));
+        rowHeights.push({ hpt: 28 });
       }
 
-      // Add Data Rows
+      // Add Data Rows & Compute Dynamic Row Heights
       papers.forEach((p, idx) => {
         const row = allExportCols.map(c => c.val(p, idx));
         wsData.push(row);
+
+        // Compute row height based on max multiline content
+        const maxLines = Math.max(1, ...row.map(val => String(val || '').split('\n').length));
+        rowHeights.push({ hpt: Math.max(22, Math.min(140, maxLines * 16 + 6)) });
       });
 
       const ws = XLSX.utils.aoa_to_sheet(wsData);
       if (merges.length > 0) ws['!merges'] = merges;
+      ws['!rows'] = rowHeights;
 
       // Calculate dynamic and optimal column widths
       ws['!cols'] = allExportCols.map((c, colIdx) => {
         let maxLen = Math.max((c.label || '').length, (c.parent || '').length, 8);
         papers.forEach((p, rIdx) => {
           const val = String(c.val(p, rIdx) || '');
-          const firstLine = val.split('\n')[0];
-          if (firstLine.length > maxLen) {
-            maxLen = Math.min(60, Math.max(maxLen, firstLine.length));
-          }
+          const lines = val.split('\n');
+          lines.forEach(line => {
+            if (line.length > maxLen) {
+              maxLen = Math.min(65, Math.max(maxLen, line.length));
+            }
+          });
         });
         if (c.key === '#') maxLen = Math.max(maxLen, 6);
-        if (c.key === 'year') maxLen = Math.max(maxLen, 8);
-        if (c.key === 'title') maxLen = Math.max(maxLen, 36);
-        if (c.key === 'authors') maxLen = Math.max(maxLen, 24);
+        if (c.key === 'year') maxLen = Math.max(maxLen, 10);
+        if (c.key === 'title') maxLen = Math.max(maxLen, 45);
+        if (c.key === 'authors') maxLen = Math.max(maxLen, 28);
+        if (c.key === 'domain') maxLen = Math.max(maxLen, 18);
+        if (c.key === 'status') maxLen = Math.max(maxLen, 16);
+        if (c.key === 'cluster') maxLen = Math.max(maxLen, 24);
+        if (c.key === 'pub') maxLen = Math.max(maxLen, 30);
+        if (c.key === 'doi') maxLen = Math.max(maxLen, 36);
+        if (c.key && c.key.startsWith('dyn_')) maxLen = Math.max(maxLen, 32);
+
         return { wch: maxLen + 3 };
       });
 
-      // Freeze header row(s) and first 2 columns (# and Title)
+      // Freeze header row(s) and first 2 columns (# and Paper Title)
       const headerRowCount = hasSplitCols ? 2 : 1;
       ws['!views'] = [
-        { state: 'frozen', xSplit: 2, ySplit: headerRowCount, topLeftCell: `C${headerRowCount + 1}`, activePane: 'bottomRight' }
+        {
+          state: 'frozen',
+          xSplit: 2,
+          ySplit: headerRowCount,
+          topLeftCell: `C${headerRowCount + 1}`,
+          activePane: 'bottomRight',
+          showGridLines: true
+        }
       ];
 
       const wb = XLSX.utils.book_new();
