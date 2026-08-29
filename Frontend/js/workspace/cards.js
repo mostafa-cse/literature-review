@@ -46,6 +46,7 @@ window.renderCards = function(papers) {
       <div>
         <div class="card-meta-row">
           <div class="meta-tag-group">
+            <span class="domain-tag" style="font-family:var(--font-mono); font-weight:700; color:var(--accent-primary); background:rgba(56,189,248,0.12); border-color:rgba(56,189,248,0.3);" title="Static Paper Reference Number">#${p.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(p.id) : '')}</span>
             <span class="subfamily-tag" style="background:${cl ? cl.color + '22' : 'var(--accent-muted)'}; color:${clusterColor}">${clusterName}</span>
             <span class="domain-tag">${p.domain || 'General'}</span>
             ${p.year ? `<span class="domain-tag" style="font-family:var(--font-mono); font-weight:700;">${p.year}</span>` : ''}

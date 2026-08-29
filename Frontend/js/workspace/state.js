@@ -59,3 +59,25 @@ window.WorkspaceState = {
   get currentProjectRole() { return window.currentProjectRole; },
   set currentProjectRole(v) { window.currentProjectRole = v; }
 };
+
+/**
+ * Returns the permanent, fixed serial number (#) of a paper in the project.
+ * This serial number remains static across all clusters, filters, and searches.
+ */
+window.getPaperSerialNo = function(paperOrId) {
+  if (!paperOrId) return 1;
+  const paperId = (typeof paperOrId === 'object') ? paperOrId.id : paperOrId;
+  const papers = window.allPapers || [];
+  if (Array.isArray(papers) && papers.length > 0) {
+    const p = papers.find(item => item.id === paperId);
+    if (p && p.serial_no !== undefined && p.serial_no !== null) return p.serial_no;
+    // Fallback: deterministic sorted index by ID
+    const sorted = [...papers].sort((a, b) => (a.id || 0) - (b.id || 0));
+    const idx = sorted.findIndex(item => item.id === paperId);
+    if (idx !== -1) return idx + 1;
+  }
+  if (typeof paperOrId === 'object' && paperOrId.serial_no !== undefined) {
+    return paperOrId.serial_no;
+  }
+  return 1;
+};

@@ -28,13 +28,29 @@ function handleExport(req, res) {
 
     if (clusterId && clusterId !== 'all') {
       cluster = db.prepare('SELECT * FROM clusters WHERE id = ?').get(clusterId);
-      papers = db.prepare('SELECT * FROM papers WHERE cluster_id = ? ORDER BY year DESC, id ASC').all(clusterId);
+      papers = db.prepare(`
+        WITH numbered_papers AS (
+          SELECT p.*,
+                 ROW_NUMBER() OVER (PARTITION BY p.project_id ORDER BY p.id ASC) as serial_no
+          FROM papers p
+        )
+        SELECT p.*, c.name as cluster_name 
+        FROM numbered_papers p 
+        LEFT JOIN clusters c ON c.id = p.cluster_id 
+        WHERE p.cluster_id = ? 
+        ORDER BY p.year DESC, p.id ASC
+      `).all(clusterId);
       dynamicCols = db.prepare('SELECT * FROM dynamic_columns WHERE cluster_id = ? ORDER BY parent_column_id ASC, id ASC').all(clusterId);
     } else {
       cluster = { name: (proj ? proj.name : 'Master_Matrix') };
       papers = db.prepare(`
+        WITH numbered_papers AS (
+          SELECT p.*,
+                 ROW_NUMBER() OVER (PARTITION BY p.project_id ORDER BY p.id ASC) as serial_no
+          FROM papers p
+        )
         SELECT p.*, c.name as cluster_name 
-        FROM papers p 
+        FROM numbered_papers p 
         LEFT JOIN clusters c ON c.id = p.cluster_id 
         WHERE p.project_id = ? OR c.project_id = ?
         ORDER BY p.cluster_id ASC, p.year DESC, p.id ASC
@@ -83,7 +99,7 @@ function handleExport(req, res) {
 
     // Define column mapping
     const baseColumns = [
-      { key: '#', label: '#', val: (p, idx) => idx + 1 },
+      { key: '#', label: '#', val: (p, idx) => p.serial_no || (idx + 1) },
       { key: 'title', label: 'Paper Title', val: p => p.title || 'Untitled' },
       { key: 'authors', label: 'Authors', val: p => p.authors || '' },
       { key: 'year', label: 'Year', val: p => p.year || '' },

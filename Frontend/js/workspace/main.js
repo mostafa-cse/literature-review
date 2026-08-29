@@ -325,6 +325,16 @@ window.loadPapers = async function () {
     if (!res.ok) throw new Error('Failed to load papers');
     allPapers = await res.json();
 
+    // Ensure deterministic static serial_no on each paper across the whole survey
+    const sorted = [...allPapers].sort((a, b) => (a.id || 0) - (b.id || 0));
+    const serialMap = new Map();
+    sorted.forEach((p, idx) => {
+      serialMap.set(p.id, p.serial_no || (idx + 1));
+    });
+    allPapers.forEach(p => {
+      p.serial_no = serialMap.get(p.id) || p.serial_no || 1;
+    });
+
     // Check unassigned papers
     unassignedPapers = allPapers.filter(p => !p.cluster_id);
     renderUnassignedBox();

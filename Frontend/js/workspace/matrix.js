@@ -848,13 +848,14 @@ window.renderMasterMatrix = function(papers) {
     tr.className = `matrix-row row-status-${statusVal}`;
     tr.setAttribute('data-paper-id', p.id);
 
-    // 1. Serial Number with Status Color Indicator
+    // 1. Serial Number with Status Color Indicator (Fixed Permanent Reference ID)
     const tdIndex = document.createElement('td');
     tdIndex.className = 'sticky-col td-index';
     tdIndex.style.fontFamily = 'var(--font-mono)';
     tdIndex.style.fontSize = '0.82rem';
-    tdIndex.title = `Reading Status: ${statusVal.replace('_', ' ').toUpperCase()} (Click to toggle)`;
-    tdIndex.innerHTML = `<span class="status-dot status-dot-${statusVal}"></span><span>${index + 1}</span>`;
+    const paperSerial = p.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(p.id) : (index + 1));
+    tdIndex.title = `Paper #${paperSerial} | Reading Status: ${statusVal.replace('_', ' ').toUpperCase()} (Click to toggle)`;
+    tdIndex.innerHTML = `<span class="status-dot status-dot-${statusVal}"></span><span>${paperSerial}</span>`;
     tdIndex.onclick = (e) => cyclePaperStatus(p.id, statusVal, e);
     tr.appendChild(tdIndex);
 

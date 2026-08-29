@@ -198,7 +198,7 @@
   function buildPaperIndex(papers) {
     var map = new Map();
     papers.forEach(function (p, i) {
-      var num = i + 1;
+      var num = p.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(p.id) : (i + 1));
       var title = p.title ? p.title.trim() : ('Paper ' + num);
       var shortTitle = title.length > 58 ? title.substring(0, 55) + '\u2026' : title;
       map.set(p.id, { index: num, shortRef: '#' + num, shortTitle: shortTitle, fullTitle: title, id: p.id });

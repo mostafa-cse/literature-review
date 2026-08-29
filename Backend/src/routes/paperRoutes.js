@@ -14,8 +14,13 @@ router.get('/papers', (req, res) => {
     const { cluster_id, project_id, search, domain, status, year, sort } = req.query;
 
     let sql = `
+      WITH numbered_papers AS (
+        SELECT p.*,
+               ROW_NUMBER() OVER (PARTITION BY p.project_id ORDER BY p.id ASC) as serial_no
+        FROM papers p
+      )
       SELECT p.*, c.name as cluster_name, c.color as cluster_color
-      FROM papers p
+      FROM numbered_papers p
       LEFT JOIN clusters c ON c.id = p.cluster_id
       WHERE 1=1
     `;
@@ -169,8 +174,13 @@ router.get('/papers/:id', (req, res) => {
   try {
     const db = getDb();
     const paper = db.prepare(`
+      WITH numbered_papers AS (
+        SELECT p.*,
+               ROW_NUMBER() OVER (PARTITION BY p.project_id ORDER BY p.id ASC) as serial_no
+        FROM papers p
+      )
       SELECT p.*, c.name as cluster_name, c.color as cluster_color
-      FROM papers p
+      FROM numbered_papers p
       LEFT JOIN clusters c ON c.id = p.cluster_id
       WHERE p.id = ?
     `).get(req.params.id);
