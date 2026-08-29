@@ -883,15 +883,15 @@ body, html {
   background: var(--canvas-container-bg);
 }
 
-/* --- Draggable Resizer Bar (Clean Splitter Handle) --- */
+/* --- Draggable Resizer Bar (Clean Splitter Handle with < >) --- */
 .resizer-drag-bar {
-  width: 14px;
+  width: 18px;
   background: transparent;
   cursor: col-resize;
   position: relative;
   z-index: 30;
-  margin-left: -7px;
-  margin-right: -7px;
+  margin-left: -9px;
+  margin-right: -9px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -901,33 +901,67 @@ body, html {
 
 .resizer-drag-bar:hover,
 .resizer-drag-bar.dragging {
-  background: rgba(56, 189, 248, 0.1);
+  background: rgba(56, 189, 248, 0.12);
 }
 
 .resizer-handle-pill {
-  width: 4px;
+  width: 14px;
   height: 38px;
-  background: var(--border-pane);
-  border-radius: 4px;
+  background: var(--bg-surface-raised, #1e293b);
+  border: 1px solid var(--border-base, rgba(255, 255, 255, 0.18));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary, #94a3b8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
   transition: all 0.15s ease;
   pointer-events: none;
+}
+
+.resizer-arrows-icon {
+  width: 10px;
+  height: 12px;
+  stroke: currentColor;
+  opacity: 0.8;
+  transition: transform 0.15s ease;
 }
 
 .resizer-drag-bar:hover .resizer-handle-pill,
 .resizer-drag-bar.dragging .resizer-handle-pill {
   background: #38bdf8;
-  height: 52px;
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+  color: #0f172a;
+  border-color: #38bdf8;
+  height: 48px;
+  width: 16px;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.7);
+}
+
+.resizer-drag-bar:hover .resizer-arrows-icon,
+.resizer-drag-bar.dragging .resizer-arrows-icon {
+  stroke: #0f172a;
+  opacity: 1;
+  transform: scale(1.15);
 }
 
 [data-theme="light"] .resizer-handle-pill {
-  background: #cbd5e1;
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #64748b;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
 [data-theme="light"] .resizer-drag-bar:hover .resizer-handle-pill,
 [data-theme="light"] .resizer-drag-bar.dragging .resizer-handle-pill {
   background: #0284c7;
-  box-shadow: 0 0 8px rgba(2, 132, 199, 0.4);
+  color: #ffffff;
+  border-color: #0284c7;
+  box-shadow: 0 0 12px rgba(2, 132, 199, 0.5);
+}
+
+[data-theme="light"] .resizer-drag-bar:hover .resizer-arrows-icon,
+[data-theme="light"] .resizer-drag-bar.dragging .resizer-arrows-icon {
+  stroke: #ffffff;
 }
 
 /* --- Right Pane (Settings) --- */

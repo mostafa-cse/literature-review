@@ -182,9 +182,16 @@
     activePrismaVote = p.screening_decision || 'included';
     activePrismaReason = p.screening_reason || '';
 
+    const paperSerial = p.serial_no || p.id || 1;
+
     // Title & DOI
     const titleMain = document.getElementById('paper-title-main');
-    if (titleMain) titleMain.textContent = p.title || 'Papers Name';
+    if (titleMain) {
+      titleMain.innerHTML = `<span class="paper-serial-prefix" style="color:var(--accent-primary, #38bdf8); font-family:var(--font-mono, monospace); font-weight:700; margin-right:0.45rem;">#${paperSerial}</span>${p.title || 'Papers Name'}`;
+      titleMain.title = `[#${paperSerial}] ${p.title || 'Paper'} - Click to open manuscript in new tab`;
+    }
+
+    document.title = `[#${paperSerial}] ${p.title || 'Paper Review'} | LitNexis`;
 
     const doiInput = document.getElementById('doi-input-field');
     if (doiInput) doiInput.value = p.doi || '';

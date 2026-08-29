@@ -1407,33 +1407,14 @@ function formatCellContent(val, fieldType, paperId = null) {
 
 window.handlePaperTitleClick = function(paperId, event) {
   if (event) {
-    if (event.target && event.target.tagName === 'INPUT') return;
+    if (event.target && (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT' || event.target.tagName === 'TEXTAREA')) return;
   }
-  const paper = (typeof allPapers !== 'undefined' && Array.isArray(allPapers))
-    ? allPapers.find(p => String(p.id) === String(paperId))
-    : null;
+  const pid = (typeof activeProjectId !== 'undefined' && activeProjectId)
+    ? activeProjectId
+    : (window.activeProjectId || (new URLSearchParams(window.location.search)).get('project') || 1);
   
-  if (paper && paper.pdf_url) {
-    const url = paper.pdf_url.startsWith('http') || paper.pdf_url.startsWith('/')
-      ? paper.pdf_url
-      : '/' + paper.pdf_url;
-    window.open(url, '_blank', 'noopener,noreferrer');
-    if (typeof showToast === 'function') {
-      showToast(`Opening manuscript: "${paper.title}"`, 'info');
-    }
-    return;
-  }
-  
-  if (paper && paper.doi) {
-    const doiUrl = paper.doi.startsWith('http') ? paper.doi : `https://doi.org/${paper.doi}`;
-    window.open(doiUrl, '_blank', 'noopener,noreferrer');
-    return;
-  }
-
-  // Fallback to review workspace
-  if (typeof openReaderModal === 'function') {
-    openReaderModal(paperId, event);
-  }
+  // Directly open the split-screen Review Page for this paper
+  window.open(`/review?project=${pid}&paper=${paperId}`, '_blank');
 };
 
 function restoreCellDisplay(cell, fieldType, val) {
