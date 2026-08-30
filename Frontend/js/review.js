@@ -931,17 +931,28 @@
   }
 
   /* ────────────────────────────────────────────────────────────────
-     6. PRISMA SCREENING & QUALITY APPRAISAL
+     6. PRISMA SCREENING & QUALITY APPRAISAL (MUTUALLY EXCLUSIVE)
   ──────────────────────────────────────────────────────────────── */
   window.setPrismaVote = function (vote) {
     activePrismaVote = vote;
+    if (activePaper) {
+      activePaper.screening_decision = vote;
+    }
     updatePrismaUi(vote, activePrismaReason);
     triggerAutoSave(true);
+    const voteLabels = { 'included': 'Include (Eligible)', 'excluded': 'Exclude (Ineligible)', 'uncertain': 'Uncertain (Needs Review)' };
+    showToast(`✓ PRISMA Decision: ${voteLabels[vote] || vote}`);
   };
 
   window.handleReasonChange = function (val) {
     activePrismaReason = val;
+    if (activePaper) {
+      activePaper.screening_reason = val;
+    }
     triggerAutoSave(true);
+    if (val) {
+      showToast(`✓ PRISMA Reason: "${val}"`);
+    }
   };
 
   function updatePrismaUi(vote, reason) {
