@@ -502,7 +502,7 @@ export function PaperReviewApp() {
               onAddItem={handleAddDomain}
               onSave={() => { triggerImmediateSave(paper); showToast('✓ Domain saved'); }}
               showSaveButton={true}
-              saveButtonText="Save Domain"
+              saveButtonText="Save"
               isMultiSelect={false}
               placeholder="Add domain..."
               emptyMessage="No domains defined yet for this survey. Click '+ add new' to create one."
@@ -519,7 +519,7 @@ export function PaperReviewApp() {
               onAddItem={handleAddKeyword}
               onSave={() => { triggerImmediateSave(paper); showToast('✓ Keywords saved'); }}
               showSaveButton={true}
-              saveButtonText="Save Keywords"
+              saveButtonText="Save"
               placeholder="Add keyword..."
               emptyMessage="No keywords defined yet for this survey. Click '+ add new' to create one."
             />
@@ -536,7 +536,7 @@ export function PaperReviewApp() {
               showSaveButton={true}
               addButtonText="Add new"
               splitButtonText="Split Column"
-              saveButtonText="Save Columns"
+              saveButtonText="Save"
               emptyMessage="No extraction columns defined yet for this survey. Click '+ Add new' to create one."
             />
           </SectionWrapper>
@@ -559,7 +559,7 @@ export function PaperReviewApp() {
               onChange={handleDetailedSummaryChange}
               onSave={() => { triggerImmediateSave(paper); showToast('✓ Detailed Summary saved'); }}
               showSaveButton={true}
-              saveButtonText="Save Summary"
+              saveButtonText="Save"
             />
           </SectionWrapper>
         </div>

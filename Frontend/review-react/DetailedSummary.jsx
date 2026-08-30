@@ -9,7 +9,7 @@ export function DetailedSummary({
   onChange,
   onSave,
   showSaveButton = true,
-  saveButtonText = 'Save Summary'
+  saveButtonText = 'Save'
 }) {
   return (
     <div>

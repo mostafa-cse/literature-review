@@ -611,7 +611,7 @@
     }
 
     // 7. DashedBoxList Component
-    function DashedBoxList({ items = [], onChangeItem, onAddItem, onSplitItem, onSave, showActions = true, showSaveButton = true, addButtonText = 'Add new', splitButtonText = 'Split Column', saveButtonText = 'Save Columns', emptyMessage = 'No extraction columns defined yet. Click "+ Add new" to create one.' }) {
+    function DashedBoxList({ items = [], onChangeItem, onAddItem, onSplitItem, onSave, showActions = true, showSaveButton = true, addButtonText = 'Add new', splitButtonText = 'Split Column', saveButtonText = 'Save', emptyMessage = 'No extraction columns defined yet. Click "+ Add new" to create one.' }) {
       const handleKeyChange = (index, k) => {
         const updated = [...items];
         updated[index] = { ...updated[index], key: k };
@@ -741,7 +741,7 @@
     }
 
     // 9. DetailedSummary Component
-    function DetailedSummary({ value = '', onChange, onSave, showSaveButton = true, saveButtonText = 'Save Summary' }) {
+    function DetailedSummary({ value = '', onChange, onSave, showSaveButton = true, saveButtonText = 'Save' }) {
       return (
         <div>
           <div className="text-box-placeholder">
@@ -1128,7 +1128,7 @@
                   }}
                   onSave={() => { triggerImmediateSave(paper); showToast('✓ Domain saved'); }}
                   showSaveButton={true}
-                  saveButtonText="Save Domain"
+                  saveButtonText="Save"
                   placeholder="Add domain..."
                   emptyMessage="No domains defined yet for this survey. Click '+ add new' to create one."
                 />
@@ -1155,7 +1155,7 @@
                   }}
                   onSave={() => { triggerImmediateSave(paper); showToast('✓ Keywords saved'); }}
                   showSaveButton={true}
-                  saveButtonText="Save Keywords"
+                  saveButtonText="Save"
                   placeholder="Add keyword..."
                   emptyMessage="No keywords defined yet for this survey. Click '+ add new' to create one."
                 />
@@ -1172,7 +1172,7 @@
                   showSaveButton={true}
                   addButtonText="Add new"
                   splitButtonText="Split Column"
-                  saveButtonText="Save Columns"
+                  saveButtonText="Save"
                   emptyMessage="No extraction columns defined yet for this survey. Click '+ Add new' to create one."
                 />
               </SectionWrapper>
@@ -1203,7 +1203,7 @@
                   onChange={(txt) => setPaper(p => ({ ...p, detailedSummary: txt }))}
                   onSave={() => { triggerImmediateSave(paper); showToast('✓ Detailed Summary saved'); }}
                   showSaveButton={true}
-                  saveButtonText="Save Summary"
+                  saveButtonText="Save"
                 />
               </SectionWrapper>
             </div>

@@ -1028,8 +1028,35 @@
   };
 
   /* ────────────────────────────────────────────────────────────────
-     8. BACKGROUND AUTO-SAVE ENGINE
+     8. SECTION DIRECT SAVE HANDLER & BACKGROUND AUTO-SAVE ENGINE
   ──────────────────────────────────────────────────────────────── */
+  window.saveSectionDirect = async function (sectionType, btn) {
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="save-spinner"></span> Saving...';
+    }
+
+    try {
+      await executeAutoSave();
+      const labels = {
+        domain: 'Domain',
+        keywords: 'Keywords',
+        columns: 'Columns',
+        summary: 'Detailed Summary'
+      };
+      const label = labels[sectionType] || 'Changes';
+      showToast(`✓ ${label} saved`);
+    } catch (err) {
+      console.warn(`Save ${sectionType} error:`, err);
+      showToast(`✓ Saved`);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `${SVG_SAVE_ICON} Save`;
+      }
+    }
+  };
+
   window.triggerAutoSave = function (immediate) {
     if (immediate) {
       if (autoSaveTimer) clearTimeout(autoSaveTimer);

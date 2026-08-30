@@ -15,7 +15,7 @@ export function DashedBoxList({
   showSaveButton = true,
   addButtonText = 'Add new',
   splitButtonText = 'Split Column',
-  saveButtonText = 'Save Columns',
+  saveButtonText = 'Save',
   emptyMessage = 'No extraction columns defined yet. Click "+ Add new" to create one.'
 }) {
   const handleKeyChange = (index, newKey) => {
