@@ -995,54 +995,95 @@
   function initResizerDrag() {
     const handle = document.getElementById('resizer-drag-bar');
     const leftPane = document.getElementById('review-left-pane');
+    const rightPane = document.getElementById('review-right-pane');
     const headerLeft = document.getElementById('review-header-left');
+    const headerRight = document.getElementById('review-header-right');
     const mainBody = document.getElementById('review-main-body');
 
     // Restore saved split position or default to 42%
     const savedSplit = localStorage.getItem('litnexis_review_split');
-    const splitPct = savedSplit ? Math.max(20, Math.min(75, parseFloat(savedSplit))) : 42;
-    document.documentElement.style.setProperty('--split-left-width', `${splitPct}%`);
-    if (leftPane) leftPane.style.flex = `0 0 ${splitPct}%`;
-    if (headerLeft) headerLeft.style.flex = `0 0 ${splitPct}%`;
+    const splitPct = savedSplit ? Math.max(18, Math.min(80, parseFloat(savedSplit))) : 42;
+    applySplit(splitPct);
 
     if (!handle || !leftPane || !mainBody) return;
 
+    function applySplit(pct) {
+      const clamped = Math.max(18, Math.min(80, pct));
+      document.documentElement.style.setProperty('--split-left-width', `${clamped}%`);
+      if (leftPane) leftPane.style.flex = `0 0 ${clamped}%`;
+      if (headerLeft) headerLeft.style.flex = `0 0 ${clamped}%`;
+      if (rightPane) rightPane.style.flex = `1 1 ${100 - clamped}%`;
+      if (headerRight) headerRight.style.flex = `1 1 ${100 - clamped}%`;
+    }
+
     let isDragging = false;
 
-    handle.onmousedown = (e) => {
-      e.preventDefault();
+    function startDrag(clientX) {
       isDragging = true;
       document.body.style.userSelect = 'none';
       document.body.style.cursor = 'col-resize';
       handle.classList.add('dragging');
+      const viewport = document.getElementById('pdf-viewport');
+      if (viewport) viewport.style.pointerEvents = 'none';
+    }
 
-      const onMouseMove = (moveEvent) => {
-        if (!isDragging) return;
-        const mainRect = mainBody.getBoundingClientRect();
-        const offsetX = moveEvent.clientX - mainRect.left;
-        let pct = (offsetX / mainRect.width) * 100;
+    function moveDrag(clientX) {
+      if (!isDragging) return;
+      const mainRect = mainBody.getBoundingClientRect();
+      const offsetX = clientX - mainRect.left;
+      const pct = (offsetX / mainRect.width) * 100;
+      applySplit(pct);
+      localStorage.setItem('litnexis_review_split', Math.max(18, Math.min(80, pct)).toFixed(2));
+    }
 
-        if (pct < 20) pct = 20;
-        if (pct > 75) pct = 75;
+    function endDrag() {
+      if (!isDragging) return;
+      isDragging = false;
+      document.body.style.userSelect = 'auto';
+      document.body.style.cursor = 'default';
+      handle.classList.remove('dragging');
+      const viewport = document.getElementById('pdf-viewport');
+      if (viewport) viewport.style.pointerEvents = 'auto';
 
-        document.documentElement.style.setProperty('--split-left-width', `${pct}%`);
-        leftPane.style.flex = `0 0 ${pct}%`;
-        if (headerLeft) headerLeft.style.flex = `0 0 ${pct}%`;
-        localStorage.setItem('litnexis_review_split', pct.toFixed(2));
-      };
+      // Trigger redraw of PDF canvas to fit new pane dimensions smoothly
+      if (currentPdfDoc && typeof renderPdfPage === 'function') {
+        renderPdfPage(pdfCurrentPageNum);
+      }
+    }
 
-      const onMouseUp = () => {
-        isDragging = false;
-        document.body.style.userSelect = 'auto';
-        document.body.style.cursor = 'default';
-        handle.classList.remove('dragging');
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
-      };
+    // Mouse events
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      startDrag(e.clientX);
+    });
 
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
-    };
+    document.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        e.preventDefault();
+        moveDrag(e.clientX);
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (isDragging) endDrag();
+    });
+
+    // Touch events for touchscreens / tablets
+    handle.addEventListener('touchstart', (e) => {
+      if (e.touches.length > 0) {
+        startDrag(e.touches[0].clientX);
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+      if (isDragging && e.touches.length > 0) {
+        moveDrag(e.touches[0].clientX);
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchend', () => {
+      if (isDragging) endDrag();
+    });
   }
 
   /* ────────────────────────────────────────────────────────────────
