@@ -361,7 +361,8 @@ router.put('/papers/:id', (req, res) => {
   try {
     const {
       cluster_id, title, authors, year, pub, domain, doi, pdf_url,
-      status, intuition, equation, strengths, gaps, custom_columns, keywords
+      status, intuition, equation, strengths, gaps, custom_columns, keywords,
+      screening_decision, screening_reason
     } = req.body;
 
     const db = getDb();
@@ -372,8 +373,19 @@ router.put('/papers/:id', (req, res) => {
 
     if (req.user) {
       const role = getProjectRole(req.user.id, existing.project_id);
-      if (!['owner', 'editor'].includes(role) && req.user.role !== 'admin') {
-        return res.status(403).json({ error: `Access Denied. Role '${role}' cannot edit paper details. Required: Owner or Editor.` });
+      if (role === 'viewer' && req.user.role !== 'admin') {
+        return res.status(403).json({ error: `Access Denied. Role '${role}' cannot edit paper details.` });
+      }
+      if (role === 'reviewer' && req.user.role !== 'admin') {
+        // Reviewers are permitted to update PRISMA screening, status, intuition, and gaps
+        const modifyingCoreMetadata = (title !== undefined && title !== existing.title) ||
+                                      (authors !== undefined && authors !== existing.authors) ||
+                                      (year !== undefined && year !== existing.year) ||
+                                      (pub !== undefined && pub !== existing.pub) ||
+                                      (cluster_id !== undefined && cluster_id !== existing.cluster_id);
+        if (modifyingCoreMetadata) {
+          return res.status(403).json({ error: `Access Denied. Role '${role}' cannot edit paper core metadata (title, year, cluster).` });
+        }
       }
     }
 
@@ -412,6 +424,24 @@ router.put('/papers/:id', (req, res) => {
       gapsStr,
       paperId
     );
+
+    // If PRISMA screening decision provided, upsert into paper_screening table
+    if (screening_decision && ['included', 'excluded', 'uncertain'].includes(screening_decision)) {
+      try {
+        const uId = req.user ? req.user.id : 1;
+        const uName = req.user ? (req.user.name || req.user.username || 'Reviewer') : 'Reviewer';
+        db.prepare(`
+          INSERT INTO paper_screening (paper_id, user_id, user_name, decision, exclusion_reason)
+          VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(paper_id, user_id) DO UPDATE SET
+            decision = excluded.decision,
+            exclusion_reason = excluded.exclusion_reason,
+            updated_at = CURRENT_TIMESTAMP
+        `).run(paperId, uId, uName, screening_decision, screening_reason || '');
+      } catch (screenErr) {
+        console.warn('Notice: Screening record upsert', screenErr.message);
+      }
+    }
 
     // Update custom column values if provided
     if (custom_columns && typeof custom_columns === 'object') {

@@ -1428,7 +1428,7 @@
     formData.append('pdf', file);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('litnexis_auth_token') || localStorage.getItem('token') || localStorage.getItem('jwt');
       const res = await fetch(`/api/papers/${activePaper.id}/pdf`, {
         method: 'POST',
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
@@ -1449,7 +1449,7 @@
      12. UTILITIES
   ──────────────────────────────────────────────────────────────── */
   function getAuthHeaders() {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('litnexis_auth_token') || localStorage.getItem('token') || localStorage.getItem('jwt');
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
     return headers;
