@@ -31,12 +31,12 @@ export function PrismaScreening({
   const getStatusText = () => {
     switch (saveStatus) {
       case 'saving':
-        return '⏳ Saving...';
+        return 'Saving...';
       case 'error':
-        return '⚠ Error';
+        return 'Retry';
       case 'saved':
       default:
-        return '✓ Saved';
+        return 'Saved';
     }
   };
 

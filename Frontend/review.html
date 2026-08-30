@@ -219,7 +219,7 @@
                     <div class="cluster-action-bar" id="cluster-action-bar">
                         <span class="cluster-transfer-status" id="cluster-transfer-status">Status: Unassigned</span>
                         <button type="button" class="cluster-transfer-save-btn" id="btn-save-cluster" onclick="saveClusterTransfer()">
-                            <span class="save-icon">💾</span> Save
+                            <svg class="save-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save
                         </button>
                     </div>
                 </div>
@@ -240,8 +240,8 @@
                         <!-- Populated dynamically from survey only: + add new -->
                     </div>
                     <div class="section-action-bar">
-                        <button type="button" class="section-save-btn" onclick="triggerAutoSave(true); showToast('✓ Domain saved');">
-                            <span class="save-icon">💾</span> Save Domain
+                        <button type="button" class="section-save-btn" onclick="triggerAutoSave(true); showToast('Domain saved');">
+                            <svg class="save-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Domain
                         </button>
                     </div>
                 </div>
@@ -262,8 +262,8 @@
                         <!-- Populated dynamically from survey only: + add new -->
                     </div>
                     <div class="section-action-bar">
-                        <button type="button" class="section-save-btn" onclick="triggerAutoSave(true); showToast('✓ Keywords saved');">
-                            <span class="save-icon">💾</span> Save Keywords
+                        <button type="button" class="section-save-btn" onclick="triggerAutoSave(true); showToast('Keywords saved');">
+                            <svg class="save-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Keywords
                         </button>
                     </div>
                 </div>
@@ -289,8 +289,8 @@
                             <button type="button" class="action-btn" onclick="handleSplitColumn()">Split Column</button>
                             <button type="button" class="action-btn" onclick="handleAddColumn()">Add new</button>
                         </div>
-                        <button type="button" class="section-save-btn" onclick="triggerAutoSave(true); showToast('✓ Columns saved');">
-                            <span class="save-icon">💾</span> Save Columns
+                        <button type="button" class="section-save-btn" onclick="triggerAutoSave(true); showToast('Columns saved');">
+                            <svg class="save-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Columns
                         </button>
                     </div>
                 </div>
@@ -326,7 +326,7 @@
                         </div>
                         <!-- Live Auto-Save Indicator -->
                         <div class="solid-box short-box status-saved" id="auto-save-status-box" title="Real-Time Background Auto-Save Engine">
-                            ✓ Saved
+                            Saved
                         </div>
                     </div>
                 </div>
@@ -347,8 +347,8 @@
                         <textarea class="detailed-summary-textarea" id="detailed-summary-input" rows="4" placeholder="Enter detailed text here..." oninput="handleDetailedSummaryChange(this.value)"></textarea>
                     </div>
                     <div class="section-action-bar">
-                        <button type="button" class="section-save-btn" onclick="triggerAutoSave(true); showToast('✓ Detailed Summary saved');">
-                            <span class="save-icon">💾</span> Save Summary
+                        <button type="button" class="section-save-btn" onclick="triggerAutoSave(true); showToast('Detailed Summary saved');">
+                            <svg class="save-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Summary
                         </button>
                     </div>
                 </div>

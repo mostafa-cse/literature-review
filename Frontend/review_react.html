@@ -602,7 +602,7 @@
                 className="section-save-btn"
                 onClick={onSave}
               >
-                <span className="save-icon">💾</span> {saveButtonText}
+                <svg className="save-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> {saveButtonText}
               </button>
             </div>
           )}
@@ -699,7 +699,7 @@
                   className="section-save-btn"
                   onClick={onSave}
                 >
-                  <span className="save-icon">💾</span> {saveButtonText}
+                  <svg className="save-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> {saveButtonText}
                 </button>
               )}
             </div>
@@ -711,7 +711,7 @@
     // 8. PrismaScreening Component
     function PrismaScreening({ decision = 'included', onDecisionChange, reason = '', onReasonChange, saveStatus = 'saved' }) {
       const getStatusClass = () => saveStatus === 'saving' ? 'status-saving' : (saveStatus === 'error' ? 'status-error' : 'status-saved');
-      const getStatusText = () => saveStatus === 'saving' ? '⏳ Saving...' : (saveStatus === 'error' ? '⚠ Error' : '✓ Saved');
+      const getStatusText = () => saveStatus === 'saving' ? 'Saving...' : (saveStatus === 'error' ? 'Retry' : 'Saved');
 
       return (
         <div>
@@ -761,7 +761,7 @@
                 className="section-save-btn"
                 onClick={onSave}
               >
-                <span className="save-icon">💾</span> {saveButtonText}
+                <svg className="save-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> {saveButtonText}
               </button>
             </div>
           )}
@@ -1105,7 +1105,7 @@
                     id="btn-save-cluster"
                     onClick={() => handleSaveClusterTransfer(stagedCluster)}
                   >
-                    <span className="save-icon">💾</span> Save
+                    <svg className="save-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save
                   </button>
                 </div>
               </SectionWrapper>
