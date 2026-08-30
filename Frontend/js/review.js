@@ -317,7 +317,7 @@
 
   window.updateBreadcrumb = updateBreadcrumb;
 
-  window.handlePaperTitleClick = function () {
+  window.handlePaperTitleClick = async function () {
     if (!activePaper) return;
     let targetUrl = '';
     if (activePaper.pdf_url) {
@@ -330,10 +330,41 @@
       targetUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(activePaper.title)}`;
     }
 
+    // 1. Open the actual paper in a new browser tab
     if (targetUrl) {
       window.open(targetUrl, '_blank', 'noopener,noreferrer');
-      showToast(`Review session initialized for: "${activePaper.title}"`);
     }
+
+    // 2. Simultaneously initialize 'Review Paper' layout / active reading session for this specific document
+    const paperSerial = activePaper.serial_no || activePaper.id || 1;
+    sessionStorage.setItem('litnexis_active_review_paper', String(activePaper.id));
+
+    // Ensure PDF preview is initialized in the left pane
+    if (activePaper.pdf_url) {
+      loadPdfPreview(activePaper.pdf_url);
+    } else if (activePaper.doi) {
+      loadPdfPreview(`https://doi.org/${activePaper.doi}`);
+    }
+
+    // Auto-update reading status to 'in_progress' in database if currently unread
+    if (activePaper.status !== 'in_progress' && activePaper.status !== 'reviewed') {
+      try {
+        activePaper.status = 'in_progress';
+        await fetch(`/api/papers/${activePaper.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeaders()
+          },
+          body: JSON.stringify({ status: 'in_progress' })
+        });
+      } catch (err) {
+        console.warn('Notice: Reading status updated locally', err);
+      }
+    }
+
+    updateHeaderSubtitle();
+    showToast(`📖 Review session initialized for [#${paperSerial}]: "${activePaper.title}"`);
   };
 
   /* ────────────────────────────────────────────────────────────────
