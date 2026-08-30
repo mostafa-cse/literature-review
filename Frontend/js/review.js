@@ -604,20 +604,30 @@
       addBtn.innerHTML = '<input type="text" class="inline-add-input" placeholder="+ Cluster title..." autoFocus>';
       const input = addBtn.querySelector('input');
       input.focus();
-      input.onkeydown = async (ev) => {
-        if (ev.key === 'Enter' && input.value.trim()) {
-          const val = input.value.trim();
+      let committed = false;
+
+      const commitCluster = async () => {
+        if (committed) return;
+        committed = true;
+        const val = (input.value || '').trim();
+        if (val) {
           await createNewCluster(val);
+        } else {
+          renderClustersGrid(stagedClusterId);
+        }
+      };
+
+      input.onkeydown = async (ev) => {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          await commitCluster();
         } else if (ev.key === 'Escape') {
+          committed = true;
           renderClustersGrid(stagedClusterId);
         }
       };
       input.onblur = () => {
-        if (input.value.trim()) {
-          createNewCluster(input.value.trim());
-        } else {
-          renderClustersGrid(stagedClusterId);
-        }
+        commitCluster();
       };
     };
     container.appendChild(addBtn);
@@ -702,14 +712,12 @@
       } else {
         const err = await res.json().catch(() => ({}));
         showToast(`⚠ ${err.error || 'Failed to create cluster'}`);
+        renderClustersGrid(stagedClusterId);
       }
     } catch (err) {
-      const mockObj = { id: Date.now(), name: cleanName, project_id: currentProjectId };
-      allClusters.push(mockObj);
-      stagedClusterId = mockObj.id;
-      renderClustersGrid(mockObj.id);
-      showToast(`+ Added cluster: "${cleanName}"`);
-      await window.saveClusterTransfer();
+      console.warn('Notice: Cluster creation error', err);
+      showToast(`⚠ Failed to create cluster: ${err.message}`);
+      renderClustersGrid(stagedClusterId);
     }
   }
 
