@@ -8,7 +8,7 @@ const { authenticateToken, getProjectRole } = require('../utils/auth');
 // ==========================================
 
 // Get dynamic columns for a cluster or project
-router.get('/dynamic-columns', (req, res) => {
+router.get(['/dynamic-columns', '/columns'], (req, res) => {
   try {
     const { cluster_id, project_id } = req.query;
     const db = getDb();

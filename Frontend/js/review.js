@@ -108,80 +108,119 @@
     applyTheme(current === 'light' ? 'dark' : 'light');
   };
 
+  let surveyDynamicColumns = [];
+  let surveyPapers = [];
+
   async function loadInitialData() {
     try {
-      // 1. Fetch Clusters
-      const clustersRes = await fetch(`/api/clusters?project_id=${currentProjectId}`, {
-        headers: getAuthHeaders()
-      });
-      if (clustersRes.ok) {
-        allClusters = await clustersRes.json();
+      // 1. Fetch Clusters for this survey
+      try {
+        const clustersRes = await fetch(`/api/clusters?project_id=${currentProjectId}`, {
+          headers: getAuthHeaders()
+        });
+        if (clustersRes.ok) {
+          allClusters = await clustersRes.json();
+        } else {
+          allClusters = [];
+        }
+      } catch (e) {
+        console.warn('Notice: Error fetching clusters', e);
+        allClusters = [];
       }
 
       // 2. Fetch Project Info
-      const projRes = await fetch(`/api/projects/${currentProjectId}`, {
-        headers: getAuthHeaders()
-      });
-      if (projRes.ok) {
-        const projData = await projRes.json();
-        currentProjectTitle = projData.name || projData.title || 'Survey';
-        const badge = document.getElementById('project-title-indicator');
-        if (badge) badge.textContent = `${currentProjectTitle} • Review Workspace`;
-      }
-
-      // 3. Fetch Paper Info
-      if (currentPaperId) {
-        const paperRes = await fetch(`/api/papers/${currentPaperId}`, {
+      try {
+        const projRes = await fetch(`/api/projects/${currentProjectId}`, {
           headers: getAuthHeaders()
         });
-        if (paperRes.ok) {
-          activePaper = await paperRes.json();
+        if (projRes.ok) {
+          const projData = await projRes.json();
+          currentProjectTitle = projData.name || projData.title || 'Survey';
+          const badge = document.getElementById('project-title-indicator');
+          if (badge) badge.textContent = `${currentProjectTitle} • Review Workspace`;
         }
+      } catch (e) {
+        console.warn('Notice: Error fetching project info', e);
       }
 
-      // Fallback: If no paper id is in URL, fetch first paper of project
-      if (!activePaper) {
+      // 3. Fetch Dynamic Columns for this survey
+      try {
+        const colsRes = await fetch(`/api/dynamic-columns?project_id=${currentProjectId}`, {
+          headers: getAuthHeaders()
+        });
+        if (colsRes.ok) {
+          surveyDynamicColumns = await colsRes.json();
+        } else {
+          surveyDynamicColumns = [];
+        }
+      } catch (e) {
+        console.warn('Notice: Error fetching dynamic columns', e);
+        surveyDynamicColumns = [];
+      }
+
+      // 4. Fetch All Papers of this survey to aggregate survey-wide domains & keywords
+      try {
         const allPapersRes = await fetch(`/api/papers?project_id=${currentProjectId}`, {
           headers: getAuthHeaders()
         });
         if (allPapersRes.ok) {
-          const list = await allPapersRes.json();
-          if (list.length > 0) {
-            activePaper = list[0];
-            currentPaperId = activePaper.id;
+          surveyPapers = await allPapersRes.json();
+        } else {
+          surveyPapers = [];
+        }
+      } catch (e) {
+        console.warn('Notice: Error fetching survey papers', e);
+        surveyPapers = [];
+      }
+
+      // 5. Fetch Single Active Paper Info
+      if (currentPaperId) {
+        try {
+          const paperRes = await fetch(`/api/papers/${currentPaperId}`, {
+            headers: getAuthHeaders()
+          });
+          if (paperRes.ok) {
+            activePaper = await paperRes.json();
           }
+        } catch (e) {
+          console.warn('Notice: Error fetching paper by id', e);
         }
       }
 
-      // If still empty, provide structured mock state
+      // Fallback: If no paper id is in URL or paper was not found, pick first paper of project
+      if (!activePaper && Array.isArray(surveyPapers) && surveyPapers.length > 0) {
+        activePaper = surveyPapers[0];
+        currentPaperId = activePaper.id;
+      }
+
+      // If still empty, provide clean default state
       if (!activePaper) {
         activePaper = {
           id: 1,
-          title: 'Feature Selection based on Mutual Information Criteria',
-          doi: '10.1109/TPAMI.2005.159',
-          cluster_id: allClusters.length > 0 ? allClusters[0].id : 1,
-          domain: 'CSC engnr',
-          keywords: ['mRMR', 'Gene Selection'],
-          intuition: 'Proposes max-dependency, max-relevance, and min-redundancy criteria.',
-          gaps: 'High computational overhead on high-dimensional genomic matrices.',
+          title: 'Deep Feature Selection for High-Dimensional Omics Classification',
+          doi: '10.1145/2939672.2939785',
+          cluster_id: allClusters.length > 0 ? allClusters[0].id : null,
+          domain: '',
+          keywords: [],
+          intuition: '',
+          gaps: '',
           screening_decision: 'included',
           screening_reason: 'Valid methodology'
         };
       }
 
-      // Populate UI
+      // Populate UI with survey & paper data
       populatePaperData(activePaper);
     } catch (err) {
       console.warn('Initial data load notice:', err);
-      // Fallback populate
       if (!activePaper) {
         activePaper = {
           id: 1,
-          title: 'Papers Name',
+          title: 'Deep Feature Selection for High-Dimensional Omics Classification',
           doi: '',
-          cluster_id: 1,
-          domain: 'domain1',
-          keywords: ['keyword1', 'keyword2'],
+          cluster_id: null,
+          domain: '',
+          keywords: [],
           screening_decision: 'included'
         };
       }
@@ -208,57 +247,91 @@
     const doiInput = document.getElementById('doi-input-field');
     if (doiInput) doiInput.value = p.doi || '';
 
-    // Update Component State Arrays & Key-Value Objects
+    // 1. Clusters (from survey)
     componentState.clusters = Array.isArray(allClusters) ? [...allClusters] : [];
-    
-    const domainList = [...STANDARD_DOMAINS];
-    if (p.domain && !domainList.includes(p.domain)) {
-      domainList.unshift(p.domain);
-    }
-    componentState.domains = domainList;
-    
-    componentState.keywords = Array.from(new Set([...(p.keywords || []), ...STANDARD_KEYWORDS]));
 
-    // Columns Key-Value Object
-    if (p.custom_columns && Object.keys(p.custom_columns).length > 0) {
-      componentState.columns = { ...p.custom_columns };
-    } else {
-      componentState.columns = {
-        'col_name1': 'Value..',
-        'col_name2': 'Value..',
-        'col_name3': 'Value..',
-        'col_name4': 'Value..'
-      };
+    // 2. Domains (aggregate from all papers in survey + active paper)
+    const surveyDomainsSet = new Set();
+    if (Array.isArray(surveyPapers)) {
+      surveyPapers.forEach(sp => {
+        if (sp && sp.domain && sp.domain.trim()) {
+          surveyDomainsSet.add(sp.domain.trim());
+        }
+      });
     }
+    if (p && p.domain && p.domain.trim()) {
+      surveyDomainsSet.add(p.domain.trim());
+    }
+    componentState.domains = Array.from(surveyDomainsSet);
 
-    // Summary Key-Value Object
-    componentState.summary = {
-      'col_name1': (p.intuition || 'Value..'),
-      'col_name2': (p.strengths || 'Value..')
-    };
+    // 3. Keywords (aggregate from all papers in survey + active paper)
+    const surveyKeywordsSet = new Set();
+    if (Array.isArray(surveyPapers)) {
+      surveyPapers.forEach(sp => {
+        if (sp && Array.isArray(sp.keywords)) {
+          sp.keywords.forEach(kw => {
+            if (kw && typeof kw === 'string' && kw.trim()) {
+              surveyKeywordsSet.add(kw.trim());
+            }
+          });
+        }
+      });
+    }
+    if (p && Array.isArray(p.keywords)) {
+      p.keywords.forEach(kw => {
+        if (kw && typeof kw === 'string' && kw.trim()) {
+          surveyKeywordsSet.add(kw.trim());
+        }
+      });
+    }
+    componentState.keywords = Array.from(surveyKeywordsSet);
+
+    // 4. Columns (from survey dynamic columns + active paper column values)
+    componentState.columns = {};
+    if (Array.isArray(surveyDynamicColumns)) {
+      surveyDynamicColumns.forEach(col => {
+        const colName = col.column_name || col.name;
+        if (colName) {
+          componentState.columns[colName] = '';
+        }
+      });
+    }
+    if (p && p.custom_columns && Object.keys(p.custom_columns).length > 0) {
+      Object.entries(p.custom_columns).forEach(([k, v]) => {
+        if (k && !k.startsWith('col_') && !/^\d+$/.test(k)) {
+          componentState.columns[k] = v || '';
+        }
+      });
+    }
+    if (p && Array.isArray(p.column_values)) {
+      p.column_values.forEach(cv => {
+        if (cv.column_name) {
+          componentState.columns[cv.column_name] = cv.value || '';
+        }
+      });
+    }
 
     updateHeaderSubtitle();
     updateBreadcrumb();
 
-    // Map Grids from State Arrays
+    // Render Taxonomy Grids from Survey Data
     renderClustersGrid(p.cluster_id);
     renderDomainsGrid(p.domain);
     renderKeywordsGrid(paperKeywords);
 
-    // Map Dashed Boxes from State Key-Value Objects
+    // Render Dynamic Columns Dashed Boxes
     renderColumnsDashedBoxes();
-    renderSummaryDashedBoxes();
 
-    // PRISMA
+    // Render PRISMA
     updatePrismaUi(activePrismaVote, activePrismaReason);
 
-    // Detailed Summary
+    // Render Detailed Summary
     const detailedInput = document.getElementById('detailed-summary-input');
     if (detailedInput) {
       detailedInput.value = p.gaps || p.intuition || '';
     }
 
-    // Load PDF
+    // Load PDF preview
     loadPdfPreview(p.pdf_url || (p.doi ? `https://doi.org/${p.doi}` : null));
   }
 
@@ -1096,7 +1169,6 @@
           updateHeaderSubtitle();
           updateBreadcrumb();
           renderDomainsGrid(activePaper.domain);
-          renderSummaryDashedBoxes();
           triggerAutoSave(true);
         }
         showToast(`✓ Auto-fetched & populated: "${activePaper ? activePaper.title : doi}"`);
@@ -1112,7 +1184,7 @@
         activePaper.year = 2023;
         activePaper.authors = 'A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit';
         activePaper.pub = 'Advances in Neural Information Processing Systems';
-        activePaper.domain = 'CSC engnr';
+        activePaper.domain = activePaper.domain || '';
         activePaper.intuition = 'Proposes transformer architecture relying entirely on self-attention mechanisms.';
 
         const paperSerial = activePaper.serial_no || activePaper.id || 1;
@@ -1129,7 +1201,6 @@
         updateHeaderSubtitle();
         updateBreadcrumb();
         renderDomainsGrid(activePaper.domain);
-        renderSummaryDashedBoxes();
         triggerAutoSave(true);
         showToast(`✓ Auto-fetched & populated: "${activePaper.title}"`);
       }

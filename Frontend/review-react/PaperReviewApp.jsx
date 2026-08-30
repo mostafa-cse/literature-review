@@ -79,7 +79,7 @@ export function PaperReviewApp() {
     setProjectId(pid);
     setPaperId(papId);
 
-    // Fetch Project Info
+    // 1. Fetch Project Info
     fetch(`/api/projects/${pid}`)
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
@@ -89,7 +89,7 @@ export function PaperReviewApp() {
       })
       .catch(() => { /* keep default */ });
 
-    // Fetch Existed Clusters for this specific survey only
+    // 2. Fetch Clusters for this specific survey
     fetch(`/api/clusters?project_id=${pid}`)
       .then((r) => r.ok ? r.json() : [])
       .then((data) => {
@@ -99,38 +99,75 @@ export function PaperReviewApp() {
       })
       .catch(() => setSurveyClusters([]));
 
-    // Fetch Paper data if real ID exists
-    fetch(`/api/papers/${papId}`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((pData) => {
-        if (pData) {
-          setPaper((prev) => {
-            const clusterObj = pData.cluster_id ? (surveyClusters.find(c => c.id === pData.cluster_id) || { name: pData.cluster_name }) : null;
-            const clusterTitle = clusterObj?.name || pData.cluster_name || '';
-            const updated = {
-              ...prev,
-              id: pData.id,
-              title: pData.title || prev.title,
-              doi: pData.doi || prev.doi,
-              selectedCluster: clusterTitle,
-              selectedDomain: pData.domain || prev.selectedDomain,
-              selectedKeywords: Array.isArray(pData.keywords) ? pData.keywords : prev.selectedKeywords,
-              detailedSummary: pData.gaps || pData.intuition || prev.detailedSummary
-            };
-            setStagedCluster(clusterTitle);
-            return updated;
-          });
-        }
-      })
-      .catch(() => {});
-  }, []);
+    // 3. Fetch Dynamic Columns & Survey Papers to aggregate domains, keywords, and columns
+    Promise.all([
+      fetch(`/api/dynamic-columns?project_id=${pid}`).then(r => r.ok ? r.json() : []).catch(() => []),
+      fetch(`/api/papers?project_id=${pid}`).then(r => r.ok ? r.json() : []).catch(() => []),
+      fetch(`/api/papers/${papId}`).then(r => r.ok ? r.json() : null).catch(() => null)
+    ]).then(([dynCols, allPapers, singlePaper]) => {
+      const activeP = singlePaper || (allPapers.length > 0 ? allPapers[0] : null);
 
-  // Sync stagedCluster when paper.selectedCluster changes initially
-  useEffect(() => {
-    if (paper.selectedCluster !== undefined) {
-      setStagedCluster(paper.selectedCluster);
-    }
-  }, [paper.selectedCluster]);
+      // Aggregate domains across survey papers
+      const domSet = new Set();
+      if (Array.isArray(allPapers)) {
+        allPapers.forEach(p => { if (p && p.domain && p.domain.trim()) domSet.add(p.domain.trim()); });
+      }
+      if (activeP && activeP.domain && activeP.domain.trim()) domSet.add(activeP.domain.trim());
+
+      // Aggregate keywords across survey papers
+      const kwSet = new Set();
+      if (Array.isArray(allPapers)) {
+        allPapers.forEach(p => {
+          if (p && Array.isArray(p.keywords)) {
+            p.keywords.forEach(k => { if (k && typeof k === 'string' && k.trim()) kwSet.add(k.trim()); });
+          }
+        });
+      }
+      if (activeP && Array.isArray(activeP.keywords)) {
+        activeP.keywords.forEach(k => { if (k && typeof k === 'string' && k.trim()) kwSet.add(k.trim()); });
+      }
+
+      // Map dynamic columns
+      const colMap = {};
+      if (Array.isArray(dynCols)) {
+        dynCols.forEach(col => {
+          const colName = col.column_name || col.name;
+          if (colName) colMap[colName] = '';
+        });
+      }
+      if (activeP && activeP.custom_columns) {
+        Object.entries(activeP.custom_columns).forEach(([k, v]) => {
+          if (k && !k.startsWith('col_') && !/^\d+$/.test(k)) colMap[k] = v || '';
+        });
+      }
+      if (activeP && Array.isArray(activeP.column_values)) {
+        activeP.column_values.forEach(cv => {
+          if (cv.column_name) colMap[cv.column_name] = cv.value || '';
+        });
+      }
+      const colList = Object.entries(colMap).map(([key, value]) => ({ key, value }));
+
+      if (activeP) {
+        setPaper(prev => {
+          const clusterTitle = activeP.cluster_name || '';
+          setStagedCluster(clusterTitle);
+          return {
+            ...prev,
+            id: activeP.id,
+            title: activeP.title || prev.title,
+            doi: activeP.doi || prev.doi,
+            selectedCluster: clusterTitle,
+            domains: Array.from(domSet),
+            selectedDomain: activeP.domain || '',
+            keywords: Array.from(kwSet),
+            selectedKeywords: Array.isArray(activeP.keywords) ? activeP.keywords : [],
+            columns: colList.length > 0 ? colList : prev.columns,
+            detailedSummary: activeP.gaps || activeP.intuition || prev.detailedSummary
+          };
+        });
+      }
+    });
+  }, []);
 
   // Debounced paper state for text inputs (750ms delay)
   const debouncedPaper = useDebounce(paper, 750);
