@@ -682,30 +682,40 @@
     addBtn.innerHTML = '<a href="#" style="color: #38bdf8; text-decoration: none;">+ add new</a>';
     addBtn.onclick = (e) => {
       e.preventDefault();
-      addBtn.innerHTML = '<input type="text" class="inline-add-input" placeholder="+ Domain title..." autoFocus>';
+      addBtn.innerHTML = '<input type="text" class="inline-add-input" placeholder="+ Domain..." autoFocus>';
       const input = addBtn.querySelector('input');
       input.focus();
-      input.onkeydown = (ev) => {
-        if (ev.key === 'Enter' && input.value.trim()) {
-          const val = input.value.trim();
+      let committed = false;
+
+      const commitValue = () => {
+        if (committed) return;
+        committed = true;
+        const val = (input.value || '').trim();
+        if (val) {
+          if (!componentState.domains.includes(val)) {
+            componentState.domains.push(val);
+          }
           if (activePaper) activePaper.domain = val;
           renderDomainsGrid(val);
           updateHeaderSubtitle();
           triggerAutoSave(true);
+          showToast(`+ Added domain: "${val}"`);
+        } else {
+          renderDomainsGrid(activePaper ? activePaper.domain : '');
+        }
+      };
+
+      input.onkeydown = (ev) => {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          commitValue();
         } else if (ev.key === 'Escape') {
+          committed = true;
           renderDomainsGrid(activePaper ? activePaper.domain : '');
         }
       };
       input.onblur = () => {
-        if (input.value.trim()) {
-          const val = input.value.trim();
-          if (activePaper) activePaper.domain = val;
-          renderDomainsGrid(val);
-          updateHeaderSubtitle();
-          triggerAutoSave(true);
-        } else {
-          renderDomainsGrid(activePaper ? activePaper.domain : '');
-        }
+        commitValue();
       };
     };
     container.appendChild(addBtn);
@@ -725,7 +735,7 @@
     container.innerHTML = '';
 
     const currentList = Array.isArray(activeKwList) ? activeKwList : paperKeywords;
-    const combined = Array.from(new Set([...currentList, ...STANDARD_KEYWORDS]));
+    const combined = Array.from(new Set([...currentList, ...componentState.keywords, ...STANDARD_KEYWORDS]));
 
     combined.forEach(kw => {
       const isSelected = currentList.includes(kw);
@@ -749,37 +759,45 @@
     // Inline "+ add new"
     const addBtn = document.createElement('div');
     addBtn.className = 'grid-item add-new-btn';
-    addBtn.innerHTML = '<a href="#" style="color: blue; text-decoration: none;">+ add new</a>';
+    addBtn.innerHTML = '<a href="#" style="color: #38bdf8; text-decoration: none;">+ add new</a>';
     addBtn.onclick = (e) => {
       e.preventDefault();
       addBtn.innerHTML = '<input type="text" class="inline-add-input" placeholder="+ keyword..." autoFocus>';
       const input = addBtn.querySelector('input');
       input.focus();
-      input.onkeydown = (ev) => {
-        if (ev.key === 'Enter' && input.value.trim()) {
-          const val = input.value.trim().replace(/^#/, '');
-          if (!paperKeywords.includes(val)) {
-            paperKeywords.push(val);
+      let committed = false;
+
+      const commitValue = () => {
+        if (committed) return;
+        committed = true;
+        const raw = (input.value || '').trim().replace(/^#/, '');
+        if (raw) {
+          if (!componentState.keywords.includes(raw)) {
+            componentState.keywords.push(raw);
+          }
+          if (!paperKeywords.includes(raw)) {
+            paperKeywords.push(raw);
           }
           renderKeywordsGrid(paperKeywords);
           updateHeaderSubtitle();
           triggerAutoSave(true);
+          showToast(`+ Added keyword: "#${raw}"`);
+        } else {
+          renderKeywordsGrid(paperKeywords);
+        }
+      };
+
+      input.onkeydown = (ev) => {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          commitValue();
         } else if (ev.key === 'Escape') {
+          committed = true;
           renderKeywordsGrid(paperKeywords);
         }
       };
       input.onblur = () => {
-        if (input.value.trim()) {
-          const val = input.value.trim().replace(/^#/, '');
-          if (!paperKeywords.includes(val)) {
-            paperKeywords.push(val);
-          }
-          renderKeywordsGrid(paperKeywords);
-          updateHeaderSubtitle();
-          triggerAutoSave(true);
-        } else {
-          renderKeywordsGrid(paperKeywords);
-        }
+        commitValue();
       };
     };
     container.appendChild(addBtn);
