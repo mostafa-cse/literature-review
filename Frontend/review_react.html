@@ -41,26 +41,15 @@
       title: 'Deep Feature Selection for High-Dimensional Omics Classification',
       doi: '10.1145/2939672.2939785',
       pdfUrl: 'https://arxiv.org/pdf/2301.00001.pdf',
-      clusters: ['Deep Learning', 'Feature Selection', 'Bioinformatics', 'Cancer Genomics'],
-      selectedCluster: 'Feature Selection',
-      domains: ['Healthcare AI', 'Genomics', 'Computational Biology'],
-      selectedDomain: 'Genomics',
-      keywords: ['mRMR', 'LASSO', 'Attention Mechanism', 'Biomarkers', 'TCGA'],
-      selectedKeywords: ['mRMR', 'Attention Mechanism'],
-      columns: [
-        { key: 'Architecture', value: 'Multi-head Self-Attention with Gated Residuals' },
-        { key: 'Benchmark Dataset', value: 'TCGA Pan-Cancer (11,000 RNA-seq samples)' },
-        { key: 'Evaluation Metrics', value: 'F1-Score: 94.8%, AUC-ROC: 0.982' },
-        { key: 'Baseline Comparison', value: 'Random Forests, SVM-RFE, DeepLIFT' }
-      ],
+      clusters: [],
+      selectedCluster: '',
+      domains: [],
+      selectedDomain: '',
+      keywords: [],
+      selectedKeywords: [],
+      columns: [],
       prismaDecision: 'included',
       prismaReason: 'Valid methodology',
-      summaryItems: [
-        { key: 'Intuition', value: 'Sparse regularized attention captures nonlinear gene interactions.' },
-        { key: 'Formulation', value: 'L1 + Frobenius norm regularization over dense embedding weights.' },
-        { key: 'Strengths', value: 'High biological interpretability with validated clinical pathway hits.' },
-        { key: 'Research Gaps', value: 'Computational complexity scales quadratically with feature size.' }
-      ],
       detailedSummary: 'This paper introduces a robust deep learning framework for feature selection in ultra-high-dimensional biological datasets. By coupling sparsity-inducing penalties with multi-head attention, the model identifies minimal prognostic gene signatures while maintaining state-of-the-art diagnostic accuracy across multiple cancer cohorts.'
     };
 
@@ -526,8 +515,25 @@
         <div className={`section ${!isExpanded ? 'collapsed' : ''}`} id={id}>
           <div className="section-header" onClick={() => setIsExpanded(p => !p)}>
             <div className="section-title">{title}</div>
-            <button type="button" className="expand-btn">
-              <span className="chevron-icon" style={{ transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)' }}>&#9662;</span>
+            <button type="button" className="expand-btn" aria-label="Toggle section">
+              <svg 
+                className="chevron-icon" 
+                width="16" 
+                height="16" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2.5" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                style={{
+                  transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+                  transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                  display: 'inline-block'
+                }}
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
             </button>
           </div>
           {isExpanded && <div className="section-content">{children}</div>}
@@ -536,7 +542,7 @@
     }
 
     // 6. GridList Component
-    function GridList({ items = [], selectedItems = [], onSelect, onAddItem, isMultiSelect = false, placeholder }) {
+    function GridList({ items = [], selectedItems = [], onSelect, onAddItem, onSave, showSaveButton = false, saveButtonText = 'Save', isMultiSelect = false, placeholder, emptyMessage = 'No items defined yet. Click "+ add new" to create one.' }) {
       const [isAdding, setIsAdding] = useState(false);
       const [newVal, setNewVal] = useState('');
 
@@ -552,41 +558,60 @@
       };
 
       return (
-        <div className="grid-container">
-          {items.map((item, idx) => (
-            <div
-              key={`${item}-${idx}`}
-              className={`grid-item ${isSelected(item) ? 'selected' : ''}`}
-              onClick={() => onSelect && onSelect(item)}
-            >
-              {item}
-            </div>
-          ))}
-          <div className="grid-item add-new-btn">
-            {isAdding ? (
-              <input
-                type="text"
-                className="inline-add-input"
-                placeholder={placeholder}
-                value={newVal}
-                autoFocus
-                onChange={(e) => setNewVal(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') submitItem();
-                  if (e.key === 'Escape') { setIsAdding(false); setNewVal(''); }
-                }}
-                onBlur={submitItem}
-              />
-            ) : (
-              <a onClick={(e) => { e.preventDefault(); setIsAdding(true); }}>+ add new</a>
+        <div>
+          <div className="grid-container">
+            {items.length === 0 && !isAdding && (
+              <div className="empty-taxonomy-state" style={{ gridColumn: '1 / -1', fontSize: '12px', color: 'var(--text-muted, #94a3b8)', fontStyle: 'italic', padding: '6px 2px' }}>
+                {emptyMessage}
+              </div>
             )}
+            {items.map((item, idx) => (
+              <div
+                key={`${item}-${idx}`}
+                className={`grid-item ${isSelected(item) ? 'selected' : ''}`}
+                onClick={() => onSelect && onSelect(item)}
+              >
+                {item}
+              </div>
+            ))}
+            <div className="grid-item add-new-btn">
+              {isAdding ? (
+                <input
+                  type="text"
+                  className="inline-add-input"
+                  placeholder={placeholder}
+                  value={newVal}
+                  autoFocus
+                  onChange={(e) => setNewVal(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') submitItem();
+                    if (e.key === 'Escape') { setIsAdding(false); setNewVal(''); }
+                  }}
+                  onBlur={submitItem}
+                />
+              ) : (
+                <a onClick={(e) => { e.preventDefault(); setIsAdding(true); }}>+ add new</a>
+              )}
+            </div>
           </div>
+
+          {showSaveButton && onSave && (
+            <div className="section-action-bar">
+              <button
+                type="button"
+                className="section-save-btn"
+                onClick={onSave}
+              >
+                <span className="save-icon">💾</span> {saveButtonText}
+              </button>
+            </div>
+          )}
         </div>
       );
     }
 
     // 7. DashedBoxList Component
-    function DashedBoxList({ items = [], onChangeItem, onAddItem, showActions = true, addButtonText = 'Add new', splitButtonText = 'Split Column' }) {
+    function DashedBoxList({ items = [], onChangeItem, onAddItem, onSplitItem, onSave, showActions = true, showSaveButton = true, addButtonText = 'Add new', splitButtonText = 'Split Column', saveButtonText = 'Save Columns', emptyMessage = 'No extraction columns defined yet. Click "+ Add new" to create one.' }) {
       const handleKeyChange = (index, k) => {
         const updated = [...items];
         updated[index] = { ...updated[index], key: k };
@@ -599,15 +624,42 @@
         onChangeItem(updated);
       };
 
+      const handleAddClick = () => {
+        const newEntry = {
+          key: `Feature_${items.length + 1}`,
+          value: ''
+        };
+        onAddItem([...items, newEntry]);
+      };
+
+      const handleSplitClick = () => {
+        if (onSplitItem) {
+          onSplitItem();
+        } else {
+          const splitIdx = items.length + 1;
+          const splitEntries = [
+            { key: `Feature_${splitIdx}(TC)`, value: '' },
+            { key: `Feature_${splitIdx}(SC)`, value: '' }
+          ];
+          onAddItem([...items, ...splitEntries]);
+        }
+      };
+
       return (
         <div>
+          {items.length === 0 && (
+            <div className="empty-columns-state" style={{ fontSize: '12px', color: 'var(--text-muted, #94a3b8)', fontStyle: 'italic', padding: '6px 2px 10px' }}>
+              {emptyMessage}
+            </div>
+          )}
+
           {items.map((item, idx) => (
             <div className="dashed-box" key={`dashed-${idx}`}>
               <input
                 type="text"
                 className="dashed-col1"
                 value={item.key || ''}
-                placeholder="Column / Key"
+                placeholder="Column name"
                 onChange={(e) => handleKeyChange(idx, e.target.value)}
               />
               <input
@@ -621,23 +673,35 @@
           ))}
 
           {showActions && (
-            <div className="btn-group">
-              {splitButtonText && (
+            <div className="btn-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {splitButtonText && (
+                  <button
+                    type="button"
+                    className="action-btn"
+                    onClick={handleSplitClick}
+                  >
+                    {splitButtonText}
+                  </button>
+                )}
                 <button
                   type="button"
                   className="action-btn"
-                  onClick={() => onAddItem([...items, { key: 'Metric (Train)', value: 'Accuracy: 97.4%' }, { key: 'Metric (Test)', value: 'Accuracy: 95.1%' }])}
+                  onClick={handleAddClick}
                 >
-                  {splitButtonText}
+                  {addButtonText}
+                </button>
+              </div>
+
+              {showSaveButton && onSave && (
+                <button
+                  type="button"
+                  className="section-save-btn"
+                  onClick={onSave}
+                >
+                  <span className="save-icon">💾</span> {saveButtonText}
                 </button>
               )}
-              <button
-                type="button"
-                className="action-btn"
-                onClick={() => onAddItem([...items, { key: `Feature_${items.length + 1}`, value: 'Extracted parameter value...' }])}
-              >
-                {addButtonText}
-              </button>
             </div>
           )}
         </div>
@@ -677,16 +741,30 @@
     }
 
     // 9. DetailedSummary Component
-    function DetailedSummary({ value = '', onChange }) {
+    function DetailedSummary({ value = '', onChange, onSave, showSaveButton = true, saveButtonText = 'Save Summary' }) {
       return (
-        <div className="text-box-placeholder">
-          <textarea
-            className="detailed-summary-textarea"
-            rows={5}
-            placeholder="Enter detailed text synthesis here..."
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-          />
+        <div>
+          <div className="text-box-placeholder">
+            <textarea
+              className="detailed-summary-textarea"
+              rows={5}
+              placeholder="Enter detailed text synthesis here..."
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+            />
+          </div>
+
+          {showSaveButton && onSave && (
+            <div className="section-action-bar">
+              <button
+                type="button"
+                className="section-save-btn"
+                onClick={onSave}
+              >
+                <span className="save-icon">💾</span> {saveButtonText}
+              </button>
+            </div>
+          )}
         </div>
       );
     }
@@ -967,8 +1045,12 @@
                   onSelect={(cl) => setStagedCluster(prev => prev === cl ? '' : cl)}
                   onAddItem={handleAddCluster}
                   placeholder="Add cluster..."
+                  emptyMessage="No clusters created yet for this survey. Click '+ add new' to create one."
                 />
                 <div className="cluster-action-bar" id="cluster-action-bar">
+                  <span className={`cluster-transfer-status ${stagedCluster === paper.selectedCluster ? 'saved' : ''}`}>
+                    {stagedCluster ? (stagedCluster === paper.selectedCluster ? `✓ Current cluster: "${stagedCluster}"` : `Target: "${stagedCluster}" (Unsaved)`) : (paper.selectedCluster ? `Target: Unassign (Current: "${paper.selectedCluster}")` : 'Current status: Unassigned')}
+                  </span>
                   <button
                     type="button"
                     className="cluster-transfer-save-btn"
@@ -977,9 +1059,6 @@
                   >
                     <span className="save-icon">💾</span> Save &amp; Transfer to Cluster
                   </button>
-                  <span className={`cluster-transfer-status ${stagedCluster === paper.selectedCluster ? 'saved' : ''}`}>
-                    {stagedCluster ? (stagedCluster === paper.selectedCluster ? `✓ Current cluster: "${stagedCluster}"` : `Target: "${stagedCluster}" (Unsaved)`) : (paper.selectedCluster ? `Target: Unassign (Current: "${paper.selectedCluster}")` : 'Current status: Unassigned')}
-                  </span>
                 </div>
               </SectionWrapper>
 
@@ -999,7 +1078,11 @@
                     triggerImmediateSave(u);
                     showToast(`+ Added domain: [${dm}]`);
                   }}
+                  onSave={() => { triggerImmediateSave(paper); showToast('✓ Domain saved'); }}
+                  showSaveButton={true}
+                  saveButtonText="Save Domain"
                   placeholder="Add domain..."
+                  emptyMessage="No domains defined yet for this survey. Click '+ add new' to create one."
                 />
               </SectionWrapper>
 
@@ -1022,7 +1105,11 @@
                     triggerImmediateSave(u);
                     showToast(`+ Added keyword: [${kw}]`);
                   }}
+                  onSave={() => { triggerImmediateSave(paper); showToast('✓ Keywords saved'); }}
+                  showSaveButton={true}
+                  saveButtonText="Save Keywords"
                   placeholder="Add keyword..."
+                  emptyMessage="No keywords defined yet for this survey. Click '+ add new' to create one."
                 />
               </SectionWrapper>
 
@@ -1032,9 +1119,13 @@
                   items={paper.columns}
                   onChangeItem={(cols) => setPaper(p => ({ ...p, columns: cols }))}
                   onAddItem={(cols) => { setPaper(p => ({ ...p, columns: cols })); triggerImmediateSave({ ...paper, columns: cols }); }}
+                  onSave={() => { triggerImmediateSave(paper); showToast('✓ Columns saved'); }}
                   showActions={true}
+                  showSaveButton={true}
                   addButtonText="Add new"
                   splitButtonText="Split Column"
+                  saveButtonText="Save Columns"
+                  emptyMessage="No extraction columns defined yet for this survey. Click '+ Add new' to create one."
                 />
               </SectionWrapper>
 
@@ -1057,21 +1148,14 @@
                 />
               </SectionWrapper>
 
-              {/* Section 6: Summary */}
-              <SectionWrapper title="Summary" id="section-summary">
-                <DashedBoxList
-                  items={paper.summaryItems}
-                  onChangeItem={(sum) => setPaper(p => ({ ...p, summaryItems: sum }))}
-                  onAddItem={(sum) => { setPaper(p => ({ ...p, summaryItems: sum })); triggerImmediateSave({ ...paper, summaryItems: sum }); }}
-                  showActions={false}
-                />
-              </SectionWrapper>
-
-              {/* Section 7: Detailed Summary */}
+              {/* Section 6: Detailed Summary (Formerly Section 7) */}
               <SectionWrapper title="Detailed Summary:" id="section-detailed-summary">
                 <DetailedSummary
                   value={paper.detailedSummary}
                   onChange={(txt) => setPaper(p => ({ ...p, detailedSummary: txt }))}
+                  onSave={() => { triggerImmediateSave(paper); showToast('✓ Detailed Summary saved'); }}
+                  showSaveButton={true}
+                  saveButtonText="Save Summary"
                 />
               </SectionWrapper>
             </div>

@@ -417,7 +417,6 @@
     'section-keywords': true,
     'section-columns': true,
     'section-prisma': true,
-    'section-summary': true,
     'section-detailed-summary': true
   };
 
@@ -641,27 +640,32 @@
     }
   }
 
-  const STANDARD_DOMAINS = [
-    'domain1', 'domain4', 'domain8',
-    'domain2', 'domain5', 'domain9',
-    'domain3', 'domain6',
-    'Bioinformatics', 'CSC engnr', 'Cancer Genomics',
-    'Network Security', 'NLP', 'Computer Vision'
-  ];
-
   function renderDomainsGrid(selectedDomain) {
     const container = document.getElementById('grid-domains');
     if (!container) return;
     container.innerHTML = '';
 
-    const currentDomain = selectedDomain || (activePaper ? activePaper.domain : 'domain1');
-    const domainList = [...STANDARD_DOMAINS];
-    if (currentDomain && !domainList.includes(currentDomain)) {
-      domainList.unshift(currentDomain);
+    const currentDomain = selectedDomain || (activePaper ? activePaper.domain : '');
+    const domainList = Array.from(new Set([
+      ...(componentState.domains || []),
+      ...(currentDomain ? [currentDomain] : [])
+    ]));
+
+    if (domainList.length === 0) {
+      const emptyNote = document.createElement('div');
+      emptyNote.className = 'empty-taxonomy-note';
+      emptyNote.style.gridColumn = '1 / -1';
+      emptyNote.style.fontSize = '12px';
+      emptyNote.style.color = 'var(--text-muted, #94a3b8)';
+      emptyNote.style.fontStyle = 'italic';
+      emptyNote.style.padding = '4px 0';
+      emptyNote.textContent = 'No domains defined yet for this survey.';
+      container.appendChild(emptyNote);
     }
 
     domainList.forEach(dom => {
-      const isSelected = String(dom).toLowerCase() === String(currentDomain).toLowerCase();
+      if (!dom) return;
+      const isSelected = currentDomain && String(dom).toLowerCase() === String(currentDomain).toLowerCase();
       const item = document.createElement('div');
       item.className = `grid-item ${isSelected ? 'selected' : ''}`;
       item.textContent = dom;
@@ -721,21 +725,25 @@
     container.appendChild(addBtn);
   }
 
-  const STANDARD_KEYWORDS = [
-    'keyword1', 'keyword4', 'keywords7',
-    'keyword2', 'keyword5', 'keyword8',
-    'keyword3', 'keyword6',
-    'mRMR', 'Gene Selection', 'Mutual Info',
-    'Deep Learning', 'Benchmark', 'PRISMA'
-  ];
-
   function renderKeywordsGrid(activeKwList) {
     const container = document.getElementById('grid-keywords');
     if (!container) return;
     container.innerHTML = '';
 
     const currentList = Array.isArray(activeKwList) ? activeKwList : paperKeywords;
-    const combined = Array.from(new Set([...currentList, ...componentState.keywords, ...STANDARD_KEYWORDS]));
+    const combined = Array.from(new Set([...currentList, ...componentState.keywords])).filter(Boolean);
+
+    if (combined.length === 0) {
+      const emptyNote = document.createElement('div');
+      emptyNote.className = 'empty-taxonomy-note';
+      emptyNote.style.gridColumn = '1 / -1';
+      emptyNote.style.fontSize = '12px';
+      emptyNote.style.color = 'var(--text-muted, #94a3b8)';
+      emptyNote.style.fontStyle = 'italic';
+      emptyNote.style.padding = '4px 0';
+      emptyNote.textContent = 'No keywords defined yet for this survey.';
+      container.appendChild(emptyNote);
+    }
 
     combined.forEach(kw => {
       const isSelected = currentList.includes(kw);
@@ -804,7 +812,7 @@
   }
 
   /* ────────────────────────────────────────────────────────────────
-     5. DASHED BOXES (Columns & Summary Key-Value Objects)
+     5. DASHED BOXES (Dynamic Survey Columns)
   ──────────────────────────────────────────────────────────────── */
   function renderColumnsDashedBoxes() {
     const container = document.getElementById('dashed-columns-container');
@@ -816,13 +824,6 @@
       Object.entries(componentState.columns).forEach(([k, v]) => {
         paperColumnsList.push({ key: k, value: v });
       });
-    } else {
-      paperColumnsList = [
-        { key: 'col_name1', value: 'Value..' },
-        { key: 'col_name2', value: 'Value..' },
-        { key: 'col_name3', value: 'Value..' },
-        { key: 'col_name4', value: 'Value..' }
-      ];
     }
 
     renderColumnsArray();
@@ -833,12 +834,24 @@
     if (!container) return;
     container.innerHTML = '';
 
+    if (paperColumnsList.length === 0) {
+      const emptyBox = document.createElement('div');
+      emptyBox.className = 'empty-columns-hint';
+      emptyBox.style.fontSize = '12.5px';
+      emptyBox.style.color = 'var(--text-muted, #94a3b8)';
+      emptyBox.style.fontStyle = 'italic';
+      emptyBox.style.padding = '8px 4px 12px';
+      emptyBox.textContent = 'No custom extraction columns defined. Click "+ Add new" to create one.';
+      container.appendChild(emptyBox);
+      return;
+    }
+
     paperColumnsList.forEach((colItem, idx) => {
       const box = document.createElement('div');
       box.className = 'dashed-box';
       box.innerHTML = `
-        <input type="text" class="dashed-col1" value="${esc(colItem.key)}" placeholder="col_name">
-        <input type="text" class="dashed-col2" value="${esc(colItem.value)}" placeholder="Value..">
+        <input type="text" class="dashed-col1" value="${esc(colItem.key)}" placeholder="Column name">
+        <input type="text" class="dashed-col2" value="${esc(colItem.value)}" placeholder="Extracted value or notes...">
       `;
 
       box.querySelector('.dashed-col1').oninput = (e) => {
@@ -861,74 +874,26 @@
 
   window.handleSplitColumn = function () {
     const nextIdx = paperColumnsList.length + 1;
-    const splitKey1 = `col_name${nextIdx}(TC)`;
-    const splitKey2 = `col_name${nextIdx}(SC)`;
+    const splitKey1 = `Feature_${nextIdx}(TC)`;
+    const splitKey2 = `Feature_${nextIdx}(SC)`;
     paperColumnsList.push(
-      { key: splitKey1, value: '0.00' },
-      { key: splitKey2, value: '0.00' }
+      { key: splitKey1, value: '' },
+      { key: splitKey2, value: '' }
     );
-    componentState.columns[splitKey1] = '0.00';
-    componentState.columns[splitKey2] = '0.00';
+    componentState.columns[splitKey1] = '';
+    componentState.columns[splitKey2] = '';
     renderColumnsArray();
     triggerAutoSave(true);
   };
 
   window.handleAddColumn = function () {
     const nextIdx = paperColumnsList.length + 1;
-    const newKey = `col_name${nextIdx}`;
-    paperColumnsList.push({ key: newKey, value: 'Value..' });
-    componentState.columns[newKey] = 'Value..';
+    const newKey = `Feature_${nextIdx}`;
+    paperColumnsList.push({ key: newKey, value: '' });
+    componentState.columns[newKey] = '';
     renderColumnsArray();
     triggerAutoSave(true);
   };
-
-  function renderSummaryDashedBoxes() {
-    const container = document.getElementById('dashed-summary-container');
-    if (!container) return;
-    container.innerHTML = '';
-
-    paperSummaryPairs = [];
-    if (componentState.summary && Object.keys(componentState.summary).length > 0) {
-      Object.entries(componentState.summary).forEach(([k, v]) => {
-        paperSummaryPairs.push({ key: k, value: v });
-      });
-    } else {
-      paperSummaryPairs = [
-        { key: 'col_name1', value: 'Value..' },
-        { key: 'col_name2', value: 'Value..' }
-      ];
-    }
-
-    paperSummaryPairs.forEach((pair, idx) => {
-      const box = document.createElement('div');
-      box.className = 'dashed-box';
-      box.innerHTML = `
-        <input type="text" class="dashed-col1" value="${esc(pair.key)}">
-        <input type="text" class="dashed-col2" value="${esc(pair.value)}" placeholder="Value..">
-      `;
-
-      box.querySelector('.dashed-col1').oninput = (e) => {
-        const oldKey = paperSummaryPairs[idx].key;
-        const newKey = e.target.value;
-        paperSummaryPairs[idx].key = newKey;
-        delete componentState.summary[oldKey];
-        componentState.summary[newKey] = paperSummaryPairs[idx].value;
-        triggerAutoSave(false);
-      };
-
-      box.querySelector('.dashed-col2').oninput = (e) => {
-        paperSummaryPairs[idx].value = e.target.value;
-        componentState.summary[paperSummaryPairs[idx].key] = e.target.value;
-        if (activePaper) {
-          if (idx === 0) activePaper.intuition = e.target.value;
-          if (idx === 1) activePaper.strengths = e.target.value;
-        }
-        triggerAutoSave(false);
-      };
-
-      container.appendChild(box);
-    });
-  }
 
   /* ────────────────────────────────────────────────────────────────
      6. PRISMA SCREENING & QUALITY APPRAISAL (MUTUALLY EXCLUSIVE)

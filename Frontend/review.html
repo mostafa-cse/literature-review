@@ -214,13 +214,13 @@
                 </div>
                 <div class="section-content">
                     <div class="grid-container" id="grid-clusters">
-                        <!-- Populated dynamically: existed clusters only, without brackets, or + add new -->
+                        <!-- Populated dynamically: existed clusters only or + add new -->
                     </div>
                     <div class="cluster-action-bar" id="cluster-action-bar">
+                        <span class="cluster-transfer-status" id="cluster-transfer-status">Target: Unassigned</span>
                         <button type="button" class="cluster-transfer-save-btn" id="btn-save-cluster" onclick="saveClusterTransfer()">
                             <span class="save-icon">💾</span> Save &amp; Transfer to Cluster
                         </button>
-                        <span class="cluster-transfer-status" id="cluster-transfer-status">Target: Unassigned</span>
                     </div>
                 </div>
             </div>
@@ -237,7 +237,12 @@
                 </div>
                 <div class="section-content">
                     <div class="grid-container" id="grid-domains">
-                        <!-- Populated dynamically: [domain1], [domain2]... + add new -->
+                        <!-- Populated dynamically from survey only: + add new -->
+                    </div>
+                    <div class="section-action-bar">
+                        <button type="button" class="section-save-btn" onclick="triggerAutoSave(true); showToast('✓ Domain saved');">
+                            <span class="save-icon">💾</span> Save Domain
+                        </button>
                     </div>
                 </div>
             </div>
@@ -254,7 +259,12 @@
                 </div>
                 <div class="section-content">
                     <div class="grid-container" id="grid-keywords">
-                        <!-- Populated dynamically: [keyword1], [keyword2]... + add new -->
+                        <!-- Populated dynamically from survey only: + add new -->
+                    </div>
+                    <div class="section-action-bar">
+                        <button type="button" class="section-save-btn" onclick="triggerAutoSave(true); showToast('✓ Keywords saved');">
+                            <span class="save-icon">💾</span> Save Keywords
+                        </button>
                     </div>
                 </div>
             </div>
@@ -271,12 +281,17 @@
                 </div>
                 <div class="section-content">
                     <div id="dashed-columns-container">
-                        <!-- 4 Dashed Boxes dynamically rendered -->
+                        <!-- Survey columns dynamically rendered -->
                     </div>
                     <!-- Action Buttons -->
-                    <div class="btn-group">
-                        <button type="button" class="action-btn" onclick="handleSplitColumn()">Split Column</button>
-                        <button type="button" class="action-btn" onclick="handleAddColumn()">Add new</button>
+                    <div class="btn-group" style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" class="action-btn" onclick="handleSplitColumn()">Split Column</button>
+                            <button type="button" class="action-btn" onclick="handleAddColumn()">Add new</button>
+                        </div>
+                        <button type="button" class="section-save-btn" onclick="triggerAutoSave(true); showToast('✓ Columns saved');">
+                            <span class="save-icon">💾</span> Save Columns
+                        </button>
                     </div>
                 </div>
             </div>
@@ -317,24 +332,7 @@
                 </div>
             </div>
 
-            <!-- 6. Summary -->
-            <div class="section" id="section-summary">
-                <div class="section-header" onclick="toggleSection('section-summary')">
-                    <div class="section-title">Summary</div>
-                    <button type="button" class="expand-btn" aria-label="Toggle Summary section">
-                        <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                    </button>
-                </div>
-                <div class="section-content">
-                    <div id="dashed-summary-container">
-                        <!-- Dashed boxes mapping Intuition, Formulation, Strengths, Gaps -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- 7. Detailed Summary -->
+            <!-- 6. Detailed Summary (Formerly Section 7) -->
             <div class="section" id="section-detailed-summary">
                 <div class="section-header" onclick="toggleSection('section-detailed-summary')">
                     <div class="section-title">Detailed Summary:</div>
@@ -348,6 +346,13 @@
                     <div class="text-box-placeholder">
                         <textarea class="detailed-summary-textarea" id="detailed-summary-input" rows="4" placeholder="Enter detailed text here..." oninput="handleDetailedSummaryChange(this.value)"></textarea>
                     </div>
+                    <div class="section-action-bar">
+                        <button type="button" class="section-save-btn" onclick="triggerAutoSave(true); showToast('✓ Detailed Summary saved');">
+                            <span class="save-icon">💾</span> Save Summary
+                        </button>
+                    </div>
+                </div>
+            </div>
                 </div>
             </div>
 

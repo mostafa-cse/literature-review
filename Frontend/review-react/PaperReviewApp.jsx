@@ -439,8 +439,12 @@ export function PaperReviewApp() {
               onAddItem={handleAddCluster}
               isMultiSelect={false}
               placeholder="Add cluster..."
+              emptyMessage="No clusters created yet for this survey. Click '+ add new' to create one."
             />
             <div className="cluster-action-bar" id="cluster-action-bar">
+              <span className={`cluster-transfer-status ${stagedCluster === paper.selectedCluster ? 'saved' : ''}`}>
+                {stagedCluster ? (stagedCluster === paper.selectedCluster ? `✓ Current cluster: "${stagedCluster}"` : `Target: "${stagedCluster}" (Unsaved)`) : (paper.selectedCluster ? `Target: Unassign (Current: "${paper.selectedCluster}")` : 'Current status: Unassigned')}
+              </span>
               <button
                 type="button"
                 className="cluster-transfer-save-btn"
@@ -449,9 +453,6 @@ export function PaperReviewApp() {
               >
                 <span className="save-icon">💾</span> Save &amp; Transfer to Cluster
               </button>
-              <span className={`cluster-transfer-status ${stagedCluster === paper.selectedCluster ? 'saved' : ''}`}>
-                {stagedCluster ? (stagedCluster === paper.selectedCluster ? `✓ Current cluster: "${stagedCluster}"` : `Target: "${stagedCluster}" (Unsaved)`) : (paper.selectedCluster ? `Target: Unassign (Current: "${paper.selectedCluster}")` : 'Current status: Unassigned')}
-              </span>
             </div>
           </SectionWrapper>
 
@@ -462,8 +463,12 @@ export function PaperReviewApp() {
               selectedItems={paper.selectedDomain}
               onSelect={handleSelectDomain}
               onAddItem={handleAddDomain}
+              onSave={() => { triggerImmediateSave(paper); showToast('✓ Domain saved'); }}
+              showSaveButton={true}
+              saveButtonText="Save Domain"
               isMultiSelect={false}
               placeholder="Add domain..."
+              emptyMessage="No domains defined yet for this survey. Click '+ add new' to create one."
             />
           </SectionWrapper>
 
@@ -475,7 +480,11 @@ export function PaperReviewApp() {
               isMultiSelect={true}
               onSelect={handleToggleKeyword}
               onAddItem={handleAddKeyword}
+              onSave={() => { triggerImmediateSave(paper); showToast('✓ Keywords saved'); }}
+              showSaveButton={true}
+              saveButtonText="Save Keywords"
               placeholder="Add keyword..."
+              emptyMessage="No keywords defined yet for this survey. Click '+ add new' to create one."
             />
           </SectionWrapper>
 
@@ -485,9 +494,13 @@ export function PaperReviewApp() {
               items={paper.columns}
               onChangeItem={handleColumnsChange}
               onAddItem={handleColumnsChange}
+              onSave={() => { triggerImmediateSave(paper); showToast('✓ Columns saved'); }}
               showActions={true}
+              showSaveButton={true}
               addButtonText="Add new"
               splitButtonText="Split Column"
+              saveButtonText="Save Columns"
+              emptyMessage="No extraction columns defined yet for this survey. Click '+ Add new' to create one."
             />
           </SectionWrapper>
 
@@ -502,21 +515,14 @@ export function PaperReviewApp() {
             />
           </SectionWrapper>
 
-          {/* Section 6: Summary */}
-          <SectionWrapper title="Summary" id="section-summary">
-            <DashedBoxList
-              items={paper.summaryItems}
-              onChangeItem={handleSummaryItemsChange}
-              onAddItem={handleSummaryItemsChange}
-              showActions={false}
-            />
-          </SectionWrapper>
-
-          {/* Section 7: Detailed Summary */}
+          {/* Section 6: Detailed Summary (Formerly Section 7) */}
           <SectionWrapper title="Detailed Summary:" id="section-detailed-summary">
             <DetailedSummary
               value={paper.detailedSummary}
               onChange={handleDetailedSummaryChange}
+              onSave={() => { triggerImmediateSave(paper); showToast('✓ Detailed Summary saved'); }}
+              showSaveButton={true}
+              saveButtonText="Save Summary"
             />
           </SectionWrapper>
         </div>

@@ -3,16 +3,20 @@ import React from 'react';
 /**
  * DashedBoxList Component
  * Dynamically maps key-value pair state arrays into editable dashed boxes.
- * Used for both 'Columns' (feature extraction) and 'Summary' (intuition, formulation, etc.).
+ * Used for dynamic survey extraction columns.
  */
 export function DashedBoxList({
   items = [],
   onChangeItem,
   onAddItem,
   onSplitItem,
+  onSave,
   showActions = true,
+  showSaveButton = true,
   addButtonText = 'Add new',
-  splitButtonText = 'Split Column'
+  splitButtonText = 'Split Column',
+  saveButtonText = 'Save Columns',
+  emptyMessage = 'No extraction columns defined yet. Click "+ Add new" to create one.'
 }) {
   const handleKeyChange = (index, newKey) => {
     const updated = [...items];
@@ -29,7 +33,7 @@ export function DashedBoxList({
   const handleAddClick = () => {
     const newEntry = {
       key: `Feature_${items.length + 1}`,
-      value: 'Extracted parameter value...'
+      value: ''
     };
     onAddItem([...items, newEntry]);
   };
@@ -38,10 +42,10 @@ export function DashedBoxList({
     if (onSplitItem) {
       onSplitItem();
     } else {
-      // Default split behavior: duplicate last or add sub-features
+      const splitIdx = items.length + 1;
       const splitEntries = [
-        { key: 'Metric (Train)', value: 'Accuracy: 97.4%' },
-        { key: 'Metric (Test)', value: 'Accuracy: 95.1%' }
+        { key: `Feature_${splitIdx}(TC)`, value: '' },
+        { key: `Feature_${splitIdx}(SC)`, value: '' }
       ];
       onAddItem([...items, ...splitEntries]);
     }
@@ -49,13 +53,19 @@ export function DashedBoxList({
 
   return (
     <div>
+      {items.length === 0 && (
+        <div className="empty-columns-state" style={{ fontSize: '12px', color: 'var(--text-muted, #94a3b8)', fontStyle: 'italic', padding: '6px 2px 10px' }}>
+          {emptyMessage}
+        </div>
+      )}
+
       {items.map((item, idx) => (
         <div className="dashed-box" key={`dashed-${idx}`}>
           <input
             type="text"
             className="dashed-col1"
             value={item.key || ''}
-            placeholder="Column / Key"
+            placeholder="Column name"
             onChange={(e) => handleKeyChange(idx, e.target.value)}
           />
           <input
@@ -69,25 +79,39 @@ export function DashedBoxList({
       ))}
 
       {showActions && (
-        <div className="btn-group">
-          {splitButtonText && (
+        <div className="btn-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {splitButtonText && (
+              <button
+                type="button"
+                className="action-btn"
+                onClick={handleSplitClick}
+              >
+                {splitButtonText}
+              </button>
+            )}
             <button
               type="button"
               className="action-btn"
-              onClick={handleSplitClick}
+              onClick={handleAddClick}
             >
-              {splitButtonText}
+              {addButtonText}
+            </button>
+          </div>
+
+          {showSaveButton && onSave && (
+            <button
+              type="button"
+              className="section-save-btn"
+              onClick={onSave}
+            >
+              <span className="save-icon">💾</span> {saveButtonText}
             </button>
           )}
-          <button
-            type="button"
-            className="action-btn"
-            onClick={handleAddClick}
-          >
-            {addButtonText}
-          </button>
         </div>
       )}
     </div>
   );
 }
+
+export default DashedBoxList;

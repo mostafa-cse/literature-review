@@ -1117,37 +1117,52 @@ body, html {
 }
 
 /* --- Cluster Save / Transfer Action Bar --- */
-.cluster-action-bar {
+.cluster-action-bar,
+.section-action-bar {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
   margin-top: 14px;
   padding-top: 10px;
   border-top: 1px dashed var(--border-header);
 }
 
+.section-save-btn,
 .cluster-transfer-save-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
-  background: linear-gradient(135deg, #dfb867 0%, #f59e0b 100%);
-  color: #0b0f17;
+  background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+  color: #ffffff;
   font-weight: 700;
   font-size: 12.5px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(223, 184, 103, 0.25);
+  box-shadow: 0 2px 6px rgba(56, 189, 248, 0.25);
   transition: all 0.15s ease;
 }
 
+.cluster-transfer-save-btn {
+  background: linear-gradient(135deg, #dfb867 0%, #f59e0b 100%);
+  color: #0b0f17;
+  box-shadow: 0 2px 6px rgba(223, 184, 103, 0.25);
+}
+
+.section-save-btn:hover,
 .cluster-transfer-save-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(223, 184, 103, 0.4);
+  box-shadow: 0 4px 10px rgba(56, 189, 248, 0.4);
   filter: brightness(1.06);
 }
 
+.cluster-transfer-save-btn:hover {
+  box-shadow: 0 4px 10px rgba(223, 184, 103, 0.4);
+}
+
+.section-save-btn:disabled,
 .cluster-transfer-save-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -1163,6 +1178,7 @@ body, html {
   font-size: 12px;
   color: var(--text-muted);
   font-weight: 500;
+  margin-right: auto;
 }
 
 .cluster-transfer-status.saved {
