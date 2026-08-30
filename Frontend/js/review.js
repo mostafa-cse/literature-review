@@ -1046,18 +1046,22 @@
 
   function updateStatusBadge(status) {
     const badge = document.getElementById('auto-save-status-box');
-    if (!badge) return;
+    if (badge) {
+      badge.className = 'solid-box short-box';
+      if (status === 'saving') {
+        badge.classList.add('status-saving');
+        badge.innerHTML = '⏳ Saving...';
+      } else if (status === 'saved') {
+        badge.classList.add('status-saved');
+        badge.innerHTML = '✓ Saved';
+      } else if (status === 'error') {
+        badge.classList.add('status-error');
+        badge.innerHTML = '⚠️ Retry';
+      }
+    }
 
-    badge.className = 'solid-box short-box';
-    if (status === 'saving') {
-      badge.classList.add('status-saving');
-      badge.textContent = 'Saving...';
-    } else if (status === 'saved') {
-      badge.classList.add('status-saved');
-      badge.textContent = '✓ Saved';
-    } else if (status === 'error') {
-      badge.classList.add('status-error');
-      badge.textContent = '⚠️ Retry';
+    if (typeof window.setHeaderSaveStatus === 'function') {
+      window.setHeaderSaveStatus(status);
     }
   }
 
