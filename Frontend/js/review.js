@@ -53,6 +53,9 @@
     // Initialize Theme
     initTheme();
 
+    // Initialize Section Expand/Collapse State
+    initSectionStates();
+
     // Initialize Draggable Resizer
     initResizerDrag();
 
@@ -368,12 +371,49 @@
   };
 
   /* ────────────────────────────────────────────────────────────────
-     3. SECTION EXPAND / COLLAPSE
+     3. SECTION EXPAND / COLLAPSE STATE MANAGEMENT
   ──────────────────────────────────────────────────────────────── */
+  const sectionState = {
+    'section-cluster': true,
+    'section-domain': true,
+    'section-keywords': true,
+    'section-columns': true,
+    'section-prisma': true,
+    'section-summary': true,
+    'section-detailed-summary': true
+  };
+
+  function initSectionStates() {
+    try {
+      const saved = localStorage.getItem('litnexis_review_sections_state');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        Object.keys(parsed).forEach(secId => {
+          sectionState[secId] = Boolean(parsed[secId]);
+          const el = document.getElementById(secId);
+          if (el) {
+            if (!sectionState[secId]) {
+              el.classList.add('collapsed');
+            } else {
+              el.classList.remove('collapsed');
+            }
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Notice: Error restoring section collapse state', e);
+    }
+  }
+
   window.toggleSection = function (sectionId) {
     const section = document.getElementById(sectionId);
-    if (section) {
-      section.classList.toggle('collapsed');
+    if (!section) return;
+    const isNowCollapsed = section.classList.toggle('collapsed');
+    sectionState[sectionId] = !isNowCollapsed;
+    try {
+      localStorage.setItem('litnexis_review_sections_state', JSON.stringify(sectionState));
+    } catch (e) {
+      console.warn('Notice: Unable to save section state', e);
     }
   };
 
