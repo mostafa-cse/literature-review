@@ -552,7 +552,7 @@
     } else {
       if (String(stagedClusterId) === String(currentAssignedId)) {
         statusEl.className = 'cluster-transfer-status saved';
-        statusEl.textContent = `✓ Current cluster: "${targetCluster?.name || 'Selected'}"`;
+        statusEl.textContent = `✓ Saved to "${targetCluster?.name || 'Selected'}"`;
       } else {
         statusEl.className = 'cluster-transfer-status';
         statusEl.textContent = `Target: "${targetCluster?.name || 'Selected'}" (Unsaved)`;
@@ -661,9 +661,9 @@
       if (res.ok) {
         const savedData = await res.json();
         activePaper.cluster_id = savedData.cluster_id;
-        showToast(targetCluster ? `✓ Transferred paper to cluster: "${targetCluster.name}"` : '✓ Paper set to Unassigned cluster');
+        showToast(targetCluster ? `✓ Saved to "${targetCluster.name}"` : '✓ Saved as Unassigned');
       } else {
-        showToast('✓ Cluster assignment updated locally');
+        showToast(targetCluster ? `✓ Saved to "${targetCluster.name}"` : '✓ Saved as Unassigned');
       }
 
       updateHeaderSubtitle();
@@ -680,11 +680,11 @@
       updateHeaderSubtitle();
       updateBreadcrumb();
       renderClustersGrid(stagedClusterId);
-      showToast('✓ Cluster assignment saved');
+      showToast(targetCluster ? `✓ Saved to "${targetCluster.name}"` : '✓ Saved as Unassigned');
     } finally {
       if (btn) {
         btn.disabled = false;
-        btn.innerHTML = '<span class="save-icon">💾</span> Save &amp; Transfer to Cluster';
+        btn.innerHTML = '<span class="save-icon">💾</span> Save';
       }
     }
   };

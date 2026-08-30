@@ -480,7 +480,7 @@ export function PaperReviewApp() {
             />
             <div className="cluster-action-bar" id="cluster-action-bar">
               <span className={`cluster-transfer-status ${stagedCluster === paper.selectedCluster ? 'saved' : ''}`}>
-                {stagedCluster ? (stagedCluster === paper.selectedCluster ? `✓ Current cluster: "${stagedCluster}"` : `Target: "${stagedCluster}" (Unsaved)`) : (paper.selectedCluster ? `Target: Unassign (Current: "${paper.selectedCluster}")` : 'Current status: Unassigned')}
+                {stagedCluster ? (stagedCluster === paper.selectedCluster ? `✓ Saved to "${stagedCluster}"` : `Target: "${stagedCluster}" (Unsaved)`) : (paper.selectedCluster ? `Target: Unassign (Current: "${paper.selectedCluster}")` : 'Current status: Unassigned')}
               </span>
               <button
                 type="button"
@@ -488,7 +488,7 @@ export function PaperReviewApp() {
                 id="btn-save-cluster"
                 onClick={() => handleSaveClusterTransfer(stagedCluster)}
               >
-                <span className="save-icon">💾</span> Save &amp; Transfer to Cluster
+                <span className="save-icon">💾</span> Save
               </button>
             </div>
           </SectionWrapper>
