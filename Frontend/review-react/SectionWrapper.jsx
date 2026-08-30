@@ -30,16 +30,24 @@ export function SectionWrapper({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {headerAction && <div onClick={(e) => e.stopPropagation()}>{headerAction}</div>}
           <button type="button" className="expand-btn" aria-label="Toggle section">
-            <span 
-              className="chevron-icon"
+            <svg 
+              className="chevron-icon" 
+              width="16" 
+              height="16" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2.5" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
               style={{
                 transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
-                transition: 'transform 0.2s ease',
+                transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                 display: 'inline-block'
               }}
             >
-              &#9662;
-            </span>
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
           </button>
         </div>
       </div>
