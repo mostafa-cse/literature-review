@@ -28,6 +28,15 @@
   let activePrismaReason = '';
   let autoSaveTimer = null;
 
+  // Central Dynamic Component State
+  const componentState = {
+    clusters: [], // Array of cluster objects [{ id, name, ... }]
+    domains: [],  // Array of domain strings ['domain1', 'domain2', ...]
+    keywords: [], // Array of keyword strings ['keyword1', 'keyword2', ...]
+    columns: {},  // Key-value pairs object for dynamic columns
+    summary: {}   // Key-value pairs object for summary breakdown
+  };
+
   // PDF.js State
   let currentPdfDoc = null;
   let pdfCurrentPageNum = 1;
@@ -199,17 +208,46 @@
     const doiInput = document.getElementById('doi-input-field');
     if (doiInput) doiInput.value = p.doi || '';
 
+    // Update Component State Arrays & Key-Value Objects
+    componentState.clusters = Array.isArray(allClusters) ? [...allClusters] : [];
+    
+    const domainList = [...STANDARD_DOMAINS];
+    if (p.domain && !domainList.includes(p.domain)) {
+      domainList.unshift(p.domain);
+    }
+    componentState.domains = domainList;
+    
+    componentState.keywords = Array.from(new Set([...(p.keywords || []), ...STANDARD_KEYWORDS]));
+
+    // Columns Key-Value Object
+    if (p.custom_columns && Object.keys(p.custom_columns).length > 0) {
+      componentState.columns = { ...p.custom_columns };
+    } else {
+      componentState.columns = {
+        'col_name1': 'Value..',
+        'col_name2': 'Value..',
+        'col_name3': 'Value..',
+        'col_name4': 'Value..'
+      };
+    }
+
+    // Summary Key-Value Object
+    componentState.summary = {
+      'col_name1': (p.intuition || 'Value..'),
+      'col_name2': (p.strengths || 'Value..')
+    };
+
     updateHeaderSubtitle();
     updateBreadcrumb();
 
-    // Taxonomy Grids
+    // Map Grids from State Arrays
     renderClustersGrid(p.cluster_id);
     renderDomainsGrid(p.domain);
     renderKeywordsGrid(paperKeywords);
 
-    // Columns & Summary
-    renderColumnsDashedBoxes(p);
-    renderSummaryDashedBoxes(p);
+    // Map Dashed Boxes from State Key-Value Objects
+    renderColumnsDashedBoxes();
+    renderSummaryDashedBoxes();
 
     // PRISMA
     updatePrismaUi(activePrismaVote, activePrismaReason);
@@ -748,19 +786,17 @@
   }
 
   /* ────────────────────────────────────────────────────────────────
-     5. DASHED BOXES (Columns & Summary)
+     5. DASHED BOXES (Columns & Summary Key-Value Objects)
   ──────────────────────────────────────────────────────────────── */
-  function renderColumnsDashedBoxes(paper) {
+  function renderColumnsDashedBoxes() {
     const container = document.getElementById('dashed-columns-container');
     if (!container) return;
     container.innerHTML = '';
 
-    const customCols = (paper && paper.custom_columns) ? paper.custom_columns : {};
     paperColumnsList = [];
-
-    if (Object.keys(customCols).length > 0) {
-      Object.keys(customCols).forEach(k => {
-        paperColumnsList.push({ key: k, value: customCols[k] });
+    if (componentState.columns && Object.keys(componentState.columns).length > 0) {
+      Object.entries(componentState.columns).forEach(([k, v]) => {
+        paperColumnsList.push({ key: k, value: v });
       });
     } else {
       paperColumnsList = [
@@ -788,11 +824,16 @@
       `;
 
       box.querySelector('.dashed-col1').oninput = (e) => {
-        paperColumnsList[idx].key = e.target.value;
+        const oldKey = paperColumnsList[idx].key;
+        const newKey = e.target.value;
+        paperColumnsList[idx].key = newKey;
+        delete componentState.columns[oldKey];
+        componentState.columns[newKey] = paperColumnsList[idx].value;
         triggerAutoSave(false);
       };
       box.querySelector('.dashed-col2').oninput = (e) => {
         paperColumnsList[idx].value = e.target.value;
+        componentState.columns[paperColumnsList[idx].key] = e.target.value;
         triggerAutoSave(false);
       };
 
@@ -802,30 +843,43 @@
 
   window.handleSplitColumn = function () {
     const nextIdx = paperColumnsList.length + 1;
+    const splitKey1 = `col_name${nextIdx}(TC)`;
+    const splitKey2 = `col_name${nextIdx}(SC)`;
     paperColumnsList.push(
-      { key: `col_name${nextIdx}(TC)`, value: '0.00' },
-      { key: `col_name${nextIdx}(SC)`, value: '0.00' }
+      { key: splitKey1, value: '0.00' },
+      { key: splitKey2, value: '0.00' }
     );
+    componentState.columns[splitKey1] = '0.00';
+    componentState.columns[splitKey2] = '0.00';
     renderColumnsArray();
     triggerAutoSave(true);
   };
 
   window.handleAddColumn = function () {
     const nextIdx = paperColumnsList.length + 1;
-    paperColumnsList.push({ key: `col_name${nextIdx}`, value: 'Value..' });
+    const newKey = `col_name${nextIdx}`;
+    paperColumnsList.push({ key: newKey, value: 'Value..' });
+    componentState.columns[newKey] = 'Value..';
     renderColumnsArray();
     triggerAutoSave(true);
   };
 
-  function renderSummaryDashedBoxes(paper) {
+  function renderSummaryDashedBoxes() {
     const container = document.getElementById('dashed-summary-container');
     if (!container) return;
     container.innerHTML = '';
 
-    paperSummaryPairs = [
-      { key: 'col_name1', value: (paper ? paper.intuition : '') || 'Value..' },
-      { key: 'col_name2', value: (paper ? paper.strengths : '') || 'Value..' }
-    ];
+    paperSummaryPairs = [];
+    if (componentState.summary && Object.keys(componentState.summary).length > 0) {
+      Object.entries(componentState.summary).forEach(([k, v]) => {
+        paperSummaryPairs.push({ key: k, value: v });
+      });
+    } else {
+      paperSummaryPairs = [
+        { key: 'col_name1', value: 'Value..' },
+        { key: 'col_name2', value: 'Value..' }
+      ];
+    }
 
     paperSummaryPairs.forEach((pair, idx) => {
       const box = document.createElement('div');
@@ -835,8 +889,18 @@
         <input type="text" class="dashed-col2" value="${esc(pair.value)}" placeholder="Value..">
       `;
 
+      box.querySelector('.dashed-col1').oninput = (e) => {
+        const oldKey = paperSummaryPairs[idx].key;
+        const newKey = e.target.value;
+        paperSummaryPairs[idx].key = newKey;
+        delete componentState.summary[oldKey];
+        componentState.summary[newKey] = paperSummaryPairs[idx].value;
+        triggerAutoSave(false);
+      };
+
       box.querySelector('.dashed-col2').oninput = (e) => {
         paperSummaryPairs[idx].value = e.target.value;
+        componentState.summary[paperSummaryPairs[idx].key] = e.target.value;
         if (activePaper) {
           if (idx === 0) activePaper.intuition = e.target.value;
           if (idx === 1) activePaper.strengths = e.target.value;
