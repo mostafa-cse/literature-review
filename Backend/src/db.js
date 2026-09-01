@@ -90,6 +90,9 @@ function initDb() {
       equation TEXT,
       strengths TEXT,
       gaps TEXT,
+      advantages TEXT,
+      criticism TEXT,
+      future_directions TEXT,
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
       FOREIGN KEY (cluster_id) REFERENCES clusters(id) ON DELETE SET NULL
     );
@@ -195,6 +198,18 @@ function initDb() {
       UNIQUE(paper_id, user_id),
       FOREIGN KEY (paper_id) REFERENCES papers(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS password_resets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      email TEXT NOT NULL,
+      code TEXT NOT NULL,
+      token TEXT NOT NULL,
+      expires_at DATETIME NOT NULL,
+      used INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
   `);
 
   // Safe migrations for existing tables
@@ -223,6 +238,9 @@ function initDb() {
       db.exec("ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 1;");
       db.exec("UPDATE users SET token_version = 1 WHERE token_version IS NULL;");
     }
+    if (!userCols.some(c => c.name === 'firebase_uid')) {
+      db.exec("ALTER TABLE users ADD COLUMN firebase_uid TEXT;");
+    }
 
     const projectCols = db.prepare("PRAGMA table_info(projects)").all();
     if (!projectCols.some(c => c.name === 'owner_id')) {
@@ -239,6 +257,17 @@ function initDb() {
     if (!paperCols.some(c => c.name === 'project_id')) {
       db.exec("ALTER TABLE papers ADD COLUMN project_id INTEGER DEFAULT 1;");
     }
+    if (!paperCols.some(c => c.name === 'advantages')) {
+      db.exec("ALTER TABLE papers ADD COLUMN advantages TEXT;");
+      db.exec("UPDATE papers SET advantages = strengths WHERE advantages IS NULL AND strengths IS NOT NULL;");
+    }
+    if (!paperCols.some(c => c.name === 'criticism')) {
+      db.exec("ALTER TABLE papers ADD COLUMN criticism TEXT;");
+      db.exec("UPDATE papers SET criticism = gaps WHERE criticism IS NULL AND gaps IS NOT NULL;");
+    }
+    if (!paperCols.some(c => c.name === 'future_directions')) {
+      db.exec("ALTER TABLE papers ADD COLUMN future_directions TEXT;");
+    }
   } catch (err) {
     console.warn('Migration note:', err.message);
   }
@@ -247,6 +276,7 @@ function initDb() {
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+    CREATE INDEX IF NOT EXISTS idx_users_firebase_uid ON users(firebase_uid);
     CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
     CREATE INDEX IF NOT EXISTS idx_projects_owner ON projects(owner_id);
     CREATE INDEX IF NOT EXISTS idx_projects_token ON projects(share_token);
@@ -267,6 +297,8 @@ function initDb() {
     CREATE INDEX IF NOT EXISTS idx_screening_paper ON paper_screening(paper_id);
     CREATE INDEX IF NOT EXISTS idx_paper_files_paper ON paper_files(paper_id);
     CREATE INDEX IF NOT EXISTS idx_paper_files_filename ON paper_files(filename);
+    CREATE INDEX IF NOT EXISTS idx_password_resets_email ON password_resets(email);
+    CREATE INDEX IF NOT EXISTS idx_password_resets_code ON password_resets(code);
   `);
 
   // Migrate existing PDF files from uploads directories into paper_files database table
@@ -302,40 +334,40 @@ function initDb() {
 
   // Seed default admin & researcher users if not present
   try {
-    const adminCheck = db.prepare("SELECT id FROM users WHERE email = ?").get('admin@litnexis.ac');
+    const adminCheck = db.prepare("SELECT id FROM users WHERE email = ?").get('admin@litsphere.ac');
     if (!adminCheck) {
       const adminPass = hashPassword('admin123');
       db.prepare(`
         INSERT INTO users (name, email, password_hash, role, institution, status, ai_token_quota, storage_quota_mb)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run('Platform Administrator', 'admin@litnexis.ac', adminPass, 'admin', 'LitNexis Systems Engineering', 'active', 1000000, 5000);
+      `).run('Platform Administrator', 'admin@litsphere.ac', adminPass, 'admin', 'LitSphere Systems Engineering', 'active', 1000000, 5000);
     }
 
-    const userCheck = db.prepare("SELECT id FROM users WHERE email = ?").get('researcher@litnexis.ac');
+    const userCheck = db.prepare("SELECT id FROM users WHERE email = ?").get('researcher@litsphere.ac');
     if (!userCheck) {
       const userPass = hashPassword('researcher123');
       db.prepare(`
         INSERT INTO users (name, email, password_hash, role, institution, status, ai_token_quota, storage_quota_mb)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run('Alex Morgan (Researcher)', 'researcher@litnexis.ac', userPass, 'user', 'Department of Computer Science', 'active', 150000, 1000);
+      `).run('Alex Morgan (Researcher)', 'researcher@litsphere.ac', userPass, 'user', 'Department of Computer Science', 'active', 150000, 1000);
     }
 
-    const coauthorCheck = db.prepare("SELECT id FROM users WHERE email = ?").get('coauthor@litnexis.ac');
+    const coauthorCheck = db.prepare("SELECT id FROM users WHERE email = ?").get('coauthor@litsphere.ac');
     if (!coauthorCheck) {
       const coauthorPass = hashPassword('coauthor123');
       db.prepare(`
         INSERT INTO users (name, email, password_hash, role, institution, status, ai_token_quota, storage_quota_mb)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run('Dr. Sarah Chen (Co-Author)', 'coauthor@litnexis.ac', coauthorPass, 'user', 'AI & Machine Learning Lab', 'active', 120000, 800);
+      `).run('Dr. Sarah Chen (Co-Author)', 'coauthor@litsphere.ac', coauthorPass, 'user', 'AI & Machine Learning Lab', 'active', 120000, 800);
     }
 
-    const advisorCheck = db.prepare("SELECT id FROM users WHERE email = ?").get('advisor@litnexis.ac');
+    const advisorCheck = db.prepare("SELECT id FROM users WHERE email = ?").get('advisor@litsphere.ac');
     if (!advisorCheck) {
       const advisorPass = hashPassword('advisor123');
       db.prepare(`
         INSERT INTO users (name, email, password_hash, role, institution, status, ai_token_quota, storage_quota_mb)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run('Prof. Robert Vance (Advisor)', 'advisor@litnexis.ac', advisorPass, 'supervisor', 'Graduate Faculty of Engineering', 'active', 300000, 2000);
+      `).run('Prof. Robert Vance (Advisor)', 'advisor@litsphere.ac', advisorPass, 'supervisor', 'Graduate Faculty of Engineering', 'active', 300000, 2000);
     }
 
     // Ensure all existing projects have an owner registered in project_members
@@ -352,7 +384,7 @@ function initDb() {
     // Seed default system settings
     const defaultSettings = [
       ['maintenance_mode', 'false'],
-      ['maintenance_message', 'LitNexis Platform is currently undergoing scheduled database maintenance. Please check back shortly.'],
+      ['maintenance_message', 'LitSphere Platform is currently undergoing scheduled database maintenance. Please check back shortly.'],
       ['active_llm_provider', 'gemini'],
       ['gemini_model', 'gemini-1.5-pro'],
       ['claude_model', 'claude-3-5-sonnet'],
@@ -360,8 +392,8 @@ function initDb() {
       ['max_upload_size_mb', '50'],
       ['default_user_token_quota', '100000'],
       ['default_user_storage_quota_mb', '500'],
-      ['openalex_email', 'research@litnexis.ac'],
-      ['crossref_mailto', 'api@litnexis.ac']
+      ['openalex_email', 'research@litsphere.ac'],
+      ['crossref_mailto', 'api@litsphere.ac']
     ];
 
     const insertSetting = db.prepare(`

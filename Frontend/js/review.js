@@ -1,5 +1,5 @@
 /**
- * LITNEXIS STANDALONE SPLIT-SCREEN REVIEW ENGINE (review.js)
+ * LITSPHERE STANDALONE SPLIT-SCREEN REVIEW ENGINE (review.js)
  * =======================================================================
  * Implements full dynamic client-side logic for the 2-pane review page:
  * - Dynamic data population from API / URL parameters (?project=X&paper=Y)
@@ -73,7 +73,7 @@
   });
 
   function initTheme() {
-    const saved = localStorage.getItem('litnexis_theme') || document.documentElement.getAttribute('data-theme') || 'dark';
+    const saved = localStorage.getItem('litsphere_theme') || document.documentElement.getAttribute('data-theme') || 'dark';
     applyTheme(saved);
   }
 
@@ -84,7 +84,7 @@
   function applyTheme(theme) {
     const targetTheme = theme === 'light' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', targetTheme);
-    localStorage.setItem('litnexis_theme', targetTheme);
+    localStorage.setItem('litsphere_theme', targetTheme);
     const icon = document.getElementById('review-theme-icon');
     if (icon) {
       // Switch icon: show moon when in light mode (to go dark), sun when in dark mode (to go light)
@@ -243,7 +243,7 @@
       titleMain.title = `[#${paperSerial}] ${p.title || 'Paper'} - Click to open manuscript in new tab`;
     }
 
-    document.title = `[#${paperSerial}] ${p.title || 'Paper Review'} | LitNexis`;
+    document.title = `[#${paperSerial}] ${p.title || 'Paper Review'} | LitSphere`;
 
     const doiInput = document.getElementById('doi-input-field');
     if (doiInput) doiInput.value = p.doi || '';
@@ -314,6 +314,7 @@
 
     updateHeaderSubtitle();
     updateBreadcrumb();
+    updateUnassignedSectionVisibility();
 
     // Render Taxonomy Grids from Survey Data
     renderClustersGrid(p.cluster_id);
@@ -334,6 +335,32 @@
 
     // Load PDF preview
     loadPdfPreview(p.pdf_url || (p.doi ? `https://doi.org/${p.doi}` : null));
+  }
+
+  function updateUnassignedSectionVisibility() {
+    const isUnassigned = !activePaper || !activePaper.cluster_id || activePaper.cluster_id === 'unassigned' || activePaper.cluster_id === null;
+    const domainSec = document.getElementById('section-domain');
+    const keywordsSec = document.getElementById('section-keywords');
+    const colsSec = document.getElementById('section-columns');
+    const summarySec = document.getElementById('section-detailed-summary');
+    const clusterSec = document.getElementById('section-cluster');
+    const prismaSec = document.getElementById('section-prisma');
+
+    if (isUnassigned) {
+      // Review from Unassign Cluster: hide Domain, Keywords, Columns, Detailed Summary
+      if (domainSec) domainSec.style.display = 'none';
+      if (keywordsSec) keywordsSec.style.display = 'none';
+      if (colsSec) colsSec.style.display = 'none';
+      if (summarySec) summarySec.style.display = 'none';
+    } else {
+      // Assigned paper in cluster: show all sections
+      if (domainSec) domainSec.style.display = 'block';
+      if (keywordsSec) keywordsSec.style.display = 'block';
+      if (colsSec) colsSec.style.display = 'block';
+      if (summarySec) summarySec.style.display = 'block';
+    }
+    if (clusterSec) clusterSec.style.display = 'block';
+    if (prismaSec) prismaSec.style.display = 'block';
   }
 
   /* ────────────────────────────────────────────────────────────────
@@ -370,7 +397,7 @@
 
   /**
    * 2b. DYNAMIC 4-SEGMENT BREADCRUMB
-   * LitNexis › Survey title › Cluster name / Unassign Cluster › Paper title
+   * LitSphere › Survey title › Cluster name / Unassign Cluster › Paper title
    */
   let currentProjectTitle = 'Survey';
 
@@ -452,7 +479,7 @@
 
     // 2. Simultaneously initialize 'Review Paper' layout / active reading session for this specific document
     const paperSerial = activePaper.serial_no || activePaper.id || 1;
-    sessionStorage.setItem('litnexis_active_review_paper', String(activePaper.id));
+    sessionStorage.setItem('litsphere_active_review_paper', String(activePaper.id));
 
     // Ensure PDF preview is initialized in the left pane
     if (activePaper.pdf_url) {
@@ -496,7 +523,7 @@
 
   function initSectionStates() {
     try {
-      const saved = localStorage.getItem('litnexis_review_sections_state');
+      const saved = localStorage.getItem('litsphere_review_sections_state');
       if (saved) {
         const parsed = JSON.parse(saved);
         Object.keys(parsed).forEach(secId => {
@@ -522,7 +549,7 @@
     const isNowCollapsed = section.classList.toggle('collapsed');
     sectionState[sectionId] = !isNowCollapsed;
     try {
-      localStorage.setItem('litnexis_review_sections_state', JSON.stringify(sectionState));
+      localStorage.setItem('litsphere_review_sections_state', JSON.stringify(sectionState));
     } catch (e) {
       console.warn('Notice: Unable to save section state', e);
     }
@@ -538,6 +565,27 @@
     const saveBtn = document.getElementById('btn-save-cluster');
     if (!statusEl) return;
 
+    const isTransferAllowed = activePrismaVote === 'included';
+
+    if (!isTransferAllowed) {
+      statusEl.className = 'cluster-transfer-status';
+      statusEl.textContent = activePrismaVote === 'excluded'
+        ? 'Status: Excluded (Transfer Locked)'
+        : 'Status: Uncertain (Transfer Locked)';
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.style.opacity = '0.45';
+        saveBtn.style.cursor = 'not-allowed';
+      }
+      return;
+    }
+
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.style.opacity = '1';
+      saveBtn.style.cursor = 'pointer';
+    }
+
     const currentAssignedId = activePaper ? activePaper.cluster_id : null;
     const targetCluster = allClusters.find(c => String(c.id) === String(stagedClusterId));
     const assignedCluster = allClusters.find(c => String(c.id) === String(currentAssignedId));
@@ -545,7 +593,7 @@
     if (stagedClusterId === null || stagedClusterId === undefined || stagedClusterId === '') {
       if (currentAssignedId === null) {
         statusEl.className = 'cluster-transfer-status';
-        statusEl.textContent = 'Current status: Unassigned';
+        statusEl.textContent = 'Status: Included (Choose cluster to transfer)';
       } else {
         statusEl.className = 'cluster-transfer-status';
         statusEl.textContent = `Target: Unassign (Current: "${assignedCluster?.name || 'Assigned'}")`;
@@ -553,10 +601,10 @@
     } else {
       if (String(stagedClusterId) === String(currentAssignedId)) {
         statusEl.className = 'cluster-transfer-status saved';
-        statusEl.textContent = `✓ Saved to "${targetCluster?.name || 'Selected'}"`;
+        statusEl.textContent = `✓ Linked to "${targetCluster?.name || 'Selected'}" (Included)`;
       } else {
         statusEl.className = 'cluster-transfer-status';
-        statusEl.textContent = `Target: "${targetCluster?.name || 'Selected'}" (Unsaved)`;
+        statusEl.textContent = `Target: "${targetCluster?.name || 'Selected'}" (Click Save to Transfer)`;
       }
     }
   }
@@ -566,24 +614,51 @@
     if (!container) return;
     container.innerHTML = '';
 
+    const isTransferAllowed = activePrismaVote === 'included';
+
+    // If transfer not allowed (excluded or uncertain), render a clear status notice
+    if (!isTransferAllowed) {
+      const lockNotice = document.createElement('div');
+      lockNotice.className = 'prisma-transfer-locked-notice';
+      lockNotice.style.cssText = 'padding: 0.65rem 0.85rem; background: rgba(239, 68, 68, 0.08); border: 1px dashed rgba(239, 68, 68, 0.35); border-radius: 8px; color: #f87171; font-size: 0.82rem; margin-bottom: 0.75rem; width: 100%; grid-column: 1 / -1; display: flex; align-items: center; gap: 0.5rem;';
+      
+      if (activePrismaVote === 'excluded') {
+        lockNotice.innerHTML = `<span>🚫</span><span><strong>Paper Excluded:</strong> Linked into Excluded only. Cannot transfer to a cluster unless marked as <strong>Include</strong>.</span>`;
+      } else {
+        lockNotice.innerHTML = `<span>⚠️</span><span><strong>Paper Uncertain:</strong> In review queue. Select <strong>Include</strong> to enable transferring to a taxonomy cluster.</span>`;
+      }
+      container.appendChild(lockNotice);
+    }
+
     // Initialize stagedClusterId with current paper cluster if not set
-    if (stagedClusterId === null && activePaper && activePaper.cluster_id !== undefined) {
+    if (stagedClusterId === null && activePaper && activePaper.cluster_id !== undefined && isTransferAllowed) {
       stagedClusterId = activePaper.cluster_id;
-    } else if (selectedId !== undefined) {
+    } else if (selectedId !== undefined && isTransferAllowed) {
       stagedClusterId = selectedId;
+    } else if (!isTransferAllowed) {
+      stagedClusterId = null;
     }
 
     // Only render existed clusters that actually belong to this survey/project
     const list = Array.isArray(allClusters) ? allClusters : [];
 
     list.forEach(cl => {
-      const isSelected = String(cl.id) === String(stagedClusterId);
+      const isSelected = isTransferAllowed && String(cl.id) === String(stagedClusterId);
       const item = document.createElement('div');
-      item.className = `grid-item ${isSelected ? 'selected' : ''}`;
-      // Clean cluster title without square brackets
+      item.className = `grid-item ${isSelected ? 'selected' : ''} ${!isTransferAllowed ? 'disabled-locked' : ''}`;
       item.textContent = cl.name;
-      item.title = `Click to stage cluster: ${cl.name}`;
+      item.title = isTransferAllowed ? `Click to assign cluster: ${cl.name}` : `Transfer disabled while paper is ${activePrismaVote}`;
+      
+      if (!isTransferAllowed) {
+        item.style.opacity = '0.45';
+        item.style.cursor = 'not-allowed';
+      }
+
       item.onclick = () => {
+        if (!isTransferAllowed) {
+          showToast(`Cannot assign cluster while paper is ${activePrismaVote === 'excluded' ? 'Excluded' : 'Uncertain'}. Select 'Include' first to transfer.`, 'warning');
+          return;
+        }
         // Toggle selection
         if (String(stagedClusterId) === String(cl.id)) {
           stagedClusterId = null; // unassign
@@ -596,48 +671,55 @@
       container.appendChild(item);
     });
 
-    // Inline "+ add new"
-    const addBtn = document.createElement('div');
-    addBtn.className = 'grid-item add-new-btn';
-    addBtn.innerHTML = '<a href="#" style="color: #38bdf8; text-decoration: none;">+ add new</a>';
-    addBtn.onclick = (e) => {
-      e.preventDefault();
-      addBtn.innerHTML = '<input type="text" class="inline-add-input" placeholder="+ Cluster title..." autoFocus>';
-      const input = addBtn.querySelector('input');
-      input.focus();
-      let committed = false;
+    if (isTransferAllowed) {
+      // Inline "+ add new"
+      const addBtn = document.createElement('div');
+      addBtn.className = 'grid-item add-new-btn';
+      addBtn.innerHTML = '<a href="#" style="color: #38bdf8; text-decoration: none;">+ add new</a>';
+      addBtn.onclick = (e) => {
+        e.preventDefault();
+        addBtn.innerHTML = '<input type="text" class="inline-add-input" placeholder="+ Cluster title..." autoFocus>';
+        const input = addBtn.querySelector('input');
+        input.focus();
+        let committed = false;
 
-      const commitCluster = async () => {
-        if (committed) return;
-        committed = true;
-        const val = (input.value || '').trim();
-        if (val) {
-          await createNewCluster(val);
-        } else {
-          renderClustersGrid(stagedClusterId);
-        }
-      };
-
-      input.onkeydown = async (ev) => {
-        if (ev.key === 'Enter') {
-          ev.preventDefault();
-          await commitCluster();
-        } else if (ev.key === 'Escape') {
+        const commitCluster = async () => {
+          if (committed) return;
           committed = true;
-          renderClustersGrid(stagedClusterId);
-        }
+          const val = (input.value || '').trim();
+          if (val) {
+            await createNewCluster(val);
+          } else {
+            renderClustersGrid(stagedClusterId);
+          }
+        };
+
+        input.onkeydown = async (ev) => {
+          if (ev.key === 'Enter') {
+            ev.preventDefault();
+            await commitCluster();
+          } else if (ev.key === 'Escape') {
+            committed = true;
+            renderClustersGrid(stagedClusterId);
+          }
+        };
+        input.onblur = () => {
+          commitCluster();
+        };
       };
-      input.onblur = () => {
-        commitCluster();
-      };
-    };
-    container.appendChild(addBtn);
+      container.appendChild(addBtn);
+    }
 
     updateClusterTransferStatus();
   }
 
   window.saveClusterTransfer = async function () {
     if (!activePaper) return;
+    if (activePrismaVote !== 'included') {
+      showToast(`Cannot transfer to cluster while paper is ${activePrismaVote === 'excluded' ? 'Excluded' : 'Uncertain'}. Mark as 'Include' first.`, 'warning');
+      return;
+    }
+
     const btn = document.getElementById('btn-save-cluster');
     const statusEl = document.getElementById('cluster-transfer-status');
     if (btn) {
@@ -649,6 +731,7 @@
       activePaper.cluster_id = stagedClusterId;
       const targetCluster = allClusters.find(c => String(c.id) === String(stagedClusterId));
       activePaper.cluster_name = targetCluster ? targetCluster.name : null;
+      activePaper.screening_decision = 'included';
 
       const res = await fetch(`/api/papers/${activePaper.id}`, {
         method: 'PUT',
@@ -656,32 +739,38 @@
           'Content-Type': 'application/json',
           ...getAuthHeaders()
         },
-        body: JSON.stringify({ cluster_id: stagedClusterId })
+        body: JSON.stringify({
+          cluster_id: stagedClusterId,
+          screening_decision: 'included',
+          screening_reason: activePrismaReason
+        })
       });
 
       if (res.ok) {
         const savedData = await res.json();
         activePaper.cluster_id = savedData.cluster_id;
-        showToast(targetCluster ? `Saved to "${targetCluster.name}"` : 'Saved as Unassigned');
+        showToast(targetCluster ? `✓ Transferred to "${targetCluster.name}" and linked to Included` : 'Saved as Unassigned');
       } else {
-        showToast(targetCluster ? `Saved to "${targetCluster.name}"` : 'Saved as Unassigned');
+        showToast(targetCluster ? `✓ Transferred to "${targetCluster.name}" and linked to Included` : 'Saved as Unassigned');
       }
 
       updateHeaderSubtitle();
       updateBreadcrumb();
+      updateUnassignedSectionVisibility();
       renderClustersGrid(stagedClusterId);
       triggerAutoSave(true);
 
       if (statusEl) {
         statusEl.className = 'cluster-transfer-status saved';
-        statusEl.textContent = targetCluster ? `Saved to "${targetCluster.name}"` : 'Saved as Unassigned';
+        statusEl.textContent = targetCluster ? `✓ Transferred to "${targetCluster.name}" (Included)` : 'Saved as Unassigned';
       }
     } catch (err) {
       console.warn('Save cluster transfer error:', err);
       updateHeaderSubtitle();
       updateBreadcrumb();
+      updateUnassignedSectionVisibility();
       renderClustersGrid(stagedClusterId);
-      showToast(targetCluster ? `Saved to "${targetCluster.name}"` : 'Saved as Unassigned');
+      showToast(targetCluster ? `✓ Transferred to "${targetCluster.name}" and linked to Included` : 'Saved as Unassigned');
     } finally {
       if (btn) {
         btn.disabled = false;
@@ -984,10 +1073,22 @@
     activePrismaVote = vote;
     if (activePaper) {
       activePaper.screening_decision = vote;
+      if (vote === 'excluded' || vote === 'uncertain') {
+        // Excluded and uncertain papers cannot be assigned/transferred to clusters
+        stagedClusterId = null;
+        activePaper.cluster_id = null;
+      }
     }
     updatePrismaUi(vote, activePrismaReason);
+    renderClustersGrid(stagedClusterId);
+    updateClusterTransferStatus();
+    updateUnassignedSectionVisibility();
     triggerAutoSave(true);
-    const voteLabels = { 'included': 'Include (Eligible)', 'excluded': 'Exclude (Ineligible)', 'uncertain': 'Uncertain (Needs Review)' };
+    const voteLabels = {
+      'included': 'Include (Eligible) — Cluster Transfer Enabled',
+      'excluded': 'Exclude (Ineligible) — Linked into Excluded (Transfer Locked)',
+      'uncertain': 'Uncertain (Needs Review) — Linked into Review Queue (Transfer Locked)'
+    };
     showToast(`✓ PRISMA Decision: ${voteLabels[vote] || vote}`);
   };
 
@@ -1200,7 +1301,7 @@
             titleMain.innerHTML = `<span class="paper-serial-prefix" style="color:var(--accent-primary, #38bdf8); font-family:var(--font-mono, monospace); font-weight:700; margin-right:0.45rem;">#${paperSerial}</span>${activePaper.title}`;
             titleMain.title = `[#${paperSerial}] ${activePaper.title} - Click to open manuscript in new tab`;
           }
-          document.title = `[#${paperSerial}] ${activePaper.title} | LitNexis`;
+          document.title = `[#${paperSerial}] ${activePaper.title} | LitSphere`;
 
           updateHeaderSubtitle();
           updateBreadcrumb();
@@ -1229,7 +1330,7 @@
           titleMain.innerHTML = `<span class="paper-serial-prefix" style="color:var(--accent-primary, #38bdf8); font-family:var(--font-mono, monospace); font-weight:700; margin-right:0.45rem;">#${paperSerial}</span>${activePaper.title}`;
           titleMain.title = `[#${paperSerial}] ${activePaper.title} - Click to open manuscript in new tab`;
         }
-        document.title = `[#${paperSerial}] ${activePaper.title} | LitNexis`;
+        document.title = `[#${paperSerial}] ${activePaper.title} | LitSphere`;
 
         const detailedInput = document.getElementById('detailed-summary-input');
         if (detailedInput) detailedInput.value = activePaper.intuition;
@@ -1260,7 +1361,7 @@
     const mainBody = document.getElementById('review-main-body');
 
     // Restore saved split position or default to 42%
-    const savedSplit = localStorage.getItem('litnexis_review_split');
+    const savedSplit = localStorage.getItem('litsphere_review_split');
     const splitPct = savedSplit ? Math.max(18, Math.min(80, parseFloat(savedSplit))) : 42;
     applySplit(splitPct);
 
@@ -1292,7 +1393,7 @@
       const offsetX = clientX - mainRect.left;
       const pct = (offsetX / mainRect.width) * 100;
       applySplit(pct);
-      localStorage.setItem('litnexis_review_split', Math.max(18, Math.min(80, pct)).toFixed(2));
+      localStorage.setItem('litsphere_review_split', Math.max(18, Math.min(80, pct)).toFixed(2));
     }
 
     function endDrag() {
@@ -1464,7 +1565,7 @@
     formData.append('pdf', file);
 
     try {
-      const token = localStorage.getItem('litnexis_auth_token') || localStorage.getItem('token') || localStorage.getItem('jwt');
+      const token = localStorage.getItem('litsphere_auth_token') || localStorage.getItem('token') || localStorage.getItem('jwt');
       const res = await fetch(`/api/papers/${activePaper.id}/pdf`, {
         method: 'POST',
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
@@ -1485,7 +1586,7 @@
      12. UTILITIES
   ──────────────────────────────────────────────────────────────── */
   function getAuthHeaders() {
-    const token = localStorage.getItem('litnexis_auth_token') || localStorage.getItem('token') || localStorage.getItem('jwt');
+    const token = localStorage.getItem('litsphere_auth_token') || localStorage.getItem('token') || localStorage.getItem('jwt');
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
     return headers;

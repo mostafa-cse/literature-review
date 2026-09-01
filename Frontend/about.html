@@ -3,27 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="LitNexis Architecture & Feature Specification — Comprehensive walkthrough of systematic literature review tools, taxonomy hierarchies, dynamic extraction matrices, PRISMA 2020 workflows, and LaTeX synthesis.">
-  <title>About LitNexis | Architecture & Systematic Review Features</title>
+  <meta name="description" content="LitSphere Architecture &amp; Feature Specification — Comprehensive walkthrough of systematic literature review tools, taxonomy hierarchies, dynamic extraction matrices, PRISMA 2020 workflows, and LaTeX synthesis.">
+  <title>About LitSphere | Architecture &amp; Systematic Review Features</title>
 
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20'/%3E%3Cpath d='M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'/%3E%3C/svg%3E">
   
-  <!-- Unified Professional Typography: Inter, Outfit & JetBrains Mono -->
+  <!-- Unified Academic Typography: Inter, Outfit, JetBrains Mono, Cinzel & Playfair Display -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+  <!-- Core Modular Stylesheets -->
+  <link rel="stylesheet" href="/css/navbar.css">
+  <link rel="stylesheet" href="/css/footer.css">
 
   <!-- KaTeX for live mathematical notation and Big-O complexity rendering -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
   <script>
     (function() {
-      const savedTheme = localStorage.getItem('litnexis_theme') || 
+      const savedTheme = localStorage.getItem('litsphere_theme') || 
                          localStorage.getItem('lr_platform_theme') || 
                          localStorage.getItem('fs_theme') || 
                          (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
       document.documentElement.setAttribute('data-theme', savedTheme);
-      localStorage.setItem('litnexis_theme', savedTheme);
+      localStorage.setItem('litsphere_theme', savedTheme);
     })();
   </script>
 
@@ -101,371 +105,6 @@
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
       overflow-x: hidden;
-    }
-
-    /* Classical Academic Navigation Bar */
-    /* =========================================================
-       Choice 2: Oxford / Overleaf Prestige Academic Header
-       ========================================================= */
-    header.site-header {
-      position: sticky;
-      top: 0;
-      z-index: 1000;
-      width: 100%;
-      background: rgba(8, 13, 24, 0.95);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-bottom: 1.5px solid rgba(212, 175, 55, 0.35);
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), inset 0 -1px 0 rgba(212, 175, 55, 0.15);
-      transition: all 0.25s ease;
-    }
-    [data-theme="light"] header.site-header {
-      background: rgba(252, 250, 246, 0.96);
-      border-bottom: 1.5px solid rgba(180, 83, 9, 0.28);
-      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.05), inset 0 -1px 0 rgba(180, 83, 9, 0.12);
-    }
-    .nav-container {
-      max-width: 1440px;
-      margin: 0 auto;
-      padding: 0.75rem 2rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 1.5rem;
-    }
-
-    /* Left Brand Group */
-    .brand-group {
-      display: flex;
-      align-items: center;
-      gap: 0.85rem;
-      text-decoration: none;
-      color: inherit;
-    }
-    .brand-logo-crest {
-      width: 38px;
-      height: 38px;
-      border-radius: 8px;
-      background: linear-gradient(145deg, #182238, #0a0f1d);
-      border: 1.5px solid #d4af37;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #e5c07b;
-      font-weight: 800;
-      font-family: 'Outfit', 'Inter', sans-serif;
-      font-size: 1.05rem;
-      letter-spacing: 0.02em;
-      box-shadow: 0 2px 10px rgba(212, 175, 55, 0.25);
-      transition: all 0.25s ease;
-    }
-    [data-theme="light"] .brand-logo-crest {
-      background: linear-gradient(145deg, #fbf7ee, #eee5d3);
-      border: 1.5px solid #b45309;
-      color: #92400e;
-      box-shadow: 0 2px 8px rgba(180, 83, 9, 0.15);
-    }
-    .brand-title-wrap {
-      display: flex;
-      flex-direction: column;
-    }
-    .brand-name {
-      font-size: 1.25rem;
-      font-weight: 800;
-      font-family: 'Outfit', 'Inter', sans-serif;
-      letter-spacing: -0.02em;
-      color: var(--text-primary);
-      line-height: 1.15;
-    }
-    .brand-subtitle {
-      font-size: 0.72rem;
-      font-family: 'JetBrains Mono', monospace;
-      color: #e5c07b;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-    [data-theme="light"] .brand-subtitle {
-      color: #92400e;
-    }
-
-    /* Right Navigation Items */
-    .nav-actions {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-    .nav-link-academic {
-      color: var(--text-secondary);
-      text-decoration: none;
-      font-size: 0.92rem;
-      font-weight: 600;
-      height: 38px;
-      padding: 0 0.95rem;
-      border-radius: 8px;
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.45rem;
-      background: transparent;
-      border: 1.5px solid transparent;
-      position: relative;
-      box-sizing: border-box;
-    }
-    [data-theme="light"] .nav-link-academic {
-      background: transparent;
-      border: 1.5px solid transparent;
-      color: var(--text-secondary);
-    }
-    .nav-link-academic:hover:not(.active) {
-      color: #ffffff;
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.18);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-      transform: translateY(-1px);
-    }
-    [data-theme="light"] .nav-link-academic:hover:not(.active) {
-      color: #1c1917;
-      background: rgba(0, 0, 0, 0.06);
-      border-color: rgba(0, 0, 0, 0.12);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    }
-    .nav-link-academic.active {
-      color: #e5c07b;
-      background: rgba(212, 175, 55, 0.14);
-      border: 1.5px solid #d4af37;
-      box-shadow: 0 0 16px rgba(212, 175, 55, 0.25), inset 0 0 8px rgba(212, 175, 55, 0.08);
-      font-weight: 700;
-    }
-    .nav-link-academic.active:hover {
-      background: rgba(212, 175, 55, 0.2);
-      border-color: #e5c07b;
-      box-shadow: 0 0 20px rgba(212, 175, 55, 0.35);
-      transform: translateY(-1px);
-    }
-    [data-theme="light"] .nav-link-academic.active {
-      color: #92400e;
-      background: rgba(180, 83, 9, 0.1);
-      border: 1.5px solid #b45309;
-      box-shadow: 0 0 12px rgba(180, 83, 9, 0.18);
-    }
-    .nav-link-academic.active::after {
-      content: '';
-      position: absolute;
-      bottom: -7px;
-      left: 18%;
-      right: 18%;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, #d4af37 50%, transparent);
-      border-radius: 2px;
-    }
-    [data-theme="light"] .nav-link-academic.active::after {
-      background: linear-gradient(90deg, transparent, #b45309 50%, transparent);
-    }
-
-    /* Academic Theme Toggle */
-    .theme-toggle-academic {
-      background: transparent;
-      border: 1.5px solid transparent;
-      color: var(--text-primary);
-      width: 38px;
-      height: 38px;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      font-size: 1.05rem;
-      transition: all 0.2s ease;
-      box-sizing: border-box;
-    }
-    [data-theme="light"] .theme-toggle-academic {
-      background: transparent;
-      border: 1.5px solid transparent;
-    }
-    .theme-toggle-academic:hover {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.18);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-      transform: translateY(-1px);
-    }
-    [data-theme="light"] .theme-toggle-academic:hover {
-      background: rgba(0, 0, 0, 0.06);
-      border-color: rgba(0, 0, 0, 0.12);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    }
-
-    /* Account / Username Academic Dropdown */
-    .account-dropdown-wrapper { position: relative; }
-    .account-academic-btn {
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.45rem;
-      height: 38px;
-      background: transparent;
-      border: 1.5px solid transparent;
-      color: #d4af37;
-      padding: 0 0.95rem;
-      border-radius: 8px;
-      font-size: 0.92rem;
-      font-weight: 700;
-      font-family: 'Inter', sans-serif;
-      transition: all 0.2s ease;
-      outline: none;
-      box-sizing: border-box;
-    }
-    [data-theme="light"] .account-academic-btn {
-      background: transparent;
-      border: 1.5px solid transparent;
-      color: #92400e;
-    }
-    .account-academic-btn:hover, .account-academic-btn.open {
-      background: rgba(212, 175, 55, 0.14);
-      border-color: rgba(212, 175, 55, 0.4);
-      box-shadow: 0 4px 14px rgba(212, 175, 55, 0.2);
-      transform: translateY(-1px);
-    }
-    .account-dropdown-menu {
-      position: absolute;
-      top: calc(100% + 8px);
-      right: 0;
-      width: 250px;
-      background: var(--bg-surface);
-      border: 1.5px solid rgba(212, 175, 55, 0.35);
-      border-radius: 10px;
-      padding: 0.75rem;
-      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(212, 175, 55, 0.15);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      display: none;
-      flex-direction: column;
-      gap: 0.35rem;
-      z-index: 1000;
-      animation: academicDropdownFade 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-    [data-theme="light"] .account-dropdown-menu {
-      background: #ffffff;
-      border-color: rgba(180, 83, 9, 0.3);
-      box-shadow: 0 14px 35px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(180, 83, 9, 0.1);
-    }
-    .account-dropdown-menu.show { display: flex; }
-    @keyframes academicDropdownFade {
-      from { opacity: 0; transform: translateY(-6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .dropdown-user-header {
-      padding: 0.55rem 0.65rem 0.75rem;
-      border-bottom: 1px solid var(--border-base);
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-    .dropdown-user-name {
-      font-weight: 700;
-      color: var(--text-primary);
-      font-size: 0.95rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .dropdown-user-email {
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      font-family: 'JetBrains Mono', monospace;
-    }
-    .dropdown-item {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-      padding: 0.55rem 0.75rem;
-      border-radius: 10px;
-      font-size: 0.88rem;
-      font-weight: 500;
-      color: var(--text-primary);
-      text-decoration: none;
-      transition: all 0.15s ease;
-      cursor: pointer;
-      background: transparent;
-      border: none;
-      width: 100%;
-      text-align: left;
-    }
-    .dropdown-item:hover {
-      background: var(--bg-surface-raised);
-      color: var(--accent-gold);
-    }
-    .dropdown-item.danger {
-      color: var(--accent-rose);
-      border-top: 1px solid var(--border-base);
-      margin-top: 0.25rem;
-      padding-top: 0.65rem;
-    }
-    .dropdown-item.danger:hover {
-      background: rgba(244, 63, 94, 0.12);
-      color: #fb7185;
-    }
-    @keyframes dropdownFadeIn {
-      from { opacity: 0; transform: translateY(-6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .dropdown-user-header {
-      padding: 0.55rem 0.65rem 0.75rem;
-      border-bottom: 1px solid var(--border-base);
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-    .dropdown-user-name {
-      font-weight: 700;
-      color: var(--text-primary);
-      font-size: 0.95rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .dropdown-user-email {
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      font-family: 'JetBrains Mono', monospace;
-    }
-    .dropdown-item {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-      padding: 0.55rem 0.75rem;
-      border-radius: 6px;
-      font-size: 0.88rem;
-      font-weight: 500;
-      color: var(--text-primary);
-      text-decoration: none;
-      transition: all 0.15s ease;
-      cursor: pointer;
-      background: transparent;
-      border: none;
-      width: 100%;
-      text-align: left;
-    }
-    .dropdown-item:hover {
-      background: var(--bg-surface-raised);
-      color: var(--accent-gold);
-    }
-    .dropdown-item.danger {
-      color: var(--accent-rose);
-      border-top: 1px solid var(--border-base);
-      margin-top: 0.25rem;
-      padding-top: 0.65rem;
-    }
-    .dropdown-item.danger:hover {
-      background: rgba(244, 63, 94, 0.12);
-      color: #fb7185;
     }
 
     /* Container */
@@ -930,134 +569,12 @@
     .role-editor { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); border: 1px solid var(--accent-emerald); }
     .role-reviewer { background: rgba(129, 140, 248, 0.15); color: var(--accent-indigo); border: 1px solid var(--accent-indigo); }
 
-    /* Enhanced Multi-Column Footer */
-    footer {
-      border-top: 1.5px solid var(--border-gold);
-      background: var(--bg-surface);
-      padding: 4.5rem 2rem 2.5rem;
-      margin-top: 5rem;
-      position: relative;
-    }
-    .footer-top-grid {
-      max-width: 1380px;
-      margin: 0 auto 3.75rem;
-      display: grid;
-      grid-template-columns: 1.6fr 1fr 1fr 1fr 1fr;
-      gap: 2.75rem;
-      text-align: left;
-    }
-    @media (max-width: 1024px) { .footer-top-grid { grid-template-columns: 1fr 1fr; } }
-    @media (max-width: 640px) { .footer-top-grid { grid-template-columns: 1fr; } }
-    .footer-brand-col { display: flex; flex-direction: column; gap: 1.1rem; }
-    .footer-brand-header { display: flex; align-items: center; gap: 0.75rem; }
-    .footer-brand-desc { font-size: 0.94rem; color: var(--text-secondary); line-height: 1.65; max-width: 350px; }
-    .footer-status-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.55rem;
-      font-size: 0.84rem;
-      font-family: 'JetBrains Mono', monospace;
-      padding: 0.38rem 0.85rem;
-      border-radius: 9999px;
-      background: rgba(16, 185, 129, 0.12);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      color: var(--accent-emerald);
-      width: fit-content;
-    }
-    .footer-status-dot {
-      width: 7px; height: 7px; border-radius: 50%; background: var(--accent-emerald); box-shadow: 0 0 8px var(--accent-emerald);
-    }
-    .footer-col-title {
-      font-size: 0.9rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-primary); margin-bottom: 1.2rem;
-    }
-    .footer-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; padding: 0; margin: 0; }
-    .footer-list li a {
-      font-size: 0.95rem; color: var(--text-secondary); text-decoration: none; display: inline-block; transition: transform 0.2s, color 0.2s;
-    }
-    .footer-list li a:hover { color: var(--accent-gold); transform: translateX(4px); }
-    .footer-bottom-bar {
-      max-width: 1380px; margin: 0 auto; padding-top: 2.25rem; border-top: 1px solid var(--border-base); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.25rem; font-size: 0.92rem;
-    }
-    .footer-copyright {
-      color: var(--text-tertiary);
-    }
-    .footer-badge-group {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.85rem;
-    }
   </style>
 </head>
 <body>
 
-  <!-- Choice 2: Oxford / Overleaf Prestige Academic Header -->
-  <header class="site-header">
-    <div class="nav-container">
-      <!-- Left: Logo Crest + Name -->
-      <a href="/" class="brand-group">
-        <div class="brand-logo-crest">LN</div>
-        <div class="brand-title-wrap">
-          <span class="brand-name">LitNexis</span>
-          <span class="brand-subtitle">Academic Intelligence</span>
-        </div>
-      </a>
-
-      <!-- Right: Guest Group (when not logged in) -->
-      <div id="nav-guest-group" class="nav-actions" style="display: flex; align-items: center; gap: 0.6rem;">
-        <a href="/" class="nav-link-academic">Home</a>
-        <a href="/about" class="nav-link-academic active">About</a>
-        <button class="theme-toggle-academic theme-toggle-pill" id="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
-          <span id="theme-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></span>
-        </button>
-        <a href="/login?redirect=/about" class="nav-link-academic">Sign In</a>
-        <a href="/register?redirect=/about" class="nav-link-academic" style="background: linear-gradient(135deg, #d97706, #b45309); color: #ffffff; border: 1px solid #f59e0b; font-weight: 700; box-shadow: 0 2px 10px rgba(217,119,6,0.35);">Create Account</a>
-      </div>
-
-      <!-- Right: Authenticated Group (when logged in) -->
-      <div id="nav-auth-group" class="nav-actions" style="display: none; align-items: center; gap: 0.75rem;">
-        <a href="/" class="nav-link-academic" id="nav-link-home">Home</a>
-        <a href="/about" class="nav-link-academic active" id="nav-link-about">About</a>
-        <a href="/dashboard" class="nav-link-academic" id="nav-link-dashboard">Dashboard</a>
-        <a href="/admin" id="nav-admin-link" class="nav-link-academic" style="display: none; color: var(--accent-rose);">Admin</a>
-
-        <button class="theme-toggle-academic theme-toggle-pill" id="theme-toggle-auth" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
-          <span class="theme-icon-indicator"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></span>
-        </button>
-
-        <!-- Account / Username Academic Dropdown -->
-        <div class="account-dropdown-wrapper" id="account-dropdown-wrap">
-          <button type="button" class="account-academic-btn" id="account-dropdown-toggle" onclick="toggleAccountDropdown(event)" aria-haspopup="true" aria-expanded="false" title="Account Menu">
-            <span id="nav-user-name">Username</span>
-            <span style="font-size: 0.72rem; margin-left: 0.2rem; opacity: 0.7;">▼</span>
-          </button>
-
-          <div class="account-dropdown-menu" id="account-dropdown-menu">
-            <div class="dropdown-user-header">
-              <div class="dropdown-user-name">
-                <span id="dropdown-user-name-txt">Researcher</span>
-                <span id="nav-user-role-badge" class="role-badge-pill role-user" style="font-size: 0.72rem; font-family: 'JetBrains Mono', monospace; font-weight: 700; padding: 0.12rem 0.45rem; border-radius: 4px; background: rgba(212,175,55,0.15); color: var(--accent-gold); border: 1px solid rgba(212,175,55,0.3);">USER</span>
-              </div>
-              <div class="dropdown-user-email" id="dropdown-user-email-txt">researcher@litnexis.ac</div>
-            </div>
-
-            <a href="/profile" class="dropdown-item">
-              <span>Profile & Settings</span>
-            </a>
-
-            <a href="/admin" class="dropdown-item" id="dropdown-admin-link" style="display: none; color: var(--accent-rose);">
-              <span>Admin Console</span>
-            </a>
-
-            <button type="button" class="dropdown-item danger" onclick="handleAboutLogout()">
-              <span>Sign Out</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </header>
+  <!-- Choice 2: Oxford / Overleaf Prestige Academic Header (Auto-rendered by /js/core/navbar.js) -->
+  <header class="site-header" id="site-header"></header>
 
   <!-- Page Content Container -->
   <main class="page-container">
@@ -1067,7 +584,7 @@
       <div class="classical-eyebrow">Comprehensive Architectural Specification</div>
       <h1 class="about-hero-title">Engineering the Next Generation of Systematic Literature Reviews</h1>
       <p class="about-hero-lead">
-        An exhaustive, feature-by-feature architectural breakdown of LitNexis — built for Master & PhD thesis researchers, PRISMA 2020 systematic surveys, and multi-dimensional academic benchmarking.
+        An exhaustive, feature-by-feature architectural breakdown of LitSphere — built for Master & PhD thesis researchers, PRISMA 2020 systematic surveys, and multi-dimensional academic benchmarking.
       </p>
 
       <!-- Quick Jump Index -->
@@ -1091,7 +608,7 @@
         <div class="feature-numeral">SECTION I</div>
         <h2 class="feature-heading">Hierarchical Taxonomy & Dynamic Cluster Matrix</h2>
         <p class="feature-desc">
-          Conventional survey workflows collapse under flat spreadsheets when cataloging hundreds of papers across multifaceted domains. LitNexis introduces a recursive <strong>Hierarchical Taxonomy Engine</strong> that clusters research paradigms into structured semantic trees.
+          Conventional survey workflows collapse under flat spreadsheets when cataloging hundreds of papers across multifaceted domains. LitSphere introduces a recursive <strong>Hierarchical Taxonomy Engine</strong> that clusters research paradigms into structured semantic trees.
         </p>
         <ul class="feature-bullet-list">
           <li class="feature-bullet-item">
@@ -1222,7 +739,7 @@
         <div class="feature-numeral">SECTION III</div>
         <h2 class="feature-heading">Split-Screen PDF Reader & Verifiable Grounding</h2>
         <p class="feature-desc">
-          Eliminate hallucinations and unsubstantiated claims. LitNexis integrates a high-performance in-browser PDF reader that connects matrix entries directly to exact highlighted page coordinates and source quotations.
+          Eliminate hallucinations and unsubstantiated claims. LitSphere integrates a high-performance in-browser PDF reader that connects matrix entries directly to exact highlighted page coordinates and source quotations.
         </p>
         <ul class="feature-bullet-list">
           <li class="feature-bullet-item">
@@ -1273,7 +790,7 @@
         <div class="feature-numeral">SECTION IV</div>
         <h2 class="feature-heading">PRISMA 2020 Protocol & Blind Dual-Review Consensus</h2>
         <p class="feature-desc">
-          Systematic Literature Reviews (SLRs) require rigorous compliance with the international <strong>PRISMA 2020</strong> methodology. LitNexis automates multi-stage screening, inclusion/exclusion criteria logging, and inter-rater reliability calculations.
+          Systematic Literature Reviews (SLRs) require rigorous compliance with the international <strong>PRISMA 2020</strong> methodology. LitSphere automates multi-stage screening, inclusion/exclusion criteria logging, and inter-rater reliability calculations.
         </p>
         <ul class="feature-bullet-list">
           <li class="feature-bullet-item">
@@ -1337,7 +854,7 @@
         <div class="feature-numeral">SECTION V</div>
         <h2 class="feature-heading">Automated Camera-Ready LaTeX & BibTeX Synthesis</h2>
         <p class="feature-desc">
-          Stop manually retyping comparison tables into LaTeX tabular syntax. LitNexis automatically exports matrix comparisons into clean, compilable, publication-ready LaTeX tables for IEEE, ACM, Springer, and Elsevier journal submissions.
+          Stop manually retyping comparison tables into LaTeX tabular syntax. LitSphere automatically exports matrix comparisons into clean, compilable, publication-ready LaTeX tables for IEEE, ACM, Springer, and Elsevier journal submissions.
         </p>
         <ul class="feature-bullet-list">
           <li class="feature-bullet-item">
@@ -1423,7 +940,7 @@ Linear Trans. \cite{katharopoulos2020} & $\mathcal{O}(N)$ & Linear & $\times$ \\
                 <div class="collab-avatar" style="background: linear-gradient(135deg, #d97706, #b45309);">M</div>
                 <div>
                   <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-primary);">Mostafa Kamal</div>
-                  <div style="font-size: 0.76rem; color: var(--text-tertiary);">mostafa@litnexis.ac</div>
+                  <div style="font-size: 0.76rem; color: var(--text-tertiary);">mostafa@litsphere.ac</div>
                 </div>
               </div>
               <span class="role-badge-pill role-owner">OWNER</span>
@@ -1433,7 +950,7 @@ Linear Trans. \cite{katharopoulos2020} & $\mathcal{O}(N)$ & Linear & $\times$ \\
                 <div class="collab-avatar" style="background: linear-gradient(135deg, #10b981, #059669);">C</div>
                 <div>
                   <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-primary);">Co-Author (Editor)</div>
-                  <div style="font-size: 0.76rem; color: var(--text-tertiary);">coauthor@litnexis.ac</div>
+                  <div style="font-size: 0.76rem; color: var(--text-tertiary);">coauthor@litsphere.ac</div>
                 </div>
               </div>
               <span class="role-badge-pill role-editor">EDITOR</span>
@@ -1443,7 +960,7 @@ Linear Trans. \cite{katharopoulos2020} & $\mathcal{O}(N)$ & Linear & $\times$ \\
                 <div class="collab-avatar" style="background: linear-gradient(135deg, #6366f1, #4f46e5);">A</div>
                 <div>
                   <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-primary);">Academic Advisor</div>
-                  <div style="font-size: 0.76rem; color: var(--text-tertiary);">advisor@litnexis.ac</div>
+                  <div style="font-size: 0.76rem; color: var(--text-tertiary);">advisor@litsphere.ac</div>
                 </div>
               </div>
               <span class="role-badge-pill role-reviewer">REVIEWER</span>
@@ -1540,89 +1057,15 @@ Linear Trans. \cite{katharopoulos2020} & $\mathcal{O}(N)$ & Linear & $\times$ \\
 
   </main>
 
-  <!-- Commercial Enterprise & Academic Platform Footer -->
-  <footer>
-    <div class="footer-top-grid">
-      <div class="footer-brand-col">
-        <div class="footer-brand-header">
-          <div class="brand-logo-icon">LN</div>
-          <div class="brand-text-col">
-            <span class="brand-name">LitNexis Inc.</span>
-            <span class="brand-tagline">Enterprise & Academic Research Intelligence</span>
-          </div>
-        </div>
-        <p class="footer-brand-desc">
-          The next-generation literature intelligence and systematic synthesis platform for universities, biomedical institutes, and enterprise R&D laboratories. Accelerating scientific discovery with split-screen citation grounding, high-density matrix benchmarking, and camera-ready LaTeX synthesis.
-        </p>
-        <div class="footer-status-pill">
-          <span class="footer-status-dot"></span>
-          <span>Enterprise Cloud & Local-First WAL Engine • Active</span>
-        </div>
-      </div>
-
-      <div>
-        <h4 class="footer-col-title">Solutions & Products</h4>
-        <ul class="footer-list">
-          <li><a href="/dashboard">Systematic Survey Engine</a></li>
-          <li><a href="/workspace">Smart PDF Ingestion & DOI</a></li>
-          <li><a href="/workspace">Split-Screen Citation Grounding</a></li>
-          <li><a href="/workspace">KaTeX Math Formula Matrix</a></li>
-          <li><a href="/workspace">Multi-Level XLSX & LaTeX Export</a></li>
-          <li><a href="/dashboard">PRISMA 2020 Review Screening</a></li>
-        </ul>
-      </div>
-
-      <div>
-        <h4 class="footer-col-title">Industries & Use Cases</h4>
-        <ul class="footer-list">
-          <li><a href="/workspace">University Faculty & Thesis Labs</a></li>
-          <li><a href="/workspace">Biomedical & Clinical Systematic Reviews</a></li>
-          <li><a href="/workspace">Computer Science & AI Benchmarking</a></li>
-          <li><a href="/workspace">Pharmaceutical & Prior Art R&D</a></li>
-          <li><a href="/workspace">Metaheuristic & Swarm Optimizers</a></li>
-          <li><a href="/workspace">Multi-Stage Hybrid Ensembles</a></li>
-        </ul>
-      </div>
-
-      <div>
-        <h4 class="footer-col-title">Enterprise & Security</h4>
-        <ul class="footer-list">
-          <li><a href="/about">System Architecture & Specs</a></li>
-          <li><a href="/admin">Role-Based Access Control (RBAC)</a></li>
-          <li><a href="/admin" style="color: var(--accent-rose); font-weight: 600;">Enterprise Admin Center</a></li>
-          <li><a href="/profile">Security & 2FA Configuration</a></li>
-          <li><a href="/api/stats" target="_blank">Live REST API Diagnostics</a></li>
-        </ul>
-      </div>
-
-      <div>
-        <h4 class="footer-col-title">Platform Access</h4>
-        <ul class="footer-list">
-          <li><a href="/">Home Landing Portal</a></li>
-          <li><a href="/dashboard" style="color: var(--accent-primary); font-weight: 600;">Research Dashboard</a></li>
-          <li><a href="/profile" style="color: var(--accent-gold); font-weight: 600;">Account & Quota Settings</a></li>
-          <li><a href="javascript:void(0)" onclick="typeof toggleTheme === 'function' ? toggleTheme() : document.getElementById('theme-toggle')?.click()">Switch Color Theme</a></li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- Bottom Sub-Footer Bar -->
-    <div class="footer-bottom-bar">
-      <div class="footer-copyright">
-        © 2026 <strong>LitNexis Technologies Inc.</strong> All rights reserved. Precision Literature Benchmarking &amp; Research Matrix Systems.
-      </div>
-      <div class="footer-badge-group">
-        <span style="font-size: 0.85rem; color: var(--text-tertiary); font-family: 'JetBrains Mono', monospace; font-weight: 500;">developed by Mostafa Kamal @ Cyber Security Lab, JUST</span>
-      </div>
-    </div>
-  </footer>
+  <!-- Commercial Enterprise & Academic Platform Footer (Auto-rendered by /js/core/footer.js) -->
+  <footer id="site-footer"></footer>
 
   <script>
     // Universal Theme Management
     function applyTheme(theme) {
       const targetTheme = theme === 'light' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', targetTheme);
-      localStorage.setItem('litnexis_theme', targetTheme);
+      localStorage.setItem('litsphere_theme', targetTheme);
       localStorage.setItem('lr_platform_theme', targetTheme);
       localStorage.setItem('fs_theme', targetTheme);
 
@@ -1651,14 +1094,14 @@ Linear Trans. \cite{katharopoulos2020} & $\mathcal{O}(N)$ & Linear & $\times$ \\
 
     // Sync across browser tabs
     window.addEventListener('storage', (e) => {
-      if (e.key === 'litnexis_theme' || e.key === 'lr_platform_theme' || e.key === 'fs_theme') {
+      if (e.key === 'litsphere_theme' || e.key === 'lr_platform_theme' || e.key === 'fs_theme') {
         if (e.newValue) applyTheme(e.newValue);
       }
     });
 
     // Initialize theme state & active link on DOM load
     document.addEventListener('DOMContentLoaded', () => {
-      const saved = localStorage.getItem('litnexis_theme') || document.documentElement.getAttribute('data-theme') || 'dark';
+      const saved = localStorage.getItem('litsphere_theme') || document.documentElement.getAttribute('data-theme') || 'dark';
       applyTheme(saved);
 
       // Auto highlight active nav link
@@ -1675,7 +1118,7 @@ Linear Trans. \cite{katharopoulos2020} & $\mathcal{O}(N)$ & Linear & $\times$ \\
 
     // Navigation Protected Access Handler
     function handleNavProtectedClick(targetPath) {
-      const token = localStorage.getItem('litnexis_auth_token');
+      const token = localStorage.getItem('litsphere_auth_token');
       if (!token) {
         window.location.href = '/login?redirect=' + encodeURIComponent(targetPath);
       } else {
@@ -1685,7 +1128,7 @@ Linear Trans. \cite{katharopoulos2020} & $\mathcal{O}(N)$ & Linear & $\times$ \\
 
     // Check Current Auth Session
     async function checkCurrentSession() {
-      const token = localStorage.getItem('litnexis_auth_token');
+      const token = localStorage.getItem('litsphere_auth_token');
       const guestGroup = document.getElementById('nav-guest-group');
       const authGroup = document.getElementById('nav-auth-group');
       const userNameEl = document.getElementById('nav-user-name');
@@ -1717,7 +1160,7 @@ Linear Trans. \cite{katharopoulos2020} & $\mathcal{O}(N)$ & Linear & $\times$ \\
             adminLink.style.display = 'inline-flex';
           }
         } else {
-          localStorage.removeItem('litnexis_auth_token');
+          localStorage.removeItem('litsphere_auth_token');
           if (guestGroup) guestGroup.style.display = 'flex';
           if (authGroup) authGroup.style.display = 'none';
         }
@@ -1753,8 +1196,8 @@ Linear Trans. \cite{katharopoulos2020} & $\mathcal{O}(N)$ & Linear & $\times$ \\
     });
 
     function handleAboutLogout() {
-      localStorage.removeItem('litnexis_auth_token');
-      localStorage.removeItem('litnexis_user');
+      localStorage.removeItem('litsphere_auth_token');
+      localStorage.removeItem('litsphere_user');
       window.location.reload();
     }
 
@@ -1811,5 +1254,9 @@ Linear Trans. \cite{katharopoulos2020} & $\mathcal{O}(N)$ & Linear & $\times$ \\
       }
     });
   </script>
+
+  <!-- Modular Core Scripts -->
+  <script src="/js/core/navbar.js"></script>
+  <script src="/js/core/footer.js"></script>
 </body>
 </html>

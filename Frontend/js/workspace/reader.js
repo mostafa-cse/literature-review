@@ -1,5 +1,5 @@
 /**
- * LITNEXIS SPLIT-SCREEN WORKSPACE & PAPER REVIEW ENGINE (Phase 5)
+ * LITSPHERE SPLIT-SCREEN WORKSPACE & PAPER REVIEW ENGINE (Phase 5)
  * =======================================================================
  * Features:
  * 1. Interactive Drag Resizer (< > handle) with percentage recalculation.
@@ -719,7 +719,7 @@
     const mainBody = document.getElementById('reader-main-body');
 
     // Restore saved split position or default to 42%
-    const savedSplit = localStorage.getItem('litnexis_review_split');
+    const savedSplit = localStorage.getItem('litsphere_review_split');
     const splitPct = savedSplit ? Math.max(20, Math.min(75, parseFloat(savedSplit))) : 42;
     document.documentElement.style.setProperty('--split-left-width', `${splitPct}%`);
     if (leftPane) leftPane.style.flex = `0 0 ${splitPct}%`;
@@ -748,7 +748,7 @@
         document.documentElement.style.setProperty('--split-left-width', `${pct}%`);
         leftPane.style.flex = `0 0 ${pct}%`;
         if (headerLeft) headerLeft.style.flex = `0 0 ${pct}%`;
-        localStorage.setItem('litnexis_review_split', pct.toFixed(2));
+        localStorage.setItem('litsphere_review_split', pct.toFixed(2));
       };
 
       const onMouseUp = () => {

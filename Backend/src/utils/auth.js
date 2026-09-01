@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const { getDb } = require('../db');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'litnexis_super_secure_academic_research_secret_key_2026';
+const JWT_SECRET = process.env.JWT_SECRET || 'litsphere_super_secure_academic_research_secret_key_2026';
 
 function generateToken(user) {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
@@ -173,7 +173,7 @@ function checkMaintenanceMode(req, res, next) {
       }
 
       const msgSetting = db.prepare("SELECT value FROM system_settings WHERE key = 'maintenance_message'").get();
-      const message = (msgSetting && msgSetting.value) || 'LitNexis is undergoing scheduled maintenance.';
+      const message = (msgSetting && msgSetting.value) || 'LitSphere is undergoing scheduled maintenance.';
       return res.status(503).json({
         error: 'System Under Maintenance',
         message: message,
@@ -190,7 +190,7 @@ function logAuditEvent(req, action, details = '', status = 'SUCCESS', userId = n
   try {
     const db = getDb();
     const uId = userId || (req && req.user ? req.user.id : null);
-    const uEmail = userEmail || (req && req.user ? req.user.email : 'system@litnexis.local');
+    const uEmail = userEmail || (req && req.user ? req.user.email : 'system@litsphere.local');
     const ip = req ? (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1') : '127.0.0.1';
 
     db.prepare(`

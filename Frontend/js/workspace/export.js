@@ -1,20 +1,76 @@
 /**
- * LITNEXIS MATRIX EXPORT ENGINE
- * Multi-level Excel (.xlsx), CSV, JSON, Camera-Ready LaTeX (.tex), and BibTeX (.bib) downloads.
+ * LITSPHERE MATRIX EXPORT ENGINE
+ * Multi-level Excel (.xlsx), CSV, and Camera-Ready LaTeX (.tex) downloads.
+ * Supports dynamic column search, empty table detection, and multi-cluster filtering.
  */
+
+let exportColumnsStore = [];
+let exportSelectedSet = new Set();
 
 window.updateExportColumnsList = async function(clusterId) {
   const checklist = document.getElementById('export-cols-checklist');
+  const countBadge = document.getElementById('export-selected-count-badge');
+  const submitBtn = document.getElementById('btn-submit-export');
+  const searchInput = document.getElementById('export-col-search');
   if (!checklist) return;
 
+  if (searchInput) searchInput.value = '';
+
+  // 1. Check if the project or cluster has papers (Empty Table Detection)
+  let papersInScope = 0;
+  if (Array.isArray(allPapers)) {
+    if (clusterId && clusterId !== 'all') {
+      papersInScope = allPapers.filter(p => String(p.cluster_id) === String(clusterId)).length;
+    } else {
+      papersInScope = allPapers.length;
+    }
+  }
+
+  // If table is completely empty:
+  if (papersInScope === 0) {
+    exportColumnsStore = [];
+    exportSelectedSet.clear();
+    checklist.innerHTML = `
+      <div style="grid-column: 1 / -1; padding: 2rem 1.5rem; text-align: center; background: rgba(244, 63, 94, 0.05); border: 1.5px dashed rgba(244, 63, 94, 0.3); border-radius: 8px; color: var(--text-secondary);">
+        <div style="color: var(--accent-rose); margin-bottom: 0.4rem; display: flex; justify-content: center;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <strong style="color: var(--accent-rose); font-size: 0.94rem; display: block; margin-bottom: 0.25rem;">Matrix Table Is Empty</strong>
+        <span style="font-size: 0.82rem; line-height: 1.5; display: block; max-width: 420px; margin: 0 auto;">
+          There are no research papers in this ${clusterId && clusterId !== 'all' ? 'selected cluster' : 'survey'}. You cannot export an empty matrix. Please add papers first.
+        </span>
+      </div>
+    `;
+    if (countBadge) countBadge.textContent = '0 Selected';
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.style.opacity = '0.5';
+      submitBtn.style.cursor = 'not-allowed';
+      submitBtn.title = 'Cannot export an empty survey matrix';
+    }
+    return;
+  }
+
+  // Enable download button when papers exist
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.style.opacity = '1';
+    submitBtn.style.cursor = 'pointer';
+    submitBtn.title = 'Download formatted export file';
+  }
+
+  // 2. Base Columns
   const baseCols = [
-    { id: 'year', label: 'Year' },
+    { id: 'year', label: 'Publish Year' },
     { id: 'title', label: 'Paper Title' },
-    { id: 'authors', label: 'Authors' },
     { id: 'cluster', label: 'Cluster Name' },
+    { id: 'pub', label: 'Publisher / Conf / Journal' },
+    { id: 'advantages', label: 'Advantages' },
+    { id: 'criticism', label: 'Criticism' },
+    { id: 'future_directions', label: 'Future Research Direction' },
+    { id: 'authors', label: 'Authors' },
     { id: 'domain', label: 'Domain' },
     { id: 'status', label: 'Reading Status' },
-    { id: 'pub', label: 'Pub / Conf' },
     { id: 'doi', label: 'DOI' },
     { id: 'pdf_url', label: 'PDF Link' }
   ];
@@ -48,16 +104,60 @@ window.updateExportColumnsList = async function(clusterId) {
     console.warn('Failed to load dynamic columns for export:', err);
   }
 
-  const allExportCols = [...baseCols, ...dynCols];
+  exportColumnsStore = [...baseCols, ...dynCols];
+  exportSelectedSet = new Set(exportColumnsStore.map(c => c.id));
 
-  checklist.innerHTML = allExportCols.map(c => `
-    <label class="col-checkbox-card checked" id="col-card-${c.id}">
-      <input type="checkbox" class="export-col-cb" value="${c.id}" checked onchange="updateExportColCardState(this)">
-      <span>${escapeHtml(c.label)}</span>
-    </label>
-  `).join('');
+  renderExportChecklist(exportColumnsStore);
+};
+
+function renderExportChecklist(colsToRender) {
+  const checklist = document.getElementById('export-cols-checklist');
+  if (!checklist) return;
+
+  if (colsToRender.length === 0) {
+    checklist.innerHTML = `
+      <div style="grid-column: 1 / -1; padding: 1.5rem; text-align: center; color: var(--text-tertiary); font-size: 0.85rem;">
+        No columns match your search term.
+      </div>
+    `;
+    return;
+  }
+
+  checklist.innerHTML = colsToRender.map(c => {
+    const isChecked = exportSelectedSet.has(c.id);
+    return `
+      <label class="col-checkbox-card ${isChecked ? 'checked' : ''}" id="col-card-${c.id}">
+        <input type="checkbox" class="export-col-cb" value="${c.id}" ${isChecked ? 'checked' : ''} onchange="handleExportColToggle(this, '${c.id}')">
+        <span>${escapeHtml(c.label)}</span>
+      </label>
+    `;
+  }).join('');
 
   updateExportSelectedCount();
+}
+
+window.handleExportColToggle = function(inputEl, colId) {
+  if (inputEl.checked) {
+    exportSelectedSet.add(colId);
+  } else {
+    exportSelectedSet.delete(colId);
+  }
+  const card = inputEl.closest('.col-checkbox-card');
+  if (card) {
+    if (inputEl.checked) card.classList.add('checked');
+    else card.classList.remove('checked');
+  }
+  updateExportSelectedCount();
+};
+
+window.filterExportColumns = function(query) {
+  const q = (query || '').trim().toLowerCase();
+  if (!q) {
+    renderExportChecklist(exportColumnsStore);
+    return;
+  }
+  const filtered = exportColumnsStore.filter(c => c.label.toLowerCase().includes(q));
+  renderExportChecklist(filtered);
 };
 
 window.openExportModal = async function() {
@@ -72,31 +172,22 @@ window.openExportModal = async function() {
         clusterSel.appendChild(opt);
       });
     }
-    clusterSel.value = currentClusterId || 'all';
+    clusterSel.value = (typeof currentClusterId !== 'undefined' && currentClusterId) ? currentClusterId : 'all';
 
     clusterSel.onchange = function() {
       window.updateExportColumnsList(this.value);
     };
   }
 
-  const initialCluster = clusterSel ? clusterSel.value : (currentClusterId || 'all');
+  const initialCluster = clusterSel ? clusterSel.value : ((typeof currentClusterId !== 'undefined' && currentClusterId) ? currentClusterId : 'all');
   await window.updateExportColumnsList(initialCluster);
 
   openModal('export-modal-overlay');
 };
 
-window.updateExportColCardState = function(inputEl) {
-  const card = inputEl.closest('.col-checkbox-card');
-  if (card) {
-    if (inputEl.checked) card.classList.add('checked');
-    else card.classList.remove('checked');
-  }
-  updateExportSelectedCount();
-};
-
 window.updateExportSelectedCount = function() {
   const countBadge = document.getElementById('export-selected-count-badge');
-  const checked = document.querySelectorAll('.export-col-cb:checked').length;
+  const checked = exportSelectedSet.size;
   if (countBadge) {
     countBadge.textContent = `${checked} Selected`;
   }
@@ -113,6 +204,11 @@ window.closeExportModal = function() {
 };
 
 window.toggleAllExportCols = function(check) {
+  if (check) {
+    exportColumnsStore.forEach(c => exportSelectedSet.add(c.id));
+  } else {
+    exportSelectedSet.clear();
+  }
   const checkboxes = document.querySelectorAll('.export-col-cb');
   checkboxes.forEach(cb => {
     cb.checked = check;
@@ -129,18 +225,25 @@ window.submitExport = function() {
   const clusterSel = document.getElementById('export-cluster-select');
   const formatSel = document.getElementById('export-format-select');
 
+  // Verify papers exist
+  if (!Array.isArray(allPapers) || allPapers.length === 0) {
+    showToast('Cannot export an empty survey matrix. Please add papers first.', 'warning');
+    return;
+  }
+
   const cluster_id = clusterSel ? clusterSel.value : 'all';
   const format = formatSel ? formatSel.value : 'xlsx';
 
-  const selectedCols = Array.from(document.querySelectorAll('.export-col-cb:checked')).map(cb => cb.value);
+  const selectedCols = Array.from(exportSelectedSet);
 
-  if (selectedCols.length === 0 && format !== 'bib') {
+  if (selectedCols.length === 0) {
     showToast('Please select at least one column to export', 'warning');
     return;
   }
 
   const colsParam = encodeURIComponent(selectedCols.join(','));
-  const url = `/api/export?project_id=${activeProjectId}&cluster_id=${cluster_id}&format=${format}&cols=${colsParam}`;
+  const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 1;
+  const url = `/api/export?project_id=${pid}&cluster_id=${cluster_id}&format=${format}&cols=${colsParam}`;
 
   // Trigger browser download via temporary anchor element
   const link = document.createElement('a');

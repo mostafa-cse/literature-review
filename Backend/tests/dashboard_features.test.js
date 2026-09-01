@@ -132,11 +132,26 @@ async function runDashboardTests() {
   assert(Array.isArray(templatesList), 'Templates returns array of pre-built domain taxonomies');
   assert(templatesList.length > 0, `Templates count: ${templatesList.length} templates available`);
 
-  // 4. Create New Survey Feature
-  console.log('\n--- 4. Create Survey Workflow & Validation ---');
-  // Validation: empty name rejected
-  const emptyCreate = await request('POST', '/api/projects', { name: '', description: 'Empty' }, ownerH);
-  assert(emptyCreate.status === 400, 'Rejects empty survey name with HTTP 400');
+  // 4. Create Survey Flow & Uniqueness Validation
+  console.log('\n--- 4. Create Survey Flow & Unique Title Constraints ---');
+
+  // Live Check Name Endpoint Test
+  const checkEmpty = await request('GET', '/api/projects/check-name?name=', null, ownerH);
+  assert(checkEmpty.body.available === false, 'Check-name returns available=false for empty title');
+
+  const checkShort = await request('GET', '/api/projects/check-name?name=ab', null, ownerH);
+  assert(checkShort.body.available === false, 'Check-name returns available=false for <3 chars title');
+
+  const checkAvail = await request('GET', '/api/projects/check-name?name=' + encodeURIComponent('Brand New Survey Title 2026'), null, ownerH);
+  assert(checkAvail.body.available === true, 'Check-name returns available=true for novel title');
+
+  // Attempt empty survey name
+  const emptyRes = await request('POST', '/api/projects', { name: '' }, ownerH);
+  assert(emptyRes.status === 400, 'Survey creation rejected when name is empty (HTTP 400)');
+
+  // Attempt short survey name (< 3 chars)
+  const shortRes = await request('POST', '/api/projects', { name: 'ab' }, ownerH);
+  assert(shortRes.status === 400, 'Survey creation rejected when name is under 3 chars (HTTP 400)');
 
   // Create valid survey
   const createRes = await request('POST', '/api/projects', {
@@ -145,6 +160,28 @@ async function runDashboardTests() {
   }, ownerH);
   assert(createRes.status === 201 && createRes.body.id, `Survey created successfully with ID: ${createRes.body.id}`);
   const surveyId = createRes.body.id;
+
+  // Live Check Name for existing survey (same owner)
+  const checkDup = await request('GET', '/api/projects/check-name?name=' + encodeURIComponent('Dashboard Deep Test Survey 2026'), null, ownerH);
+  assert(checkDup.body.available === false, 'Check-name detects duplicate title and returns available=false');
+
+  // Live Check Name with exclude_id (editing own title)
+  const checkSelf = await request('GET', `/api/projects/check-name?name=${encodeURIComponent('Dashboard Deep Test Survey 2026')}&exclude_id=${surveyId}`, null, ownerH);
+  assert(checkSelf.body.available === true, 'Check-name allows same title when exclude_id matches self');
+
+  // Attempt to create duplicate survey with identical name (same user)
+  const dupRes = await request('POST', '/api/projects', {
+    name: 'Dashboard Deep Test Survey 2026',
+    description: 'Duplicate attempt'
+  }, ownerH);
+  assert(dupRes.status === 409, 'Duplicate survey title creation strictly rejected (HTTP 409 Conflict)');
+
+  // Attempt case-insensitive duplicate survey
+  const dupCaseRes = await request('POST', '/api/projects', {
+    name: '  dashboard deep test survey 2026  ',
+    description: 'Case-insensitive duplicate attempt'
+  }, ownerH);
+  assert(dupCaseRes.status === 409, 'Case-insensitive duplicate survey title rejected (HTTP 409 Conflict)');
 
   // Add a cluster and paper so metrics are non-zero
   const clRes = await request('POST', '/api/clusters', {

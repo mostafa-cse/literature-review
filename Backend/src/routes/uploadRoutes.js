@@ -84,12 +84,12 @@ async function handlePdfUpload(req, res) {
       // Smart PDF extraction (reads first page, title, authors, year, doi, intuition)
       const parsed = await parsePdfMetadata(file.path, file.originalname);
 
-      const paperTitle = customTitle || parsed.title || file.originalname.replace(/\.pdf$/i, '');
-      const paperAuthors = customAuthors || parsed.authors || 'Academic Researchers';
-      const paperYear = customYear ? parseInt(customYear, 10) : (parsed.year || new Date().getFullYear());
-      const paperPub = customPub || '';
-      const paperDoi = customDoi || parsed.doi || '';
-      const paperDomain = targetDomain || '';
+      const paperTitle = (customTitle && customTitle.trim()) || parsed.title || (file.originalname ? file.originalname.replace(/\.pdf$/i, '') : '-');
+      const paperAuthors = (customAuthors && customAuthors.trim()) || parsed.authors || '-';
+      const paperYear = (customYear && String(customYear).trim()) || (parsed.year ? String(parsed.year) : '-');
+      const paperPub = (customPub && customPub.trim()) || '-';
+      const paperDoi = (customDoi && customDoi.trim()) || parsed.doi || '-';
+      const paperDomain = (targetDomain && targetDomain.trim()) || '-';
       const paperStatus = customStatus || 'unread';
 
       const pRes = insertPaper.run(
@@ -103,7 +103,7 @@ async function handlePdfUpload(req, res) {
         relPath,
         paperStatus,
         paperDomain,
-        parsed.intuition || ''
+        parsed.intuition || '-'
       );
       const paperId = pRes.lastInsertRowid;
       const dbPdfUrl = `/api/papers/${paperId}/pdf`;

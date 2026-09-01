@@ -1,5 +1,5 @@
 /**
- * LITNEXIS WORKSPACE STATE STORE
+ * LITSPHERE WORKSPACE STATE STORE
  * Centralized reactive store for workspace project, clusters, filters, and papers.
  */
 

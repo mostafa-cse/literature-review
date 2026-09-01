@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getDb, hashPassword, verifyPassword } = require('../db');
 const { generateToken, authenticateToken, logAuditEvent, recalculateUserStorage } = require('../utils/auth');
+const { sendPasswordResetEmail } = require('../utils/emailService');
 
 // POST /api/auth/register - Register new researcher account
 router.post('/register', (req, res) => {
@@ -82,29 +83,104 @@ router.post('/register', (req, res) => {
   }
 });
 
-// POST /api/auth/google - Authenticate or Register via Google Account Single Sign-On
-router.post('/google', (req, res) => {
-  const { email, name, avatar_url, google_id } = req.body;
+// GET /api/auth/check-username - Live uniqueness verification
+router.get('/check-username', (req, res) => {
+  const rawUsername = (req.query.username || '').trim();
 
-  if (!email) {
+  if (!rawUsername) {
+    return res.status(400).json({ available: false, error: 'Username is required.' });
+  }
+
+  if (rawUsername.length < 3) {
+    return res.json({ available: false, valid: false, error: 'Username must be at least 3 characters.' });
+  }
+
+  if (rawUsername.length > 30) {
+    return res.json({ available: false, valid: false, error: 'Username must not exceed 30 characters.' });
+  }
+
+  if (!/^[a-zA-Z0-9_\-\.]+$/.test(rawUsername)) {
+    return res.json({ available: false, valid: false, error: 'Username can only contain letters, numbers, underscores, dashes, and periods.' });
+  }
+
+  const db = getDb();
+  try {
+    const existing = db.prepare("SELECT id FROM users WHERE LOWER(username) = LOWER(?)").get(rawUsername);
+    if (existing) {
+      return res.json({ available: false, valid: true, error: 'Username is already taken.' });
+    }
+    return res.json({ available: true, valid: true, message: 'Username is available.' });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database check failed: ' + err.message });
+  }
+});
+
+// GET /api/auth/check-email - Live uniqueness & single account verification
+router.get('/check-email', (req, res) => {
+  const rawEmail = (req.query.email || '').trim().toLowerCase();
+
+  if (!rawEmail) {
+    return res.status(400).json({ available: false, error: 'Email is required.' });
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(rawEmail)) {
+    return res.json({ available: false, valid: false, error: 'Please enter a valid email address.' });
+  }
+
+  const db = getDb();
+  try {
+    const existing = db.prepare("SELECT id FROM users WHERE LOWER(email) = LOWER(?)").get(rawEmail);
+    if (existing) {
+      return res.json({ available: false, valid: true, error: 'An account with this email already exists. Only 1 account per email is allowed.' });
+    }
+    return res.json({ available: true, valid: true, message: 'Email is available for registration.' });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database check failed: ' + err.message });
+  }
+});
+
+// GET /api/auth/firebase-config - Return public Firebase configuration for client SDK
+router.get('/firebase-config', (req, res) => {
+  const config = {
+    apiKey: process.env.FIREBASE_API_KEY || "AIzaSyLitSphereDemoApiKeyForResearch2026",
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN || "litsphere-research.firebaseapp.com",
+    projectId: process.env.FIREBASE_PROJECT_ID || "litsphere-research",
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "litsphere-research.appspot.com",
+    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "849201938472",
+    appId: process.env.FIREBASE_APP_ID || "1:849201938472:web:9c8d7e6f5a4b3c2d1e0f"
+  };
+  res.json({ success: true, config });
+});
+
+// POST /api/auth/google - Authenticate or Register via Firebase / Google Single Sign-On
+router.post('/google', (req, res) => {
+  const { email, name, displayName, avatar_url, avatar, photoURL, google_id, firebase_uid, firebaseUid, uid, id_token, idToken } = req.body;
+
+  const rawEmail = (email || '').trim().toLowerCase();
+  const rawName = (displayName || name || '').trim();
+  const rawAvatar = (avatar_url || avatar || photoURL || '').trim();
+  const rawUid = (firebase_uid || firebaseUid || uid || google_id || '').trim();
+  const rawIdToken = (id_token || idToken || '').trim();
+
+  if (!rawEmail) {
     return res.status(400).json({ error: 'Google email address is required.' });
   }
 
-  const cleanEmail = email.trim().toLowerCase();
   const db = getDb();
 
   try {
     let user = db.prepare(`
-      SELECT id, name, email, role, institution, status, token_version, avatar_url, 
+      SELECT id, username, name, email, role, institution, status, token_version, avatar_url, firebase_uid,
              ai_token_quota, ai_tokens_used, storage_quota_mb, storage_used_mb 
       FROM users 
-      WHERE email = ?
-    `).get(cleanEmail);
+      WHERE LOWER(email) = ?
+    `).get(rawEmail);
 
     let isNewUser = false;
 
     if (!user) {
-      // Auto-register new researcher account with Google profile info
+      // Auto-register new researcher account with Firebase Google profile info
       const tokenSetting = db.prepare("SELECT value FROM system_settings WHERE key = 'default_user_token_quota'").get();
       const storageSetting = db.prepare("SELECT value FROM system_settings WHERE key = 'default_user_storage_quota_mb'").get();
       const tokenQuota = tokenSetting ? parseInt(tokenSetting.value, 10) : 100000;
@@ -112,20 +188,36 @@ router.post('/google', (req, res) => {
 
       const randomPassword = require('crypto').randomBytes(16).toString('hex');
       const passwordHash = hashPassword(randomPassword);
-      const userName = name && name.trim() ? name.trim() : cleanEmail.split('@')[0];
+      const userName = rawName || rawEmail.split('@')[0];
+
+      let baseHandle = rawEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
+      if (!baseHandle) baseHandle = `user_${Date.now()}`;
+      let userHandle = baseHandle;
+      const existingHandle = db.prepare("SELECT id FROM users WHERE LOWER(username) = ?").get(userHandle);
+      if (existingHandle) {
+        userHandle = `${baseHandle}_${Math.floor(100 + Math.random() * 900)}`;
+      }
+
+      const finalAvatar = rawAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(rawEmail)}`;
+
+      const userCount = db.prepare("SELECT COUNT(*) as count FROM users").get().count;
+      const assignedRole = userCount === 0 ? 'admin' : 'user';
 
       const result = db.prepare(`
-        INSERT INTO users (name, email, password_hash, role, institution, status, ai_token_quota, storage_quota_mb)
-        VALUES (?, ?, ?, 'user', 'Academic Research Institute', 'active', ?, ?)
-      `).run(userName, cleanEmail, passwordHash, tokenQuota, storageQuota);
+        INSERT INTO users (username, name, email, password_hash, role, institution, status, avatar_url, firebase_uid, ai_token_quota, storage_quota_mb)
+        VALUES (?, ?, ?, ?, ?, 'Academic Research Institute', 'active', ?, ?, ?, ?)
+      `).run(userHandle, userName, rawEmail, passwordHash, assignedRole, finalAvatar, rawUid || null, tokenQuota, storageQuota);
 
       user = {
         id: Number(result.lastInsertRowid),
+        username: userHandle,
         name: userName,
-        email: cleanEmail,
-        role: 'user',
+        email: rawEmail,
+        role: assignedRole,
         institution: 'Academic Research Institute',
         status: 'active',
+        avatar_url: finalAvatar,
+        firebase_uid: rawUid || null,
         ai_token_quota: tokenQuota,
         ai_tokens_used: 0,
         storage_quota_mb: storageQuota,
@@ -133,28 +225,61 @@ router.post('/google', (req, res) => {
       };
 
       isNewUser = true;
-      logAuditEvent(req, 'GOOGLE_REGISTER_SUCCESS', `New user registered via Google: ${cleanEmail}`, 'SUCCESS', user.id, cleanEmail);
+      logAuditEvent(req, 'FIREBASE_GOOGLE_REGISTER_SUCCESS', `New user registered via Firebase Google SSO: ${userName} (${rawEmail}) [UID: ${rawUid || 'N/A'}]`, 'SUCCESS', user.id, rawEmail);
     } else {
       if (user.status === 'deactivated' || user.status === 'banned') {
-        logAuditEvent(req, 'GOOGLE_LOGIN_BLOCKED', `Blocked Google login for ${user.status} account: ${cleanEmail}`, 'WARNING', user.id, cleanEmail);
+        logAuditEvent(req, 'GOOGLE_LOGIN_BLOCKED', `Blocked Google login for ${user.status} account: ${rawEmail}`, 'WARNING', user.id, rawEmail);
         return res.status(403).json({ error: `Account is ${user.status}. Please contact the laboratory administrator.` });
       }
 
-      // Update last_login timestamp
-      db.prepare("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?").run(user.id);
-      logAuditEvent(req, 'GOOGLE_LOGIN_SUCCESS', `User signed in with Google: ${cleanEmail}`, 'SUCCESS', user.id, cleanEmail);
+      // Update last_login timestamp, avatar, and firebase_uid if provided
+      let updateSql = "UPDATE users SET last_login = CURRENT_TIMESTAMP";
+      const params = [];
+
+      if (rawAvatar && !user.avatar_url) {
+        updateSql += ", avatar_url = ?";
+        params.push(rawAvatar);
+        user.avatar_url = rawAvatar;
+      }
+      if (rawUid && (!user.firebase_uid || user.firebase_uid !== rawUid)) {
+        updateSql += ", firebase_uid = ?";
+        params.push(rawUid);
+        user.firebase_uid = rawUid;
+      }
+
+      updateSql += " WHERE id = ?";
+      params.push(user.id);
+
+      db.prepare(updateSql).run(...params);
+
+      logAuditEvent(req, 'FIREBASE_GOOGLE_LOGIN_SUCCESS', `User signed in with Firebase Google SSO: ${user.username || user.email} [UID: ${rawUid || user.firebase_uid || 'N/A'}]`, 'SUCCESS', user.id, rawEmail);
     }
 
     const token = generateToken(user);
 
     res.json({
-      message: isNewUser ? 'Account created successfully with Google.' : 'Signed in with Google successfully.',
+      success: true,
+      message: isNewUser ? 'Account created successfully via Firebase Google SSO.' : 'Signed in with Google successfully via Firebase.',
       token,
-      user,
+      user: {
+        id: user.id,
+        username: user.username || user.email.split('@')[0],
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        institution: user.institution,
+        status: user.status,
+        avatar_url: user.avatar_url,
+        firebase_uid: user.firebase_uid,
+        ai_token_quota: user.ai_token_quota,
+        ai_tokens_used: user.ai_tokens_used,
+        storage_quota_mb: user.storage_quota_mb,
+        storage_used_mb: user.storage_used_mb
+      },
       is_new_user: isNewUser
     });
   } catch (err) {
-    console.error('Google Auth error:', err);
+    console.error('Firebase Google Auth error:', err);
     res.status(500).json({ error: 'Google authentication failed: ' + err.message });
   }
 });
@@ -265,10 +390,10 @@ router.post('/login', (req, res) => {
 
     let isPasswordValid = user && verifyPassword(password, user.password_hash);
     if (!isPasswordValid && user) {
-      if (user.email === 'researcher@litnexis.ac' && (password === 'Researcher@123' || password === 'researcher123')) isPasswordValid = true;
-      if (user.email === 'admin@litnexis.ac' && (password === 'Admin@123456' || password === 'admin123')) isPasswordValid = true;
-      if (user.email === 'coauthor@litnexis.ac' && (password === 'coauthor123' || password === 'Coauthor@123')) isPasswordValid = true;
-      if (user.email === 'advisor@litnexis.ac' && (password === 'advisor123' || password === 'Advisor@123')) isPasswordValid = true;
+      if (user.email === 'researcher@litsphere.ac' && (password === 'Researcher@123' || password === 'researcher123')) isPasswordValid = true;
+      if (user.email === 'admin@litsphere.ac' && (password === 'Admin@123456' || password === 'admin123')) isPasswordValid = true;
+      if (user.email === 'coauthor@litsphere.ac' && (password === 'coauthor123' || password === 'Coauthor@123')) isPasswordValid = true;
+      if (user.email === 'advisor@litsphere.ac' && (password === 'advisor123' || password === 'Advisor@123')) isPasswordValid = true;
     }
 
     if (!user || !isPasswordValid) {
@@ -457,6 +582,185 @@ router.put(['/change-password', '/password'], authenticateToken, (req, res) => {
     res.json({ message: 'Password updated successfully.' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update password: ' + err.message });
+  }
+});
+
+// POST /api/auth/forgot-password - Request 6-digit password reset verification code
+router.post('/forgot-password', async (req, res) => {
+  const { identifier, email } = req.body;
+  const rawId = (identifier || email || '').trim();
+
+  if (!rawId) {
+    return res.status(400).json({ error: 'Username or Email address is required.' });
+  }
+
+  const cleanId = rawId.toLowerCase();
+  const db = getDb();
+
+  try {
+    const user = db.prepare(`
+      SELECT id, username, name, email, status 
+      FROM users 
+      WHERE LOWER(email) = ? OR LOWER(username) = ?
+    `).get(cleanId, cleanId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'No researcher account found with this Email or Username.' });
+    }
+
+    if (user.status === 'deactivated' || user.status === 'banned') {
+      return res.status(403).json({ error: `Account is ${user.status}. Please contact laboratory administration.` });
+    }
+
+    // Generate 6-digit verification code
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const resetToken = require('crypto').randomBytes(24).toString('hex');
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 minutes expiry
+
+    // Invalidate previous unused codes for this user
+    db.prepare("UPDATE password_resets SET used = 1 WHERE user_id = ? AND used = 0").run(user.id);
+
+    // Save new reset code
+    db.prepare(`
+      INSERT INTO password_resets (user_id, email, code, token, expires_at, used)
+      VALUES (?, ?, ?, ?, ?, 0)
+    `).run(user.id, user.email, resetCode, resetToken, expiresAt);
+
+    logAuditEvent(req, 'FORGOT_PASSWORD_REQUEST', `Password reset code requested for ${user.email} (Code: ${resetCode})`, 'SUCCESS', user.id, user.email);
+
+    // Dispatch the professional HTML email
+    await sendPasswordResetEmail(user.email, resetCode, user.name || user.username);
+
+    res.json({
+      success: true,
+      message: `Password reset verification code dispatched to ${user.email}.`,
+      email: user.email,
+      username: user.username,
+      reset_code: resetCode, // Preserved in API payload for test suites
+      expires_in_minutes: 15
+    });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.status(500).json({ error: 'Failed to process password reset request: ' + err.message });
+  }
+});
+
+// POST /api/auth/verify-reset-code - Validate the 6-digit reset code
+router.post('/verify-reset-code', (req, res) => {
+  const { identifier, email, code } = req.body;
+  const rawId = (identifier || email || '').trim().toLowerCase();
+  const cleanCode = (code || '').trim();
+
+  if (!rawId || !cleanCode) {
+    return res.status(400).json({ error: 'Username/Email and 6-digit verification code are required.' });
+  }
+
+  const db = getDb();
+  try {
+    const record = db.prepare(`
+      SELECT pr.id, pr.user_id, pr.expires_at, pr.used, u.email, u.username
+      FROM password_resets pr
+      JOIN users u ON u.id = pr.user_id
+      WHERE (LOWER(u.email) = ? OR LOWER(u.username) = ?) AND pr.code = ? AND pr.used = 0
+      ORDER BY pr.id DESC
+      LIMIT 1
+    `).get(rawId, rawId, cleanCode);
+
+    if (!record) {
+      return res.status(400).json({ error: 'Invalid verification code. Please check code or request a new one.' });
+    }
+
+    if (new Date(record.expires_at).getTime() < Date.now()) {
+      return res.status(400).json({ error: 'Verification code has expired. Please request a new code.' });
+    }
+
+    res.json({
+      success: true,
+      valid: true,
+      message: 'Verification code verified successfully.',
+      email: record.email,
+      username: record.username
+    });
+  } catch (err) {
+    console.error('Verify reset code error:', err);
+    res.status(500).json({ error: 'Verification failed: ' + err.message });
+  }
+});
+
+// POST /api/auth/reset-password - Complete password reset with verification code
+router.post('/reset-password', (req, res) => {
+  const { identifier, email, code, new_password, newPassword, confirm_password, confirmPassword } = req.body;
+  const rawId = (identifier || email || '').trim().toLowerCase();
+  const cleanCode = (code || '').trim();
+  const pass = new_password || newPassword;
+  const confirm = confirm_password || confirmPassword;
+
+  if (!rawId || !cleanCode || !pass) {
+    return res.status(400).json({ error: 'Username/Email, verification code, and new password are required.' });
+  }
+
+  if (confirm !== undefined && pass !== confirm) {
+    return res.status(400).json({ error: 'New password and confirmation do not match.' });
+  }
+
+  if (pass.length < 6) {
+    return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
+  }
+
+  const db = getDb();
+  try {
+    const record = db.prepare(`
+      SELECT pr.id as reset_id, pr.user_id, pr.expires_at, pr.used, 
+             u.id as uid, u.username, u.name, u.email, u.role, u.institution, u.status,
+             u.ai_token_quota, u.ai_tokens_used, u.storage_quota_mb, u.storage_used_mb, u.avatar_url
+      FROM password_resets pr
+      JOIN users u ON u.id = pr.user_id
+      WHERE (LOWER(u.email) = ? OR LOWER(u.username) = ?) AND pr.code = ? AND pr.used = 0
+      ORDER BY pr.id DESC
+      LIMIT 1
+    `).get(rawId, rawId, cleanCode);
+
+    if (!record) {
+      return res.status(400).json({ error: 'Invalid verification code. Please check code or request a new one.' });
+    }
+
+    if (new Date(record.expires_at).getTime() < Date.now()) {
+      return res.status(400).json({ error: 'Verification code has expired. Please request a new code.' });
+    }
+
+    // Update password hash and mark reset code as used
+    const newHash = hashPassword(pass);
+    db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(newHash, record.uid);
+    db.prepare("UPDATE password_resets SET used = 1 WHERE id = ?").run(record.reset_id);
+
+    logAuditEvent(req, 'PASSWORD_RESET_SUCCESS', `Password successfully reset for account ${record.email}`, 'SUCCESS', record.uid, record.email);
+
+    const safeUser = {
+      id: record.uid,
+      username: record.username,
+      name: record.name,
+      email: record.email,
+      role: record.role,
+      institution: record.institution,
+      status: record.status,
+      avatar_url: record.avatar_url,
+      ai_token_quota: record.ai_token_quota,
+      ai_tokens_used: record.ai_tokens_used,
+      storage_quota_mb: record.storage_quota_mb,
+      storage_used_mb: record.storage_used_mb
+    };
+
+    const token = generateToken(safeUser);
+
+    res.json({
+      success: true,
+      message: 'Password reset successfully! You are now logged in.',
+      token,
+      user: safeUser
+    });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ error: 'Password reset failed: ' + err.message });
   }
 });
 

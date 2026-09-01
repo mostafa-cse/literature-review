@@ -18,14 +18,14 @@ import './ReviewApp.css';
 export function PaperReviewApp() {
   // 1. Theme State (Dark / Light)
   const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('litnexis_theme') ||
+    return localStorage.getItem('litsphere_theme') ||
       document.documentElement.getAttribute('data-theme') ||
       'dark';
   });
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('litnexis_theme', theme);
+    localStorage.setItem('litsphere_theme', theme);
   }, [theme]);
 
   const handleToggleTheme = () => {
@@ -35,7 +35,7 @@ export function PaperReviewApp() {
   // 2. Layout State
   const [leftPaneWidth, setLeftPaneWidth] = useState(() => {
     try {
-      const saved = localStorage.getItem('litnexis_review_split');
+      const saved = localStorage.getItem('litsphere_review_split');
       if (saved) return Math.max(20, Math.min(75, parseFloat(saved)));
     } catch (e) {}
     return 42;
@@ -44,7 +44,7 @@ export function PaperReviewApp() {
   const handleResizeDrag = (pct) => {
     setLeftPaneWidth(pct);
     try {
-      localStorage.setItem('litnexis_review_split', pct);
+      localStorage.setItem('litsphere_review_split', pct);
       document.documentElement.style.setProperty('--split-left-width', `${pct}%`);
     } catch (e) {}
   };
@@ -52,7 +52,7 @@ export function PaperReviewApp() {
   // 3. Paper Metadata & Core State
   const [paper, setPaper] = useState(() => {
     try {
-      const saved = localStorage.getItem('litnexis_paper_101');
+      const saved = localStorage.getItem('litsphere_paper_101');
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.warn('Error reading saved paper:', e);

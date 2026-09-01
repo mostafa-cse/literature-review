@@ -1,5 +1,5 @@
 /**
- * LITNEXIS UNIVERSAL MODAL ENGINE
+ * LITSPHERE UNIVERSAL MODAL ENGINE
  * Manages modal visibility, autofocus, scroll locking, and outside/escape dismissal.
  */
 

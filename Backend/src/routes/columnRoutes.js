@@ -24,17 +24,18 @@ router.get(['/dynamic-columns', '/columns'], (req, res) => {
       `).all(cluster_id);
     } else if (project_id) {
       cols = db.prepare(`
-        SELECT MIN(dc.id) as id, dc.cluster_id, dc.column_name, dc.column_name as name, dc.parent_column_id, dc.col_type, p.column_name as parent_column_name
+        SELECT MIN(dc.id) as id, MIN(dc.cluster_id) as cluster_id, dc.column_name, dc.column_name as name, dc.parent_column_id, dc.col_type, p.column_name as parent_column_name
         FROM dynamic_columns dc
-        JOIN clusters c ON c.id = dc.cluster_id
+        LEFT JOIN clusters c ON c.id = dc.cluster_id
         LEFT JOIN dynamic_columns p ON p.id = dc.parent_column_id
         WHERE c.project_id = ?
+           OR dc.id IN (SELECT pcv.column_id FROM paper_column_values pcv JOIN papers pa ON pa.id = pcv.paper_id WHERE pa.project_id = ?)
         GROUP BY dc.column_name
         ORDER BY dc.parent_column_id ASC, MIN(dc.id) ASC
-      `).all(project_id);
+      `).all(project_id, project_id);
     } else {
       cols = db.prepare(`
-        SELECT MIN(dc.id) as id, dc.cluster_id, dc.column_name, dc.column_name as name, dc.parent_column_id, dc.col_type, p.column_name as parent_column_name
+        SELECT MIN(dc.id) as id, MIN(dc.cluster_id) as cluster_id, dc.column_name, dc.column_name as name, dc.parent_column_id, dc.col_type, p.column_name as parent_column_name
         FROM dynamic_columns dc
         LEFT JOIN dynamic_columns p ON p.id = dc.parent_column_id
         GROUP BY dc.column_name
@@ -230,6 +231,16 @@ router.post('/dynamic-columns/split', authenticateToken, (req, res) => {
           parentId = parentRes.lastInsertRowid;
         }
 
+        // Clean up any removed sub-columns from database
+        const currentSubs = db.prepare('SELECT * FROM dynamic_columns WHERE cluster_id = ? AND parent_column_id = ?').all(clId, parentId);
+        const subNamesLower = sub_columns.map(s => (typeof s === 'string' ? s : (s.name || s.column_name || '')).trim().toLowerCase());
+        for (const cs of currentSubs) {
+          if (!subNamesLower.includes(cs.column_name.toLowerCase())) {
+            db.prepare('DELETE FROM dynamic_columns WHERE id = ?').run(cs.id);
+            db.prepare('DELETE FROM paper_column_values WHERE column_id = ?').run(cs.id);
+          }
+        }
+
         const insertSub = db.prepare('INSERT INTO dynamic_columns (cluster_id, column_name, parent_column_id, col_type) VALUES (?, ?, ?, ?)');
         for (const sub of sub_columns) {
           const sName = (typeof sub === 'string' ? sub : (sub.name || sub.column_name || '')).trim();
@@ -276,6 +287,56 @@ router.post('/dynamic-columns/split', authenticateToken, (req, res) => {
 
       db.exec('COMMIT;');
       return res.status(201).json({ success: true, parent_column_name, sub_columns: createdSubs });
+    } catch (e) {
+      db.exec('ROLLBACK;');
+      throw e;
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Dedicated Unsplit Column endpoint (Owner, Editor)
+router.post('/dynamic-columns/unsplit', authenticateToken, (req, res) => {
+  try {
+    let { cluster_id, project_id, parent_column_name, parent_column_id, column_id, column_name } = req.body;
+    parent_column_id = parent_column_id || column_id;
+    parent_column_name = parent_column_name || column_name;
+
+    if (!parent_column_id && parent_column_name && !isNaN(parseInt(parent_column_name, 10))) {
+      parent_column_id = parseInt(parent_column_name, 10);
+    }
+
+    const db = getDb();
+    let pid = project_id;
+    if (!pid && cluster_id && cluster_id !== 'all') {
+      const cl = db.prepare('SELECT project_id FROM clusters WHERE id = ?').get(cluster_id);
+      if (cl) pid = cl.project_id;
+    }
+    if (pid) {
+      const role = getProjectRole(req.user.id, pid);
+      if (['reviewer', 'viewer'].includes(role) && req.user.role !== 'admin') {
+        return res.status(403).json({ error: `Access Denied. Role '${role}' cannot unsplit columns.` });
+      }
+    }
+
+    db.exec('BEGIN TRANSACTION;');
+    try {
+      if (parent_column_id) {
+        db.prepare('UPDATE dynamic_columns SET col_type = ? WHERE id = ?').run('text', parent_column_id);
+        db.prepare('DELETE FROM dynamic_columns WHERE parent_column_id = ?').run(parent_column_id);
+      }
+      if (parent_column_name) {
+        const cleanName = String(parent_column_name).replace(/^dyn_/, '').trim();
+        const numId = !isNaN(parseInt(cleanName, 10)) ? parseInt(cleanName, 10) : -1;
+        const parents = db.prepare('SELECT id, column_name FROM dynamic_columns WHERE (column_name = ? OR LOWER(column_name) = LOWER(?) OR column_name = ? OR id = ?) AND parent_column_id IS NULL').all(parent_column_name, parent_column_name, cleanName, numId);
+        for (const p of parents) {
+          db.prepare('UPDATE dynamic_columns SET col_type = ? WHERE id = ?').run('text', p.id);
+          db.prepare('DELETE FROM dynamic_columns WHERE parent_column_id = ?').run(p.id);
+        }
+      }
+      db.exec('COMMIT;');
+      res.json({ success: true, message: 'Column unsplit successfully' });
     } catch (e) {
       db.exec('ROLLBACK;');
       throw e;

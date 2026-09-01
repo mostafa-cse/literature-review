@@ -1,5 +1,5 @@
 /**
- * LITNEXIS RESEARCHER PROFILE CONTROLLER
+ * LITSPHERE RESEARCHER PROFILE CONTROLLER
  * Manages profile information, profile picture, About dossier, multi-device security, and PDF storage telemetry.
  */
 
@@ -211,7 +211,7 @@ window.submitProfileUpdate = async function(e) {
 
     const data = await res.json();
     if (res.ok) {
-      if (data.token) localStorage.setItem('litnexis_token', data.token);
+      if (data.token) localStorage.setItem('litsphere_token', data.token);
       if (typeof showToast === 'function') showToast('Profile details updated successfully!', 'success');
       await loadUserProfileDetails();
       await initNavbarUser();
@@ -302,7 +302,7 @@ window.revokeOtherSessions = async function() {
     const data = await res.json();
     if (res.ok) {
       if (data.token) {
-        localStorage.setItem('litnexis_token', data.token);
+        localStorage.setItem('litsphere_token', data.token);
       }
       if (typeof showToast === 'function') {
         showToast(data.message || 'All other active device sessions have been revoked!', 'success');

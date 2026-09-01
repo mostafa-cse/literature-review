@@ -216,22 +216,76 @@ router.get('/user/dashboard-stats', (req, res) => {
   }
 });
 
+// Check survey name availability for user
+router.get('/projects/check-name', (req, res) => {
+  try {
+    const rawName = (req.query.name || '').trim();
+    if (!rawName) {
+      return res.json({ available: false, valid: false, error: 'Survey name cannot be empty.' });
+    }
+
+    if (rawName.length < 3) {
+      return res.json({ available: false, valid: false, error: 'Survey name must be at least 3 characters long.' });
+    }
+
+    const db = getDb();
+    const currentUserId = req.user ? req.user.id : null;
+    const excludeId = req.query.exclude_id ? Number(req.query.exclude_id) : null;
+
+    let existing;
+    if (currentUserId) {
+      if (excludeId) {
+        existing = db.prepare('SELECT id, name FROM projects WHERE owner_id = ? AND LOWER(TRIM(name)) = LOWER(TRIM(?)) AND id != ?').get(currentUserId, rawName, excludeId);
+      } else {
+        existing = db.prepare('SELECT id, name FROM projects WHERE owner_id = ? AND LOWER(TRIM(name)) = LOWER(TRIM(?))').get(currentUserId, rawName);
+      }
+    } else {
+      existing = db.prepare('SELECT id, name FROM projects WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))').get(rawName);
+    }
+
+    if (existing) {
+      return res.json({
+        available: false,
+        valid: true,
+        error: 'You already have a literature survey with this title. All survey titles must be unique.'
+      });
+    }
+
+    return res.json({
+      available: true,
+      valid: true,
+      message: 'Survey title is available.'
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get single project — requires auth + membership
 router.get('/projects/:id', (req, res) => {
   try {
-    const db = getDb();
     const pid = req.params.id;
-    const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(pid);
+    const db = getDb();
+    const project = db.prepare(`
+      SELECT p.*, 
+             u.name as owner_name,
+             u.email as owner_email,
+             (SELECT COUNT(*) FROM papers WHERE project_id = p.id) as paper_count,
+             (SELECT COUNT(*) FROM papers WHERE project_id = p.id AND status = 'read') as read_count,
+             (SELECT COUNT(*) FROM papers WHERE project_id = p.id AND status = 'in_progress') as in_progress_count,
+             (SELECT COUNT(*) FROM papers WHERE project_id = p.id AND (status = 'unread' OR status IS NULL)) as unread_count,
+             (SELECT COUNT(*) FROM project_members WHERE project_id = p.id) as member_count
+      FROM projects p
+      LEFT JOIN users u ON u.id = p.owner_id
+      WHERE p.id = ?
+    `).get(pid);
+
     if (!project) return res.status(404).json({ error: 'Project not found' });
 
-    // Security: must be authenticated and be owner/member, or project is public
-    if (!req.user) {
-      if (!project.is_public) return res.status(401).json({ error: 'Authentication required.' });
-    } else {
+    // Allow public projects without authentication
+    if (!project.is_public && req.user) {
       const role = getProjectRole(req.user.id, pid);
-      const isOwner = project.owner_id === req.user.id;
-      const isMember = db.prepare('SELECT 1 FROM project_members WHERE project_id = ? AND user_id = ?').get(pid, req.user.id);
-      if (!isOwner && !isMember && req.user.role !== 'admin' && !project.is_public) {
+      if (!role && req.user.role !== 'admin') {
         return res.status(403).json({ error: 'Access Denied. You are not a member of this project.' });
       }
     }
@@ -250,7 +304,7 @@ router.get('/projects/:id', (req, res) => {
   }
 });
 
-// Create project — requires authentication
+// Create project — requires authentication with unique title check
 router.post('/projects', (req, res) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Authentication required to create a survey.' });
@@ -258,9 +312,21 @@ router.post('/projects', (req, res) => {
     const { name, description } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Project name is required' });
 
+    const cleanName = name.trim();
+    if (cleanName.length < 3) {
+      return res.status(400).json({ error: 'Survey name must be at least 3 characters long.' });
+    }
+
     const db = getDb();
     const ownerId = req.user.id;
-    const result = db.prepare('INSERT INTO projects (name, description, owner_id) VALUES (?, ?, ?)').run(name.trim(), description || '', ownerId);
+
+    // Strict uniqueness check per user
+    const existing = db.prepare('SELECT id FROM projects WHERE owner_id = ? AND LOWER(TRIM(name)) = LOWER(TRIM(?))').get(ownerId, cleanName);
+    if (existing) {
+      return res.status(409).json({ error: `You already have a literature survey titled "${cleanName}". All survey titles must be unique.` });
+    }
+
+    const result = db.prepare('INSERT INTO projects (name, description, owner_id) VALUES (?, ?, ?)').run(cleanName, description || '', ownerId);
     const newProjectId = Number(result.lastInsertRowid);
 
     db.prepare(`
@@ -297,8 +363,17 @@ router.put('/projects/:id', (req, res) => {
     const { name, description } = req.body;
     if (name !== undefined && !name.trim()) return res.status(400).json({ error: 'Survey name cannot be empty.' });
 
+    let cleanName = null;
+    if (name) {
+      cleanName = name.trim();
+      const duplicate = db.prepare('SELECT id FROM projects WHERE owner_id = ? AND LOWER(TRIM(name)) = LOWER(TRIM(?)) AND id != ?').get(project.owner_id, cleanName, pid);
+      if (duplicate) {
+        return res.status(409).json({ error: `Another survey titled "${cleanName}" already exists. Survey titles must be unique.` });
+      }
+    }
+
     const result = db.prepare('UPDATE projects SET name = COALESCE(?, name), description = COALESCE(?, description) WHERE id = ?')
-      .run(name ? name.trim() : null, description !== undefined ? description : null, pid);
+      .run(cleanName, description !== undefined ? description : null, pid);
     if (result.changes === 0) return res.status(404).json({ error: 'Project not found' });
     const updated = db.prepare('SELECT * FROM projects WHERE id = ?').get(pid);
     res.json(updated);
@@ -362,7 +437,7 @@ router.post('/projects/:id/transfer', authenticateToken, (req, res) => {
     const cleanEmail = target_email.trim().toLowerCase();
     const targetUser = db.prepare('SELECT id, name, email FROM users WHERE email = ?').get(cleanEmail);
     if (!targetUser) {
-      return res.status(404).json({ error: `User with email "${cleanEmail}" does not exist on LitNexis. They must register first.` });
+      return res.status(404).json({ error: `User with email "${cleanEmail}" does not exist on LitSphere. They must register first.` });
     }
 
     if (targetUser.id === project.owner_id) {

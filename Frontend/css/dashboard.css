@@ -1,5 +1,5 @@
 /* ==========================================================================
-   LITNEXIS RESEARCHER DASHBOARD — OXFORD / OVERLEAF PRESTIGE STYLESHEET
+   LITSPHERE RESEARCHER DASHBOARD — OXFORD / OVERLEAF PRESTIGE STYLESHEET
    Full Visual Excellence, Micro-Interactions, Typography, and Glassmorphism
    ========================================================================== */
 
@@ -736,7 +736,19 @@ body.light-mode .view-toggle-btn.active {
   transition: width 0.4s ease;
 }
 
-/* Actions column inside table */
+/* Created At date badge inside table */
+.table-date-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+/* Actions column inside table (legacy fallback if used elsewhere) */
 .table-actions-cell {
   white-space: nowrap;
   text-align: right;
@@ -769,12 +781,12 @@ body.light-mode .view-toggle-btn.active {
 }
 
 /* =========================================================
-   4. SURVEYS GRID & CARDS
+   4. SURVEYS GRID & CARDS (ACADEMIC PRESTIGE VIEW)
    ========================================================= */
 .surveys-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 1.5rem;
+  gap: 1.6rem;
   margin-bottom: 3.5rem;
 }
 
@@ -786,86 +798,150 @@ body.light-mode .view-toggle-btn.active {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  box-shadow: var(--shadow-sm);
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
   position: relative;
+  overflow: hidden;
+}
+
+.survey-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent-gold), rgba(99, 102, 241, 0.6));
+  opacity: 0;
+  transition: opacity 0.25s ease;
 }
 
 .survey-card:hover {
   border-color: var(--accent-gold);
   transform: translateY(-4px);
-  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.4), 0 0 20px rgba(212, 175, 55, 0.15);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45), 0 0 24px rgba(212, 175, 55, 0.12);
 }
 
-[data-theme="light"] .survey-card:hover, body.light-mode .survey-card:hover {
-  border-color: var(--accent-gold);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08), 0 0 15px rgba(180, 83, 9, 0.1);
+.survey-card:hover::before {
+  opacity: 1;
+}
+
+[data-theme="light"] .survey-card,
+body.light-mode .survey-card {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .survey-card:hover,
+body.light-mode .survey-card:hover {
+  border-color: #b45309;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.08), 0 0 18px rgba(180, 83, 9, 0.08);
+}
+
+.survey-card-inner-top {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
 }
 
 .survey-card-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.95rem;
+  margin-bottom: 1rem;
+  gap: 0.5rem;
+}
+
+.survey-card-badge-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.survey-date-chip {
+  display: inline-flex;
+  align-items: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  background: var(--bg-surface-raised);
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-base);
 }
 
 .role-badge-pill {
-  font-size: 0.76rem;
+  font-size: 0.74rem;
   font-family: 'JetBrains Mono', monospace;
   font-weight: 700;
   padding: 0.22rem 0.6rem;
-  border-radius: 5px;
+  border-radius: 4px;
   text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .role-owner {
-  background: rgba(244, 63, 94, 0.15);
+  background: rgba(244, 63, 94, 0.14);
   color: #f43f5e;
-  border: 1px solid rgba(244, 63, 94, 0.3);
+  border: 1px solid rgba(244, 63, 94, 0.28);
 }
 
 .role-editor {
-  background: rgba(56, 189, 248, 0.15);
+  background: rgba(56, 189, 248, 0.14);
   color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  border: 1px solid rgba(56, 189, 248, 0.28);
 }
 
 .role-reviewer {
-  background: rgba(16, 185, 129, 0.15);
+  background: rgba(16, 185, 129, 0.14);
   color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  border: 1px solid rgba(16, 185, 129, 0.28);
 }
 
 .role-viewer, .role-user {
-  background: rgba(212, 175, 55, 0.15);
+  background: rgba(212, 175, 55, 0.14);
   color: var(--accent-gold);
   border: 1px solid var(--border-gold);
 }
 
 .survey-action-group {
   display: flex;
-  gap: 0.4rem;
+  gap: 0.35rem;
+  align-items: center;
 }
 
 .survey-title {
-  font-size: 1.28rem;
+  font-size: 1.25rem;
   font-weight: 800;
   font-family: 'Outfit', 'Inter', sans-serif;
   color: var(--text-primary);
   margin: 0 0 0.45rem 0;
-  line-height: 1.3;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+  transition: color 0.18s ease;
+}
+
+.survey-card:hover .survey-title {
+  color: var(--accent-gold);
+}
+
+[data-theme="light"] .survey-card:hover .survey-title,
+body.light-mode .survey-card:hover .survey-title {
+  color: #b45309;
 }
 
 .survey-desc {
-  font-size: 0.92rem;
+  font-size: 0.88rem;
   color: var(--text-secondary);
-  line-height: 1.6;
+  line-height: 1.55;
   margin: 0 0 1.25rem 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  min-height: 2.7em;
 }
 
 .survey-metrics-row {
@@ -875,7 +951,7 @@ body.light-mode .view-toggle-btn.active {
   background: var(--bg-surface-raised);
   border: 1px solid var(--border-base);
   border-radius: var(--radius-sm);
-  padding: 0.75rem 0.5rem;
+  padding: 0.75rem 0.45rem;
   text-align: center;
   margin-bottom: 1.25rem;
 }
@@ -887,31 +963,47 @@ body.light-mode .view-toggle-btn.active {
 }
 
 .survey-metric-num {
-  font-size: 1.15rem;
+  font-size: 1.18rem;
   font-weight: 800;
   font-family: 'Outfit', 'Inter', sans-serif;
   color: var(--text-primary);
+  line-height: 1.15;
 }
 
 .survey-metric-lbl {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-family: 'JetBrains Mono', monospace;
   text-transform: uppercase;
   color: var(--text-tertiary);
+  letter-spacing: 0.04em;
+  font-weight: 600;
 }
 
 /* Progress Bar */
 .survey-progress-wrap {
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.35rem;
 }
 
 .survey-progress-header {
   display: flex;
   justify-content: space-between;
-  font-size: 0.82rem;
-  font-family: 'JetBrains Mono', monospace;
+  align-items: center;
+  font-size: 0.8rem;
+  font-family: 'Inter', sans-serif;
   color: var(--text-secondary);
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.45rem;
+}
+
+.survey-progress-pct-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+
+[data-theme="light"] .survey-progress-pct-badge,
+body.light-mode .survey-progress-pct-badge {
+  color: #92400e;
 }
 
 .survey-progress-bar-bg {
@@ -930,7 +1022,8 @@ body.light-mode .view-toggle-btn.active {
   transition: width 0.4s ease;
 }
 
-[data-theme="light"] .survey-progress-bar-fill, body.light-mode .survey-progress-bar-fill {
+[data-theme="light"] .survey-progress-bar-fill,
+body.light-mode .survey-progress-bar-fill {
   background: linear-gradient(90deg, #b45309, #059669);
 }
 
@@ -938,7 +1031,30 @@ body.light-mode .view-toggle-btn.active {
   display: flex;
   gap: 0.65rem;
   border-top: 1px solid var(--border-base);
-  padding-top: 1rem;
+  padding-top: 1.1rem;
+}
+
+.survey-card-open-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.65rem 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.survey-card-open-btn svg {
+  transition: transform 0.2s ease;
+}
+
+.survey-card:hover .survey-card-open-btn svg,
+.survey-card-open-btn:hover svg {
+  transform: translateX(4px);
 }
 
 /* =========================================================

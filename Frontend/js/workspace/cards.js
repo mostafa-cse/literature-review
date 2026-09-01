@@ -1,5 +1,5 @@
 /**
- * LITNEXIS PAPERS CARDS VIEW ENGINE
+ * LITSPHERE PAPERS CARDS VIEW ENGINE
  * Renders academic card layouts, deep dive technical drawers, MathJax formulas, and props.
  */
 
@@ -39,7 +39,10 @@ window.renderCards = function(papers) {
     const propsHtml = buildCardProps(p);
     const insightsHtml = buildCardInsights(p);
     const keywordsHtml = (p.keywords && p.keywords.length > 0)
-      ? `<div class="keywords-row">${p.keywords.map(k => `<span class="kw-tag">#${k}</span>`).join('')}</div>`
+      ? `<div class="keywords-row">${p.keywords.map(k => {
+          const isSel = window.selectedKeywords && (window.selectedKeywords.has(k) || Array.from(window.selectedKeywords).some(sk => sk.toLowerCase() === k.toLowerCase()));
+          return `<span class="kw-tag ${isSel ? 'active' : ''}" onclick="event.stopPropagation(); if (typeof window.toggleKeywordFilter === 'function') window.toggleKeywordFilter('${k.replace(/'/g, "\\'")}');" title="Click to filter papers by #${k}">#${k}</span>`;
+        }).join('')}</div>`
       : '';
 
     card.innerHTML = `
@@ -90,7 +93,9 @@ window.renderCards = function(papers) {
     container.appendChild(card);
   });
 
-  window.triggerMath(container);
+  if (typeof window.triggerMath === 'function') {
+    window.triggerMath(container);
+  }
 };
 
 function buildCardProps(p) {

@@ -51,7 +51,7 @@ function ensureDatabaseUsers() {
     { username: 'editorUser', email: 'edit_user@mail.com', name: 'Editor User', role: 'user' },
     { username: 'reviewerUser', email: 'review_user@mail.com', name: 'Reviewer User', role: 'user' },
     { username: 'viewerUser', email: 'view_user@mail.com', name: 'Viewer User', role: 'user' },
-    { username: 'adminUser', email: 'admin@litnexis.ac', name: 'System Administrator', role: 'admin' }
+    { username: 'adminUser', email: 'admin@litsphere.ac', name: 'System Administrator', role: 'admin' }
   ];
 
   const defaultPassword = 'password123';
@@ -63,12 +63,12 @@ function ensureDatabaseUsers() {
       db.prepare(`
         INSERT INTO users (username, name, email, password_hash, role, institution, status, ai_token_quota, storage_quota_mb)
         VALUES (?, ?, ?, ?, ?, 'Academic Testing Institute', 'active', 150000, 1000)
-      `).run(u.username, u.name, u.email, u.email === 'admin@litnexis.ac' ? hashPassword('admin123') : passHash, u.role);
+      `).run(u.username, u.name, u.email, u.email === 'admin@litsphere.ac' ? hashPassword('admin123') : passHash, u.role);
     } else {
       db.prepare(`
         UPDATE users SET username = ?, name = ?, password_hash = ?, status = 'active', role = ?
         WHERE id = ?
-      `).run(u.username, u.name, u.email === 'admin@litnexis.ac' ? hashPassword('admin123') : passHash, u.role, existing.id);
+      `).run(u.username, u.name, u.email === 'admin@litsphere.ac' ? hashPassword('admin123') : passHash, u.role, existing.id);
     }
   }
 }
@@ -205,9 +205,9 @@ async function runFullAppE2ETesting() {
       viewerToken = res.body.token;
     });
 
-    await test('1.8 Admin User login (admin@litnexis.ac / admin123)', async () => {
+    await test('1.8 Admin User login (admin@litsphere.ac / admin123)', async () => {
       const res = await makeRequest('POST', '/api/auth/login', {
-        email: 'admin@litnexis.ac',
+        email: 'admin@litsphere.ac',
         password: 'admin123'
       });
       assert.strictEqual(res.status, 200);

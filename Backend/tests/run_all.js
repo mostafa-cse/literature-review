@@ -7,7 +7,7 @@ const runWorkspaceRolesSuite = require('./workspace_roles_rbac.test');
 
 async function main() {
   console.log('======================================================================');
-  console.log('🚀 LITNEXIS ACADEMIC PLATFORM - FULL AUTOMATED TEST SUITE RUNNER');
+  console.log('🚀 LITSPHERE ACADEMIC PLATFORM - FULL AUTOMATED TEST SUITE RUNNER');
   console.log('======================================================================\n');
 
   try {

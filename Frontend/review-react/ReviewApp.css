@@ -1,5 +1,5 @@
 /* =========================================================
-   LITNEXIS REACT REVIEW APP STYLESHEET (ReviewApp.css)
+   LITSPHERE REACT REVIEW APP STYLESHEET (ReviewApp.css)
    Dual-Theme Engine (Dark Mode & Light Mode) with Rich Aesthetics,
    Professional Metadata Chips, and 100vw/100vh Layout Fidelity.
    ========================================================= */
@@ -252,7 +252,7 @@ body, html {
   align-items: center;
 }
 
-/* ── Segment 1: LitNexis (Home) */
+/* ── Segment 1: LitSphere (Home) */
 .breadcrumb-home {
   color: #94a3b8;
   font-weight: 600;

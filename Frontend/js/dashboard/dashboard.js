@@ -1,12 +1,12 @@
 /**
- * LITNEXIS RESEARCHER DASHBOARD CONTROLLER (COMPLETE ORIGINAL SPECIFICATION)
+ * LITSPHERE RESEARCHER DASHBOARD CONTROLLER (COMPLETE ORIGINAL SPECIFICATION)
  * Manages survey projects, KPI telemetry, preset taxonomy seeders, recent reading queue, and fast DOI ingestion.
  */
 
 let allSurveys = [];
 let allStats = {};
 let activeTabFilter = 'all';
-let surveyViewMode = localStorage.getItem('litnexis_survey_view_mode') || 'cards';
+let surveyViewMode = localStorage.getItem('litsphere_survey_view_mode') || 'cards';
 let tableSortColumn = 'newest';
 let tableSortAsc = false;
 
@@ -18,7 +18,7 @@ window.initDashboard = async function() {
   }
 
   // Update greeting with user name
-  const cachedUserStr = localStorage.getItem('litnexis_user');
+  const cachedUserStr = localStorage.getItem('litsphere_user');
   if (cachedUserStr) {
     try {
       const u = JSON.parse(cachedUserStr);
@@ -57,7 +57,7 @@ function updateViewModeToggleUI() {
 
 window.setSurveyViewMode = function(mode) {
   surveyViewMode = mode === 'table' ? 'table' : 'cards';
-  localStorage.setItem('litnexis_survey_view_mode', surveyViewMode);
+  localStorage.setItem('litsphere_survey_view_mode', surveyViewMode);
   updateViewModeToggleUI();
   applySurveyFilters();
 };
@@ -223,6 +223,10 @@ function applySurveyFilters() {
         const pA = a.paper_count > 0 ? (a.read_count || 0) / a.paper_count : 0;
         const pB = b.paper_count > 0 ? (b.read_count || 0) / b.paper_count : 0;
         return mult * (pA - pB);
+      } else if (col === 'created_at' || col === 'created') {
+        const tA = a.created_at ? new Date(a.created_at).getTime() : (a.id || 0);
+        const tB = b.created_at ? new Date(b.created_at).getTime() : (b.id || 0);
+        return mult * (tA - tB);
       } else {
         return mult * (b.id - a.id);
       }
@@ -315,23 +319,35 @@ function renderSurveysGrid(surveys, searchVal) {
     const isEditor = role === 'editor';
     const canModify = isOwner || isEditor;
 
+    let formattedDate = '';
+    if (p.created_at) {
+      try {
+        const d = new Date(p.created_at);
+        formattedDate = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      } catch (_) {}
+    }
+
     card.innerHTML = `
-      <div>
+      <div class="survey-card-inner-top">
         <div class="survey-card-top">
-          <span class="role-badge-pill role-${role}">${role.toUpperCase()}</span>
-          ${canModify ? `
-            <div class="survey-action-group" onclick="event.stopPropagation()">
-              <button class="mini-btn" onclick="openEditSurveyModal(${p.id}, '${escapeHtml(p.name)}', '${escapeHtml(p.description || '')}')" title="Edit Survey">Edit</button>
-              <button class="mini-btn" onclick="exportSurveyExcel(${p.id})" title="Export Master Matrix (.xlsx)">Export</button>
-              ${isOwner ? `<button class="mini-btn danger" onclick="deleteSurvey(${p.id}, '${escapeHtml(p.name)}')" title="Delete Survey">Delete</button>` : ''}
-            </div>
-          ` : `
-            <span class="shared-view-tag" style="font-size:0.75rem; color:var(--text-tertiary); font-family:'JetBrains Mono',monospace; padding:0.2rem 0.5rem; background:var(--bg-surface-raised); border-radius:4px; border:1px solid var(--border-base);">View Only</span>
-          `}
+          <div class="survey-card-badge-group">
+            <span class="role-badge-pill role-${role}">${role.toUpperCase()}</span>
+            ${formattedDate ? `<span class="survey-date-chip" title="Created date"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>${formattedDate}</span>` : ''}
+          </div>
+          <div class="survey-action-group" onclick="event.stopPropagation()">
+            ${canModify ? `
+              <button class="mini-btn" onclick="openEditSurveyModal(${p.id}, '${escapeHtml(p.name)}', '${escapeHtml(p.description || '')}')" title="Edit Survey Metadata"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>Edit</button>
+            ` : ''}
+            <button class="mini-btn" onclick="exportSurveyExcel(${p.id})" title="Export Master Matrix (.xlsx)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Export</button>
+            ${isOwner ? `<button class="mini-btn danger" onclick="deleteSurvey(${p.id}, '${escapeHtml(p.name)}')" title="Delete Survey"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>` : ''}
+            ${!canModify ? `
+              <span class="shared-view-tag" style="font-size:0.75rem; color:var(--text-tertiary); font-family:'JetBrains Mono',monospace; padding:0.2rem 0.5rem; background:var(--bg-surface-raised); border-radius:4px; border:1px solid var(--border-base);">Read-Only</span>
+            ` : ''}
+          </div>
         </div>
 
-        <h3 class="survey-title">${escapeHtml(p.name)}</h3>
-        <p class="survey-desc">${escapeHtml(p.description || 'Systematic literature review workspace & multi-level matrix benchmark.')}</p>
+        <h3 class="survey-title" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</h3>
+        <p class="survey-desc">${escapeHtml(p.description || 'Comprehensive systematic literature review, multi-level taxonomy benchmarking, and master matrix synthesis.')}</p>
 
         <div class="survey-metrics-row">
           <div class="survey-metric-col">
@@ -354,8 +370,8 @@ function renderSurveysGrid(surveys, searchVal) {
 
         <div class="survey-progress-wrap">
           <div class="survey-progress-header">
-            <span>Review Progress</span>
-            <span style="color: var(--accent-gold); font-weight: 700;">${progressPct}% (${readPapers}/${totalPapers})</span>
+            <span style="font-weight:600;">Synthesis Progress</span>
+            <span class="survey-progress-pct-badge">${progressPct}% (${readPapers}/${totalPapers})</span>
           </div>
           <div class="survey-progress-bar-bg">
             <div class="survey-progress-bar-fill" style="width: ${progressPct}%;"></div>
@@ -364,14 +380,10 @@ function renderSurveysGrid(surveys, searchVal) {
       </div>
 
       <div class="survey-card-actions">
-        <button class="btn btn-primary" style="flex: 1; padding: 0.55rem 0.85rem; font-size: 0.88rem;" onclick="event.stopPropagation(); window.location.href='/workspace?project=${p.id}'">
-          Open Matrix Hub
+        <button class="btn btn-primary survey-card-open-btn" onclick="event.stopPropagation(); window.location.href='/workspace?project=${p.id}'">
+          <span>Open Matrix Hub</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
         </button>
-        ${canModify ? `
-          <button class="btn btn-secondary" style="padding: 0.55rem 0.85rem; font-size: 0.88rem;" onclick="event.stopPropagation(); window.location.href='/workspace?project=${p.id}#upload'">
-            Add Paper
-          </button>
-        ` : ''}
       </div>
     `;
     container.appendChild(card);
@@ -403,7 +415,7 @@ function renderSurveysTable(surveys, searchVal) {
         <thead>
           <tr>
             <th class="${getThClass('title')}" onclick="handleTableSort('title')">
-              <span class="th-content">Survey &amp; Research Focus ${getSortIndicator('title')}</span>
+              <span class="th-content">Survey and Research Focus ${getSortIndicator('title')}</span>
             </th>
             <th class="${getThClass('role')}" onclick="handleTableSort('role')">
               <span class="th-content">Role ${getSortIndicator('role')}</span>
@@ -420,7 +432,9 @@ function renderSurveysTable(surveys, searchVal) {
             <th class="${getThClass('progress')}" onclick="handleTableSort('progress')">
               <span class="th-content">Reading Progress ${getSortIndicator('progress')}</span>
             </th>
-            <th style="text-align:right;">Actions</th>
+            <th class="${getThClass('created_at')}" onclick="handleTableSort('created_at')">
+              <span class="th-content">Created At ${getSortIndicator('created_at')}</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -431,10 +445,10 @@ function renderSurveysTable(surveys, searchVal) {
     const readPapers = p.read_count || 0;
     const progressPct = totalPapers > 0 ? Math.round((readPapers / totalPapers) * 100) : 0;
     const role = (p.current_user_role || 'owner').toLowerCase();
-    const isOwner = role === 'owner';
-    const isEditor = role === 'editor';
-    const canModify = isOwner || isEditor;
     const screeningsCount = (p.screenings_count || 0) + (p.comments_count || 0);
+    const createdDate = p.created_at
+      ? new Date(p.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+      : 'Recent';
 
     tableHtml += `
       <tr class="survey-table-row" onclick="window.location.href='/workspace?project=${p.id}'" title="Open workspace for ${escapeHtml(p.name)}">
@@ -477,25 +491,10 @@ function renderSurveysTable(surveys, searchVal) {
             </div>
           </div>
         </td>
-        <td class="table-actions-cell" onclick="event.stopPropagation()">
-          <div class="table-actions-group">
-            <button class="table-open-btn" onclick="event.stopPropagation(); window.location.href='/workspace?project=${p.id}'" title="Open Survey Workspace">
-              Open Matrix
-            </button>
-            ${canModify ? `
-              <button class="mini-btn" onclick="event.stopPropagation(); openEditSurveyModal(${p.id}, '${escapeHtml(p.name)}', '${escapeHtml(p.description || '')}')" title="Edit Survey">
-                Edit
-              </button>
-              <button class="mini-btn" onclick="event.stopPropagation(); exportSurveyExcel(${p.id})" title="Export Master Matrix (.xlsx)">
-                Export
-              </button>
-            ` : ''}
-            ${isOwner ? `
-              <button class="mini-btn danger" onclick="event.stopPropagation(); deleteSurvey(${p.id}, '${escapeHtml(p.name)}')" title="Delete Survey">
-                Delete
-              </button>
-            ` : ''}
-          </div>
+        <td>
+          <span class="table-date-badge" title="Created on ${createdDate}">
+            ${createdDate}
+          </span>
         </td>
       </tr>
     `;
@@ -514,8 +513,150 @@ function renderSurveysTable(surveys, searchVal) {
    MODAL ACTIONS: CREATE, EDIT, DELETE & PRESET CLONING
    ========================================================= */
 
+let newSurveyNameTimer = null;
+let editSurveyNameTimer = null;
+
+window.handleNewSurveyNameInput = function(val) {
+  const countEl = document.getElementById('survey-name-count');
+  if (countEl) countEl.textContent = `${val.length}/120`;
+
+  const feedbackEl = document.getElementById('survey-name-feedback');
+  const btn = document.getElementById('btn-submit-new-survey');
+  const trimmed = val.trim();
+
+  clearTimeout(newSurveyNameTimer);
+
+  if (!trimmed) {
+    if (feedbackEl) {
+      feedbackEl.style.display = 'none';
+      feedbackEl.textContent = '';
+    }
+    if (btn) btn.disabled = false;
+    return;
+  }
+
+  if (trimmed.length < 3) {
+    if (feedbackEl) {
+      feedbackEl.style.display = 'block';
+      feedbackEl.style.color = '#f43f5e';
+      feedbackEl.style.background = 'rgba(244, 63, 94, 0.12)';
+      feedbackEl.style.border = '1px solid rgba(244, 63, 94, 0.3)';
+      feedbackEl.innerHTML = '✕ Survey title must be at least 3 characters long.';
+    }
+    if (btn) btn.disabled = true;
+    return;
+  }
+
+  if (feedbackEl) {
+    feedbackEl.style.display = 'block';
+    feedbackEl.style.color = 'var(--text-tertiary)';
+    feedbackEl.style.background = 'var(--bg-surface-raised)';
+    feedbackEl.style.border = '1px solid var(--border-base)';
+    feedbackEl.innerHTML = '<span style="display:inline-block; width:10px; height:10px; border:2px solid var(--accent-gold); border-top-color:transparent; border-radius:50%; animation:spin 0.6s linear infinite; vertical-align:middle; margin-right:6px;"></span> Checking survey title uniqueness…';
+  }
+
+  newSurveyNameTimer = setTimeout(async () => {
+    try {
+      const res = await fetch(`/api/projects/check-name?name=${encodeURIComponent(trimmed)}`, {
+        headers: getAuthHeaders()
+      });
+      const data = await res.json();
+      if (data.available) {
+        if (feedbackEl) {
+          feedbackEl.style.display = 'block';
+          feedbackEl.style.color = '#10b981';
+          feedbackEl.style.background = 'rgba(16, 185, 129, 0.12)';
+          feedbackEl.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+          feedbackEl.innerHTML = '✓ Survey title is available';
+        }
+        if (btn) btn.disabled = false;
+      } else {
+        if (feedbackEl) {
+          feedbackEl.style.display = 'block';
+          feedbackEl.style.color = '#f43f5e';
+          feedbackEl.style.background = 'rgba(244, 63, 94, 0.12)';
+          feedbackEl.style.border = '1px solid rgba(244, 63, 94, 0.3)';
+          feedbackEl.innerHTML = `✕ ${data.error || 'A survey with this title already exists'}`;
+        }
+        if (btn) btn.disabled = true;
+      }
+    } catch (e) {
+      console.warn('Survey name check failed:', e);
+    }
+  }, 220);
+};
+
+window.handleEditSurveyNameInput = function(val) {
+  const feedbackEl = document.getElementById('edit-survey-name-feedback');
+  const btn = document.getElementById('btn-submit-edit-survey');
+  const id = document.getElementById('edit-survey-id')?.value;
+  const trimmed = val.trim();
+
+  clearTimeout(editSurveyNameTimer);
+
+  if (!trimmed) {
+    if (feedbackEl) feedbackEl.style.display = 'none';
+    if (btn) btn.disabled = true;
+    return;
+  }
+
+  if (trimmed.length < 3) {
+    if (feedbackEl) {
+      feedbackEl.style.display = 'block';
+      feedbackEl.style.color = '#f43f5e';
+      feedbackEl.style.background = 'rgba(244, 63, 94, 0.12)';
+      feedbackEl.style.border = '1px solid rgba(244, 63, 94, 0.3)';
+      feedbackEl.innerHTML = '✕ Survey title must be at least 3 characters long.';
+    }
+    if (btn) btn.disabled = true;
+    return;
+  }
+
+  editSurveyNameTimer = setTimeout(async () => {
+    try {
+      const res = await fetch(`/api/projects/check-name?name=${encodeURIComponent(trimmed)}&exclude_id=${encodeURIComponent(id || '')}`, {
+        headers: getAuthHeaders()
+      });
+      const data = await res.json();
+      if (data.available) {
+        if (feedbackEl) {
+          feedbackEl.style.display = 'block';
+          feedbackEl.style.color = '#10b981';
+          feedbackEl.style.background = 'rgba(16, 185, 129, 0.12)';
+          feedbackEl.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+          feedbackEl.innerHTML = '✓ Survey title is available';
+        }
+        if (btn) btn.disabled = false;
+      } else {
+        if (feedbackEl) {
+          feedbackEl.style.display = 'block';
+          feedbackEl.style.color = '#f43f5e';
+          feedbackEl.style.background = 'rgba(244, 63, 94, 0.12)';
+          feedbackEl.style.border = '1px solid rgba(244, 63, 94, 0.3)';
+          feedbackEl.innerHTML = `✕ ${data.error || 'A survey with this title already exists'}`;
+        }
+        if (btn) btn.disabled = true;
+      }
+    } catch (e) {
+      console.warn('Edit survey name check error:', e);
+    }
+  }, 220);
+};
+
 window.openCreateSurveyModal = function() {
   const modal = document.getElementById('modal-create-survey');
+  const nameInput = document.getElementById('new-survey-name');
+  const descInput = document.getElementById('new-survey-desc');
+  const feedbackEl = document.getElementById('survey-name-feedback');
+  const countEl = document.getElementById('survey-name-count');
+  const btn = document.getElementById('btn-submit-new-survey');
+
+  if (nameInput) nameInput.value = '';
+  if (descInput) descInput.value = '';
+  if (feedbackEl) { feedbackEl.style.display = 'none'; feedbackEl.textContent = ''; }
+  if (countEl) countEl.textContent = '0/120';
+  if (btn) btn.disabled = false;
+
   if (modal) modal.classList.add('open');
 };
 
@@ -533,8 +674,14 @@ window.openEditSurveyModal = function(id, name, desc) {
   }
 
   document.getElementById('edit-survey-id').value = id;
-  document.getElementById('edit-survey-name').value = name;
-  document.getElementById('edit-survey-desc').value = desc || '';
+  const nameInput = document.getElementById('edit-survey-name');
+  if (nameInput) nameInput.value = name;
+  const descInput = document.getElementById('edit-survey-desc');
+  if (descInput) descInput.value = desc || '';
+
+  const feedbackEl = document.getElementById('edit-survey-name-feedback');
+  if (feedbackEl) { feedbackEl.style.display = 'none'; feedbackEl.textContent = ''; }
+
   const modal = document.getElementById('modal-edit-survey');
   if (modal) modal.classList.add('open');
 };
@@ -558,6 +705,12 @@ window.submitNewSurvey = async function() {
     return;
   }
 
+  if (name.length < 3) {
+    showToast('Survey title must be at least 3 characters long', 'warning');
+    nameInput && nameInput.focus();
+    return;
+  }
+
   if (btn) {
     btn.disabled = true;
     btn.innerHTML = '<span style="opacity:.7;">Creating...</span>';
@@ -570,7 +723,9 @@ window.submitNewSurvey = async function() {
       body: JSON.stringify({ name, description })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to create survey');
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to create survey');
+    }
 
     showToast(`Survey "${data.name}" created!`, 'success');
     closeCreateSurveyModal();
@@ -579,9 +734,9 @@ window.submitNewSurvey = async function() {
     window.location.href = `/workspace?project=${data.id}`;
   } catch (err) {
     showToast(err.message, 'error');
+    if (btn) btn.disabled = false;
   } finally {
     if (btn) {
-      btn.disabled = false;
       btn.innerHTML = 'Create Survey';
     }
   }
@@ -591,6 +746,7 @@ window.submitEditSurvey = async function() {
   const idInput = document.getElementById('edit-survey-id');
   const nameInput = document.getElementById('edit-survey-name');
   const descInput = document.getElementById('edit-survey-desc');
+  const btn = document.getElementById('btn-submit-edit-survey');
 
   const id = idInput ? idInput.value : '';
   const name = nameInput ? nameInput.value.trim() : '';
@@ -601,13 +757,24 @@ window.submitEditSurvey = async function() {
     return;
   }
 
+  if (name.length < 3) {
+    showToast('Survey title must be at least 3 characters long', 'warning');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span style="opacity:.7;">Saving...</span>';
+  }
+
   try {
     const res = await fetch(`/api/projects/${id}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify({ name, description })
     });
-    if (!res.ok) throw new Error((await res.json()).error || 'Failed to update survey');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to update survey');
 
     showToast('Survey updated successfully!', 'success');
     closeEditSurveyModal();
@@ -615,6 +782,11 @@ window.submitEditSurvey = async function() {
     await loadDashboardStats();
   } catch (err) {
     showToast(err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = 'Save Changes';
+    }
   }
 };
 

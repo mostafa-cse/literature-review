@@ -1,6 +1,6 @@
 /**
  * ==============================================================================
- * LITNEXIS WORKSPACE RBAC & ROLES TEST SUITE
+ * LITSPHERE WORKSPACE RBAC & ROLES TEST SUITE
  * ==============================================================================
  * Comprehensive test coverage for all 4 project roles in the Survey Workspace:
  * 1. Owner: Full project control & team management

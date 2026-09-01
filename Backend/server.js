@@ -1,3 +1,4 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -183,7 +184,7 @@ app.get('/shared/:token', (req, res) => {
 function startServer(port, maxAttempts = 10) {
   const server = app.listen(port, '0.0.0.0', () => {
     console.log(`=======================================================`);
-    console.log(`🚀 LitNexis System running on port ${port}`);
+    console.log(`🚀 LitSphere System running on port ${port}`);
     console.log(`🌐 Home Landing:     http://localhost:${port}`);
     console.log(`📊 Master Workspace: http://localhost:${port}/workspace`);
     console.log(`🛡️ Admin Center:     http://localhost:${port}/admin`);

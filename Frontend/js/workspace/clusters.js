@@ -1,7 +1,18 @@
 /**
- * LITNEXIS TAXONOMY CLUSTERS ENGINE
+ * LITSPHERE TAXONOMY CLUSTERS ENGINE
  * Manages taxonomy clusters, color tagging, cluster cards, and focused cluster filtering.
  */
+
+window.clustersViewMode = 'cards'; // 'cards' | 'table'
+
+window.switchClustersView = function(mode) {
+  window.clustersViewMode = mode || 'cards';
+  const btnCards = document.getElementById('btn-clusters-view-cards');
+  const btnTable = document.getElementById('btn-clusters-view-table');
+  if (btnCards) btnCards.classList.toggle('active', window.clustersViewMode === 'cards');
+  if (btnTable) btnTable.classList.toggle('active', window.clustersViewMode === 'table');
+  renderClusters();
+};
 
 window.loadClusters = async function() {
   try {
@@ -17,102 +28,204 @@ window.loadClusters = async function() {
 };
 
 window.renderClusters = function() {
-  const container = document.getElementById('clusters-grid') || document.getElementById('clusters-container');
+  const container = document.getElementById('clusters-grid');
+  const countBadge = document.getElementById('clusters-count-badge');
+  if (countBadge && Array.isArray(allClusters)) {
+    countBadge.textContent = `${allClusters.length} ${allClusters.length === 1 ? 'Cluster' : 'Clusters'}`;
+  }
   if (!container) return;
   container.innerHTML = '';
-
-  if (allClusters.length === 0) {
-    container.innerHTML = `
-      <div style="grid-column: 1/-1; text-align: center; padding: 2rem; background: var(--bg-surface); border: 1.5px dashed var(--border-base); border-radius: 10px;">
-        <div style="margin-bottom: 0.5rem; color: var(--accent-primary);"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
-        <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">No Clusters Created Yet</div>
-        <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 1rem;">Categorize your research papers into structured sub-domain taxonomy clusters.</p>
-        <button class="action-btn" onclick="openCreateClusterModal()">+ Create First Cluster</button>
-      </div>
-    `;
-    return;
-  }
 
   const role = (window.currentProjectRole || 'viewer').toLowerCase();
   const isOwner = role === 'owner';
   const isEditor = role === 'editor';
   const canEdit = isOwner || isEditor;
-  const canDelete = isOwner;
 
-  allClusters.forEach(c => {
-    const card = document.createElement('div');
-    card.className = `cluster-card ${String(c.id) === String(currentClusterId) ? 'active-focus' : ''}`;
-    card.setAttribute('data-cluster-id', c.id);
-    card.onclick = () => exploreCluster(c.id);
-
-    const clusterColor = c.color || 'var(--accent-primary)';
-    const totalPapers = c.paper_count || 0;
-    const readPapers = c.read_count || 0;
-    const unreadPapers = c.unread_count !== undefined ? c.unread_count : (totalPapers - readPapers > 0 ? totalPapers - readPapers : 0);
-    const columnsCount = c.column_count || 0;
-    const keywordsCount = c.keyword_count || 0;
-    const readPct = totalPapers > 0 ? Math.round((readPapers / totalPapers) * 100) : 0;
-
-    card.innerHTML = `
-      <div>
-        <div class="cluster-header">
-          <div class="cluster-header-left">
-            <span class="cluster-color-dot" style="background:${clusterColor}; box-shadow: 0 0 10px ${clusterColor}88;"></span>
-            <span class="cluster-tag-label" style="color: var(--text-tertiary);">TAXONOMY CLUSTER</span>
-          </div>
-          ${canEdit ? `
-            <div class="cluster-actions" onclick="event.stopPropagation()">
-              <button class="mini-btn" onclick="editCluster(${c.id})" title="Edit Cluster">Edit</button>
-              ${canDelete ? `
-                <button class="mini-btn danger" onclick="deleteCluster(${c.id})" title="Delete Cluster" style="display:inline-flex; align-items:center; justify-content:center; padding: 2px 6px;">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-              ` : ''}
-            </div>
-          ` : ''}
-        </div>
-
-        <h4 class="cluster-name" style="color: ${clusterColor};">${escapeHtml(c.name)}</h4>
-        <p class="cluster-desc">${escapeHtml(c.description || 'Systematic sub-domain taxonomy group for methodology benchmarking.')}</p>
-
-        <!-- 3 Metric Chips: Total Papers, Matrix Columns, Keywords -->
-        <div class="cluster-metrics-grid">
-          <div class="cluster-stat-chip">
-            <span class="chip-num">${totalPapers}</span>
-            <span class="chip-label">TOTAL PAPERS</span>
-          </div>
-          <div class="cluster-stat-chip">
-            <span class="chip-num">${columnsCount}</span>
-            <span class="chip-label">MATRIX COLUMNS</span>
-          </div>
-          <div class="cluster-stat-chip">
-            <span class="chip-num">${keywordsCount}</span>
-            <span class="chip-label">KEYWORDS</span>
-          </div>
-        </div>
-
-        <!-- Read-Unread Percentages Progress Bar -->
-        <div class="cluster-progress-wrap">
-          <div class="cluster-progress-label-row">
-            <span style="font-size: 0.78rem; font-weight: 600; color: var(--text-secondary);">Reading Progress</span>
-            <span class="cluster-progress-stats" style="font-size: 0.78rem; font-family: 'JetBrains Mono', monospace; color: var(--text-tertiary);">
-              <strong style="color: var(--accent-gold);">${readPct}%</strong> (${readPapers} read • ${unreadPapers} unread)
-            </span>
-          </div>
-          <div class="cluster-progress-track">
-            <div class="cluster-progress-fill" style="width: ${readPct}%; background: linear-gradient(90deg, ${clusterColor} 0%, var(--accent-gold) 100%);"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="cluster-card-footer">
-        <span style="font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; color: var(--text-tertiary);">ID #${c.id}</span>
-        <button class="mini-btn gold" onclick="event.stopPropagation(); exploreCluster(${c.id})">Explore Cluster →</button>
+  if (allClusters.length === 0) {
+    container.className = 'clusters-grid';
+    container.innerHTML = `
+      <div style="grid-column: 1/-1; text-align: center; padding: 2.5rem 1.5rem; background: var(--bg-surface); border: 1.5px dashed var(--border-base); border-radius: 12px;">
+        <div style="margin-bottom: 0.65rem; color: var(--accent-primary);"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
+        <div style="font-weight: 700; font-size: 1.05rem; color: var(--text-primary); margin-bottom: 0.35rem;">No Taxonomy Clusters Created Yet</div>
+        <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: ${canEdit ? '1.15rem' : '0.2rem'}; max-width: 460px; margin-left: auto; margin-right: auto;">Categorize your systematic review papers into structured sub-domain taxonomy clusters for benchmark synthesis.</p>
+        ${canEdit ? `<button class="action-btn gold" onclick="openCreateClusterModal()">+ Create First Cluster</button>` : `<span style="font-size:0.80rem; color:var(--text-tertiary); font-family:var(--font-mono);">[Read-Only Mode] Taxonomy clusters can only be created by the Owner or Editor.</span>`}
       </div>
     `;
+    return;
+  }
 
-    container.appendChild(card);
-  });
+  if (window.clustersViewMode === 'table') {
+    container.className = 'clusters-table-view-wrap';
+    container.innerHTML = `
+      <div class="clusters-table-wrapper">
+        <table class="clusters-table">
+          <thead>
+            <tr>
+              <th style="width: 48px; text-align: center;">#</th>
+              <th style="min-width: 260px;">Cluster Name &amp; Focus</th>
+              <th style="width: 120px; text-align: center;">Total Papers</th>
+              <th style="min-width: 220px;">Reading Progress</th>
+              <th style="width: 130px; text-align: center;">Matrix Columns</th>
+              <th style="width: 110px; text-align: center;">Keywords</th>
+              <th style="width: 160px; text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${allClusters.map((c, idx) => {
+              const clusterColor = c.color || 'var(--accent-primary)';
+              const totalPapers = c.paper_count || 0;
+              const readPapers = c.read_count || 0;
+              const unreadPapers = c.unread_count !== undefined ? c.unread_count : (totalPapers - readPapers > 0 ? totalPapers - readPapers : 0);
+              const columnsCount = c.column_count || 0;
+              let keywordsCount = c.keyword_count || 0;
+              const readPct = totalPapers > 0 ? Math.round((readPapers / totalPapers) * 100) : 0;
+              const isActive = String(c.id) === String(currentClusterId);
+
+              // Gather unique keywords in this cluster for quick filter chips
+              const clusterKeywords = [];
+              if (Array.isArray(window.allPapers)) {
+                const kwMap = new Map();
+                window.allPapers.filter(p => p.cluster_id === c.id).forEach(p => {
+                  if (Array.isArray(p.keywords)) {
+                    p.keywords.forEach(k => {
+                      if (k && typeof k === 'string') {
+                        const clean = k.replace(/^#/, '').trim();
+                        if (clean && !kwMap.has(clean.toLowerCase())) {
+                          kwMap.set(clean.toLowerCase(), clean);
+                        }
+                      }
+                    });
+                  }
+                });
+                clusterKeywords.push(...Array.from(kwMap.values()).slice(0, 3));
+                if (kwMap.size > 0 && !keywordsCount) keywordsCount = kwMap.size;
+              }
+
+              return `
+                <tr class="clusters-table-row ${isActive ? 'active-row' : ''}" onclick="exploreCluster(${c.id})">
+                  <td style="text-align: center; color: var(--text-tertiary); font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700;">${idx + 1}</td>
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.25rem;">
+                      <span class="cluster-color-dot" style="background:${clusterColor}; box-shadow: 0 0 10px ${clusterColor}88;"></span>
+                      <strong style="color: ${clusterColor}; font-size: 0.96rem; font-weight: 700;">${escapeHtml(c.name)}</strong>
+                      <span class="cluster-id-badge" style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-tertiary); background: var(--bg-surface-raised); padding: 0.1rem 0.35rem; border-radius: 4px; border: 1px solid var(--border-base);">#${c.id}</span>
+                    </div>
+                    <div style="font-size: 0.82rem; color: var(--text-secondary); max-width: 440px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                      ${escapeHtml(c.description || 'Systematic sub-domain taxonomy group')}
+                    </div>
+                  </td>
+                  <td style="text-align: center;">
+                    <span class="cluster-pill-badge" style="background: rgba(56,189,248,0.12); color: #38bdf8; border: 1px solid rgba(56,189,248,0.28); padding: 0.2rem 0.6rem; border-radius: 12px; font-weight: 800; font-family: var(--font-mono); font-size: 0.84rem;">
+                      ${totalPapers}
+                    </span>
+                  </td>
+                  <td>
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.76rem; margin-bottom: 0.25rem; font-family: var(--font-mono);">
+                      <span style="font-weight: 700; color: var(--accent-gold);">${readPct}%</span>
+                      <span style="color: var(--text-tertiary);">${readPapers} read • ${unreadPapers} unread</span>
+                    </div>
+                    <div class="cluster-progress-track" style="height: 5px;">
+                      <div class="cluster-progress-fill" style="width: ${readPct}%; background: linear-gradient(90deg, ${clusterColor} 0%, var(--accent-gold) 100%);"></div>
+                    </div>
+                  </td>
+                  <td style="text-align: center;">
+                    <span style="font-family: var(--font-mono); font-weight: 700; color: var(--text-primary); font-size: 0.88rem;">${columnsCount}</span>
+                  </td>
+                  <td style="text-align: center;">
+                    <span style="font-family: var(--font-mono); font-weight: 700; color: var(--text-primary); font-size: 0.88rem;">${keywordsCount}</span>
+                    ${clusterKeywords.length > 0 ? `
+                      <div style="display: flex; gap: 0.25rem; justify-content: center; flex-wrap: wrap; margin-top: 0.35rem;">
+                        ${clusterKeywords.map(kw => `
+                          <span class="kw-tag" onclick="event.stopPropagation(); exploreCluster(${c.id}).then(() => { if (typeof toggleKeywordFilter === 'function') toggleKeywordFilter('${escapeHtml(kw)}'); });" style="font-size: 0.70rem; padding: 0.1rem 0.35rem; line-height: 1.2;" title="Explore ${escapeHtml(c.name)} filtered by #${escapeHtml(kw)}">#${escapeHtml(kw)}</span>
+                        `).join('')}
+                      </div>
+                    ` : ''}
+                  </td>
+                  <td style="text-align: right;">
+                    <button class="action-btn gold mini-btn" onclick="event.stopPropagation(); exploreCluster(${c.id})" style="font-weight: 700; padding: 0.35rem 0.85rem;">
+                      Explore Cluster →
+                    </button>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else {
+    container.className = 'clusters-grid';
+    allClusters.forEach(c => {
+      const card = document.createElement('div');
+      card.className = `cluster-card ${String(c.id) === String(currentClusterId) ? 'active-focus' : ''}`;
+      card.setAttribute('data-cluster-id', c.id);
+      card.onclick = () => exploreCluster(c.id);
+
+      const clusterColor = c.color || 'var(--accent-primary)';
+      const totalPapers = c.paper_count || 0;
+      const readPapers = c.read_count || 0;
+      const unreadPapers = c.unread_count !== undefined ? c.unread_count : (totalPapers - readPapers > 0 ? totalPapers - readPapers : 0);
+      const columnsCount = c.column_count || 0;
+      const keywordsCount = c.keyword_count || 0;
+      const readPct = totalPapers > 0 ? Math.round((readPapers / totalPapers) * 100) : 0;
+
+      card.innerHTML = `
+        <div>
+          <div class="cluster-header">
+            <div class="cluster-header-left">
+              <span class="cluster-color-dot" style="background:${clusterColor}; box-shadow: 0 0 10px ${clusterColor}88;"></span>
+              <span class="cluster-tag-label" style="color: var(--text-tertiary);">TAXONOMY CLUSTER</span>
+            </div>
+            <span class="cluster-id-badge" style="font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700; color: var(--text-tertiary); background: var(--bg-surface-raised); padding: 0.15rem 0.45rem; border-radius: 6px; border: 1px solid var(--border-base);">#${c.id}</span>
+          </div>
+
+          <h4 class="cluster-name" style="color: ${clusterColor};">${escapeHtml(c.name)}</h4>
+          <p class="cluster-desc">${escapeHtml(c.description || 'Systematic sub-domain taxonomy group for methodology benchmarking.')}</p>
+
+          <!-- 3 Metric Chips: Total Papers, Matrix Columns, Keywords -->
+          <div class="cluster-metrics-grid">
+            <div class="cluster-stat-chip">
+              <span class="chip-num">${totalPapers}</span>
+              <span class="chip-label">TOTAL PAPERS</span>
+            </div>
+            <div class="cluster-stat-chip">
+              <span class="chip-num">${columnsCount}</span>
+              <span class="chip-label">MATRIX COLUMNS</span>
+            </div>
+            <div class="cluster-stat-chip">
+              <span class="chip-num">${keywordsCount}</span>
+              <span class="chip-label">KEYWORDS</span>
+            </div>
+          </div>
+
+          <!-- Read-Unread Percentages Progress Bar -->
+          <div class="cluster-progress-wrap">
+            <div class="cluster-progress-label-row">
+              <span style="font-size: 0.78rem; font-weight: 600; color: var(--text-secondary);">Reading Progress</span>
+              <span class="cluster-progress-stats" style="font-size: 0.78rem; font-family: 'JetBrains Mono', monospace; color: var(--text-tertiary);">
+                <strong style="color: var(--accent-gold);">${readPct}%</strong> (${readPapers} read • ${unreadPapers} unread)
+              </span>
+            </div>
+            <div class="cluster-progress-track">
+              <div class="cluster-progress-fill" style="width: ${readPct}%; background: linear-gradient(90deg, ${clusterColor} 0%, var(--accent-gold) 100%);"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cluster-card-footer">
+          <span style="font-size: 0.78rem; font-weight: 600; color: var(--text-tertiary); display: flex; align-items: center; gap: 0.35rem;">
+            <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:${clusterColor};"></span>
+            <span>Focus Mode</span>
+          </span>
+          <button class="action-btn gold mini-btn" onclick="event.stopPropagation(); exploreCluster(${c.id})" style="font-weight: 700; padding: 0.35rem 0.95rem;">
+            Explore Cluster →
+          </button>
+        </div>
+      `;
+
+      container.appendChild(card);
+    });
+  }
 };
 
 window.highlightClusterCard = function(clusterId) {
@@ -261,13 +374,28 @@ window.submitClusterForm = async function(e) {
     });
     if (res.ok) {
       closeModal('cluster-modal-overlay');
-      showToast(id ? 'Cluster updated' : 'Cluster created', 'success');
-      await loadClusters();
-      if (typeof loadPapers === 'function') await loadPapers();
-      if (typeof loadStats === 'function') await loadStats();
-      if (typeof loadSynthesisInsights === 'function') await loadSynthesisInsights();
+      showToast(id ? 'Cluster updated successfully' : 'Cluster created successfully', 'success');
+      try {
+        await loadClusters();
+      } catch (ce) {
+        console.warn('loadClusters err:', ce);
+      }
+      try {
+        if (typeof loadPapers === 'function') await loadPapers();
+      } catch (pe) {
+        console.warn('loadPapers err:', pe);
+      }
+      try {
+        if (typeof loadStats === 'function') await loadStats();
+      } catch (se) {
+        console.warn('loadStats err:', se);
+      }
+      try {
+        if (typeof loadSynthesisInsights === 'function') await loadSynthesisInsights();
+      } catch (sye) {}
     } else {
-      throw new Error(await res.text());
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || (await res.text()) || 'Failed to save cluster');
     }
   } catch (err) {
     showToast('Error saving cluster: ' + err.message, 'error');
@@ -504,6 +632,7 @@ window.exploreCluster = async function(clusterId) {
   }
 
   renderClusters();
+  if (typeof renderKeywordsHub === 'function') renderKeywordsHub();
   if (typeof applyFilters === 'function') applyFilters();
   if (typeof loadSynthesisInsights === 'function') loadSynthesisInsights();
   
@@ -548,6 +677,7 @@ window.clearClusterFocus = async function() {
   }
 
   renderClusters();
+  if (typeof renderKeywordsHub === 'function') renderKeywordsHub();
   if (typeof applyFilters === 'function') applyFilters();
   if (typeof loadSynthesisInsights === 'function') loadSynthesisInsights();
 };

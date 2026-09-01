@@ -74,7 +74,7 @@ async function runTests() {
     // 1. Auth: Researcher Login
     await test('POST /api/auth/login with pre-seeded researcher credentials', async () => {
       const res = await makeRequest('POST', '/api/auth/login', {
-        email: 'researcher@litnexis.ac',
+        email: 'researcher@litsphere.ac',
         password: 'researcher123'
       });
       assert.strictEqual(res.status, 200);
@@ -86,7 +86,7 @@ async function runTests() {
     // 2. Auth: Admin Login
     await test('POST /api/auth/login with pre-seeded admin credentials', async () => {
       const res = await makeRequest('POST', '/api/auth/login', {
-        email: 'admin@litnexis.ac',
+        email: 'admin@litsphere.ac',
         password: 'admin123'
       });
       assert.strictEqual(res.status, 200);
@@ -98,7 +98,7 @@ async function runTests() {
     // 3. Auth: Registration of new student user
     await test('POST /api/auth/register creates new account and returns token', async () => {
       const timestamp = Date.now();
-      const testEmail = `student_${timestamp}@litnexis.ac`;
+      const testEmail = `student_${timestamp}@litsphere.ac`;
       const testUsername = `alex_student_${timestamp}`;
       const res = await makeRequest('POST', '/api/auth/register', {
         username: testUsername,
@@ -118,7 +118,7 @@ async function runTests() {
         'Authorization': `Bearer ${researcherToken}`
       });
       assert.strictEqual(res.status, 200);
-      assert.strictEqual(res.body.user.email, 'researcher@litnexis.ac');
+      assert.strictEqual(res.body.user.email, 'researcher@litsphere.ac');
       assert.ok(res.body.user.ai_token_quota >= 100000);
     });
 

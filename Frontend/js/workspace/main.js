@@ -1,5 +1,5 @@
 /**
- * LITNEXIS WORKSPACE MASTER CONTROLLER
+ * LITSPHERE WORKSPACE MASTER CONTROLLER
  * Bootstraps workspace, loads projects, clusters, papers, dynamic columns, and manages UI filters.
  */
 
@@ -87,15 +87,15 @@ window.loadSharedProject = async function (token) {
       surveyDescEl.textContent = p.description || 'Comprehensive systematic literature review, multi-level taxonomy benchmarking, and master matrix synthesis.';
     }
     if (activeSurveyPillName) activeSurveyPillName.textContent = p.name;
-    document.title = p.name ? `Literature Survey on ${p.name} | LitNexis` : 'Literature Review Workspace | LitNexis';
+    document.title = p.name ? `Literature Survey on ${p.name} | LitSphere` : 'Literature Review Workspace | LitSphere';
     if (typeof window.initDescReadMore === 'function') window.initDescReadMore();
 
     // Show Public / Supervisor banner
     renderSharedNoticeBanner(p.name);
 
     // Render components
-    renderClustersList();
-    renderClusterFilters();
+    if (typeof renderClusters === 'function') renderClusters();
+    if (typeof populateClusterDropdowns === 'function') populateClusterDropdowns();
 
     // Check unassigned papers
     unassignedPapers = allPapers.filter(paper => !paper.cluster_id);
@@ -223,7 +223,7 @@ window.loadProjects = async function () {
         surveyDescEl.textContent = curProj.description || 'Comprehensive systematic literature review, multi-level taxonomy benchmarking, and master matrix synthesis.';
       }
       if (activeSurveyPillName) activeSurveyPillName.textContent = curProj.name;
-      document.title = curProj.name ? `Literature Survey on ${curProj.name} | LitNexis` : 'Literature Review Workspace | LitNexis';
+      document.title = curProj.name ? `Literature Survey on ${curProj.name} | LitSphere` : 'Literature Review Workspace | LitSphere';
       // Show / hide the "Read more" button based on actual overflow
       if (typeof window.initDescReadMore === 'function') window.initDescReadMore();
     }
@@ -276,11 +276,11 @@ window.applyWorkspaceRolePermissions = function () {
   if (roleBadge) {
     roleBadge.className = `role-badge-pill role-${role}`;
     roleBadge.textContent = role.toUpperCase();
-    roleBadge.title = `Current Project Role: ${role.toUpperCase()}`;
+    roleBadge.title = `Current Project Role: ${role.toUpperCase()} • ${isOwner ? 'Full Project Control & Team Management' : isEditor ? 'Add/Edit Papers, Matrix Cells & Taxonomy' : role === 'reviewer' ? 'PRISMA Blind Screening, Notes & Review (Read-Only Matrix)' : 'Read-Only Inspection & Data Export'}`;
   }
 
-  // 2. Add Cluster buttons
-  const addClusterBtns = document.querySelectorAll('.btn-add-cluster, #btn-new-cluster, #btn-add-cluster, [data-action="add-cluster"]');
+  // 2. Add Cluster buttons & triggers
+  const addClusterBtns = document.querySelectorAll('.btn-add-cluster, #btn-new-cluster, #btn-add-cluster, #btn-open-create-cluster, [data-action="add-cluster"]');
   addClusterBtns.forEach(btn => {
     btn.style.display = canModify ? 'inline-flex' : 'none';
   });
@@ -291,10 +291,14 @@ window.applyWorkspaceRolePermissions = function () {
     btn.style.display = canModify ? 'inline-flex' : 'none';
   });
 
-  // 4. Edit Cluster focus banner button
+  // 4. Edit Cluster focus banner button & Cluster settings button
   const editClusterBannerBtn = document.getElementById('focus-banner-edit-btn');
   if (editClusterBannerBtn) {
     editClusterBannerBtn.style.display = canModify ? 'inline-block' : 'none';
+  }
+  const clusterSettingsBtn = document.getElementById('focus-banner-settings-btn');
+  if (clusterSettingsBtn) {
+    clusterSettingsBtn.style.display = canModify ? 'inline-flex' : 'none';
   }
 
   // 5. Add Column & Split Column buttons
@@ -347,10 +351,302 @@ window.loadPapers = async function () {
       populateSearchColumnDropdown();
     }
 
+    // Populate Keywords Hub dynamically
+    if (typeof renderKeywordsHub === 'function') {
+      renderKeywordsHub();
+    }
+
     // Apply active filters
     applyFilters();
   } catch (err) {
     showToast(err.message, 'error');
+  }
+};
+
+window.selectedKeywords = new Set();
+window.keywordFilterMode = 'any'; // 'any' (OR) | 'all' (AND)
+window.keywordSearchQuery = '';
+
+window.setKeywordFilterMode = function (mode) {
+  window.keywordFilterMode = mode === 'all' ? 'all' : 'any';
+  const btnAny = document.getElementById('kw-mode-btn-any');
+  const btnAll = document.getElementById('kw-mode-btn-all');
+  if (btnAny) btnAny.classList.toggle('active', window.keywordFilterMode === 'any');
+  if (btnAll) btnAll.classList.toggle('active', window.keywordFilterMode === 'all');
+  renderKeywordsHub();
+  applyFilters();
+};
+
+window.filterKeywordChips = function (query) {
+  window.keywordSearchQuery = (query || '').trim().toLowerCase();
+  const clearBtn = document.getElementById('btn-clear-kw-search');
+  if (clearBtn) clearBtn.style.display = window.keywordSearchQuery ? 'inline-flex' : 'none';
+  renderKeywordsHub();
+};
+
+window.clearKeywordSearch = function () {
+  window.keywordSearchQuery = '';
+  const searchInput = document.getElementById('keywords-search-input');
+  if (searchInput) searchInput.value = '';
+  const clearBtn = document.getElementById('btn-clear-kw-search');
+  if (clearBtn) clearBtn.style.display = 'none';
+  renderKeywordsHub();
+};
+
+window.renderKeywordsHub = function () {
+  const container = document.getElementById('keywords-chips-container');
+  const countBadge = document.getElementById('keywords-count-badge');
+  const activeCountBadge = document.getElementById('keywords-active-count-badge');
+  const activeWrap = document.getElementById('active-keywords-filter-wrap');
+  const activeTagsContainer = document.getElementById('active-keywords-tags');
+
+  if (!container) return;
+
+  const rawPapers = Array.isArray(allPapers) ? allPapers : [];
+  const activeClusterId = window.currentClusterId || 'all';
+  const activeClusterObj = (activeClusterId !== 'all' && window.allClusters)
+    ? window.allClusters.find(c => String(c.id) === String(activeClusterId))
+    : null;
+
+  // Filter papers to current cluster if focused, otherwise entire survey
+  const papers = (activeClusterId && activeClusterId !== 'all')
+    ? rawPapers.filter(p => String(p.cluster_id) === String(activeClusterId))
+    : rawPapers;
+
+  // 1. Gather all keywords from target papers
+  const kwMap = new Map(); // keyword (lower) -> { name: originalString, count: number }
+
+  papers.forEach(p => {
+    if (Array.isArray(p.keywords)) {
+      p.keywords.forEach(k => {
+        if (k && typeof k === 'string') {
+          const trimmed = k.trim().replace(/^#/, '');
+          if (trimmed) {
+            const lower = trimmed.toLowerCase();
+            if (!kwMap.has(lower)) {
+              kwMap.set(lower, { name: trimmed, count: 0 });
+            }
+            kwMap.get(lower).count++;
+          }
+        }
+      });
+    }
+  });
+
+  // 2. Include any custom registered keywords in this project
+  const projId = (typeof activeProjectId !== 'undefined' && activeProjectId)
+    ? activeProjectId
+    : (new URLSearchParams(window.location.search).get('project') || 1);
+  const storageKey = 'workspace_custom_keywords_' + projId;
+  try {
+    const customKws = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    if (Array.isArray(customKws)) {
+      customKws.forEach(k => {
+        if (k && typeof k === 'string') {
+          const trimmed = k.trim().replace(/^#/, '');
+          if (trimmed) {
+            const lower = trimmed.toLowerCase();
+            if (!kwMap.has(lower)) {
+              kwMap.set(lower, { name: trimmed, count: 0 });
+            }
+          }
+        }
+      });
+    }
+  } catch (e) {}
+
+  const allUnique = Array.from(kwMap.values());
+  // Sort by count desc, then alphabetically
+  allUnique.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+  if (countBadge) {
+    if (activeClusterObj) {
+      countBadge.textContent = `${allUnique.length} in ${activeClusterObj.name}`;
+      countBadge.title = `Showing keywords for ${activeClusterObj.name} (${papers.length} Papers)`;
+    } else {
+      countBadge.textContent = `${allUnique.length} ${allUnique.length === 1 ? 'Keyword' : 'Keywords'}`;
+      countBadge.title = `Showing all project keywords (${papers.length} Papers)`;
+    }
+  }
+
+  // Active filters count badge
+  if (activeCountBadge) {
+    if (window.selectedKeywords.size > 0) {
+      activeCountBadge.style.display = 'inline-flex';
+      activeCountBadge.textContent = `${window.selectedKeywords.size} Active (${(window.keywordFilterMode || 'any').toUpperCase()})`;
+    } else {
+      activeCountBadge.style.display = 'none';
+    }
+  }
+
+  // Active filter tags strip
+  if (activeWrap && activeTagsContainer) {
+    if (window.selectedKeywords.size > 0) {
+      activeWrap.style.display = 'flex';
+      activeTagsContainer.innerHTML = Array.from(window.selectedKeywords).map(k => `
+        <span class="active-filter-pill">
+          #${escapeHtml(k)}
+          <button type="button" class="active-filter-remove" onclick="toggleKeywordFilter('${escapeHtml(k)}')" title="Remove this keyword filter">✕</button>
+        </span>
+      `).join('');
+    } else {
+      activeWrap.style.display = 'none';
+      activeTagsContainer.innerHTML = '';
+    }
+  }
+
+  if (allUnique.length === 0) {
+    container.innerHTML = `
+      <div style="font-size: 0.86rem; color: var(--text-tertiary); display: flex; align-items: center; justify-content: center; gap: 0.65rem; padding: 0.35rem 0; width: 100%;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-tertiary);">
+          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+          <line x1="7" y1="7" x2="7.01" y2="7"></line>
+        </svg>
+        <span>${activeClusterObj ? `No keywords recorded for papers in "${escapeHtml(activeClusterObj.name)}" yet.` : 'No keywords assigned to papers yet.'}</span>
+        <button type="button" class="mini-btn gold" onclick="openAddKeywordModal()" style="font-size: 0.76rem; padding: 0.2rem 0.55rem; font-weight: 700;">+ Add First Keyword</button>
+      </div>
+    `;
+    return;
+  }
+
+  // Apply search query filter if user typed in keyword search input
+  let displayKeywords = allUnique;
+  if (window.keywordSearchQuery) {
+    displayKeywords = allUnique.filter(kw => kw.name.toLowerCase().includes(window.keywordSearchQuery));
+  }
+
+  if (displayKeywords.length === 0 && window.keywordSearchQuery) {
+    container.innerHTML = `
+      <div style="font-size: 0.84rem; color: var(--text-tertiary); display: flex; align-items: center; justify-content: center; gap: 0.65rem; padding: 0.35rem 0; width: 100%;">
+        <span>No keywords matching "<strong>${escapeHtml(window.keywordSearchQuery)}</strong>"</span>
+        <button type="button" class="mini-btn" onclick="clearKeywordSearch()" style="font-size: 0.74rem; padding: 0.18rem 0.5rem;">Clear Search</button>
+        <button type="button" class="mini-btn gold" onclick="openAddKeywordModal()" style="font-size: 0.74rem; padding: 0.18rem 0.5rem;">+ Add as Keyword</button>
+      </div>
+    `;
+    return;
+  }
+
+  // Render Chips
+  const isAllActive = window.selectedKeywords.size === 0;
+  let html = `
+    <div class="kw-chip kw-chip-all ${isAllActive ? 'active' : ''}" onclick="toggleKeywordFilter('all')" title="Show all ${activeClusterObj ? `papers in ${escapeHtml(activeClusterObj.name)}` : 'papers'} without keyword filtering">
+      <span>${activeClusterObj ? 'All Cluster Keywords' : 'All Keywords'}</span>
+      <span class="kw-chip-count">${papers.length}</span>
+    </div>
+  `;
+
+  displayKeywords.forEach(kwObj => {
+    const isSelected = window.selectedKeywords.has(kwObj.name) || Array.from(window.selectedKeywords).some(k => k.toLowerCase() === kwObj.name.toLowerCase());
+    html += `
+      <div class="kw-chip ${isSelected ? 'active' : ''}" onclick="toggleKeywordFilter('${escapeHtml(kwObj.name)}')" title="Filter ${activeClusterObj ? `in ${escapeHtml(activeClusterObj.name)}` : ''} by #${escapeHtml(kwObj.name)} (${kwObj.count} papers)">
+        <span class="kw-chip-hash">${isSelected ? '✓' : '#'}</span>
+        <span>${escapeHtml(kwObj.name)}</span>
+        <span class="kw-chip-count">${kwObj.count}</span>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+};
+
+window.toggleKeywordFilter = function (kw) {
+  if (kw === 'all') {
+    window.selectedKeywords.clear();
+  } else {
+    const existing = Array.from(window.selectedKeywords).find(k => k.toLowerCase() === kw.toLowerCase());
+    if (existing) {
+      window.selectedKeywords.delete(existing);
+    } else {
+      window.selectedKeywords.add(kw);
+    }
+  }
+  renderKeywordsHub();
+  applyFilters();
+};
+
+window.clearKeywordFilters = function () {
+  window.selectedKeywords.clear();
+  renderKeywordsHub();
+  applyFilters();
+};
+
+window.openAddKeywordModal = function () {
+  const modal = document.getElementById('add-keyword-modal-overlay');
+  const input = document.getElementById('new-keyword-input');
+  const paperSelect = document.getElementById('new-keyword-paper-select');
+
+  if (input) input.value = '';
+
+  if (paperSelect) {
+    paperSelect.innerHTML = '<option value="">-- Apply to Survey Keywords Hub (All Papers) --</option>';
+    const papers = Array.isArray(allPapers) ? allPapers : [];
+    papers.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = `#${p.serial_no || p.id}: ${p.title.length > 55 ? p.title.substring(0, 52) + '...' : p.title}`;
+      paperSelect.appendChild(opt);
+    });
+  }
+
+  openModal('add-keyword-modal-overlay');
+  if (input) setTimeout(() => input.focus(), 80);
+};
+
+window.submitAddKeyword = async function (e) {
+  if (e) e.preventDefault();
+  const input = document.getElementById('new-keyword-input');
+  const paperSelect = document.getElementById('new-keyword-paper-select');
+
+  const rawKeyword = input ? input.value.trim().replace(/^#/, '') : '';
+  const paperId = paperSelect ? paperSelect.value : '';
+
+  if (!rawKeyword) {
+    showToast('Please enter a valid keyword name', 'warning');
+    return;
+  }
+
+  const projId = (typeof activeProjectId !== 'undefined' && activeProjectId)
+    ? activeProjectId
+    : (new URLSearchParams(window.location.search).get('project') || 1);
+
+  // 1. If assigned to specific paper, call API
+  if (paperId) {
+    try {
+      const res = await fetch('/api/keywords', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ paper_id: parseInt(paperId, 10), keyword: rawKeyword })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to assign keyword to paper');
+      }
+    } catch (err) {
+      showToast(err.message, 'error');
+      return;
+    }
+  }
+
+  // 2. Register into custom project keywords
+  const storageKey = 'workspace_custom_keywords_' + projId;
+  try {
+    let customKws = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    if (!Array.isArray(customKws)) customKws = [];
+    if (!customKws.some(k => k.toLowerCase() === rawKeyword.toLowerCase())) {
+      customKws.push(rawKeyword);
+      localStorage.setItem(storageKey, JSON.stringify(customKws));
+    }
+  } catch (err) {}
+
+  closeModal('add-keyword-modal-overlay');
+  showToast(`Keyword "#${rawKeyword}" saved successfully!`, 'success');
+
+  // Reload papers to reflect updated keyword associations
+  if (typeof loadPapers === 'function') {
+    await loadPapers();
+  } else {
+    renderKeywordsHub();
+    applyFilters();
   }
 };
 
@@ -470,7 +766,7 @@ function renderUnassignedBox() {
 window.openUnassignedModal = function () {
   const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'owner') || 'viewer').toLowerCase();
   if (role !== 'owner' && role !== 'editor' && role !== 'admin') {
-    showToast(`Role '${role.toUpperCase()}' cannot access the Unassigned Papers Hub.`, 'warning');
+    showToast(`Role '${role.toUpperCase()}' cannot access Unassigned Papers.`, 'warning');
     return;
   }
 
@@ -555,7 +851,7 @@ window.renderUnassignedModalContent = function () {
   }
 
   if (window.unassignedViewMode === 'table') {
-    // Table View: strictly contains only Paper Title, Author Name, Publisher Name, Publish Year + actions
+    // Table View: strictly contains only Paper Title, Author Name, Publisher Name, Publish Year + live review & transfer
     container.innerHTML = `
       <div class="unassigned-table-wrapper">
         <table class="unassigned-table">
@@ -567,102 +863,108 @@ window.renderUnassignedModalContent = function () {
               <th style="min-width: 180px;">Author Name</th>
               <th style="min-width: 160px;">Publisher / Venue</th>
               <th style="width: 115px; text-align: center;">Publish Year</th>
-              <th style="min-width: 260px; text-align: right;">Cluster Assignment &amp; Review</th>
+              <th style="min-width: 160px; text-align: right;">Action</th>
             </tr>
           </thead>
           <tbody>
-            ${displayList.map((p, idx) => `
+            ${displayList.map((p, idx) => {
+              const hasValidAuthors = p.authors && p.authors !== '-' && p.authors.trim() !== '' && p.authors.toLowerCase() !== 'academic researchers';
+              const hasValidPub = p.pub && p.pub !== '-' && p.pub.trim() !== '' && p.pub !== '—';
+              const hasValidYear = p.year && p.year !== '-' && String(p.year).trim() !== '' && p.year !== '—';
+              const hasValidDoi = p.doi && p.doi !== '-' && p.doi.trim() !== '';
+              const hasValidDomain = p.domain && p.domain !== '-' && p.domain.trim() !== '' && p.domain.toLowerCase() !== 'general';
+
+              return `
               <tr class="unassigned-table-row" data-paper-id="${p.id}">
                 <td style="text-align: center; color: var(--text-tertiary); font-family: var(--font-mono); font-size: 0.8rem; font-weight: 600;">${idx + 1}</td>
                 <td style="text-align: center;">
                   <input type="checkbox" class="unassigned-paper-cb" value="${p.id}" onchange="updateUnassignedSelectedCount()">
                 </td>
                 <td>
-                  <div class="unassigned-table-title" onclick="openPaperForReview(${p.id}, event)" title="Click to open paper in split-screen review mode">
-                    ${escapeHtml(p.title)}
+                  <div class="unassigned-table-title" onclick="openPaperForReview(${p.id}, event)" title="Click to open paper in live split-screen review & transfer mode">
+                    ${escapeHtml(p.title || 'Untitled Paper')}
                   </div>
                   <div style="display: flex; gap: 0.4rem; align-items: center; margin-top: 5px; flex-wrap: wrap;">
-                    ${p.domain ? `<span class="unassigned-tag domain">${escapeHtml(p.domain)}</span>` : ''}
-                    ${p.doi ? `<span class="unassigned-tag doi" title="DOI: ${escapeHtml(p.doi)}">DOI: ${escapeHtml(p.doi.length > 25 ? p.doi.substring(0, 25) + '...' : p.doi)}</span>` : ''}
+                    ${hasValidDomain ? `<span class="unassigned-tag domain">${escapeHtml(p.domain)}</span>` : ''}
+                    ${hasValidDoi ? `<span class="unassigned-tag doi" title="DOI: ${escapeHtml(p.doi)}">DOI: ${escapeHtml(p.doi.length > 25 ? p.doi.substring(0, 25) + '...' : p.doi)}</span>` : ''}
                   </div>
                 </td>
                 <td class="unassigned-table-text">
-                  <span class="unassigned-cell-author">${escapeHtml(p.authors || 'Academic Researchers')}</span>
+                  <span class="unassigned-cell-author">${hasValidAuthors ? escapeHtml(p.authors) : '<span style="color:var(--text-tertiary);">—</span>'}</span>
                 </td>
                 <td class="unassigned-table-text">
-                  <span class="unassigned-cell-pub">${escapeHtml(p.pub || '—')}</span>
+                  <span class="unassigned-cell-pub">${hasValidPub ? escapeHtml(p.pub) : '<span style="color:var(--text-tertiary);">—</span>'}</span>
                 </td>
                 <td style="text-align: center;">
-                  <span class="unassigned-year-badge">${p.year || '—'}</span>
+                  ${hasValidYear ? `<span class="unassigned-year-badge">${p.year}</span>` : '<span style="color:var(--text-tertiary);">—</span>'}
                 </td>
                 <td style="text-align: right;">
-                  <div class="unassigned-row-actions">
-                    <select class="form-select unassigned-inline-select" id="assign-sel-${p.id}">
-                      <option value="">-- Choose Cluster --</option>
-                      ${(allClusters || []).map(c => `<option value="${c.id}">${escapeHtml(c.name || '')}</option>`).join('')}
-                    </select>
-                    <button class="action-btn gold mini-btn unassigned-assign-btn" onclick="assignSingleUnassignedPaper(${p.id})">
-                      Assign
-                    </button>
-                    <button class="action-btn mini-btn unassigned-review-btn" onclick="openPaperForReview(${p.id}, event)" title="Open in Split-Screen Review Workspace">
-                      📖 Review
+                  <div class="unassigned-row-actions" style="justify-content: flex-end;">
+                    <button class="action-btn mini-btn unassigned-review-btn" onclick="openPaperForReview(${p.id}, event)" title="Open in Split-Screen Review &amp; Transfer Workspace">
+                      📖 Live Review
                     </button>
                   </div>
                 </td>
               </tr>
-            `).join('')}
+            `;}).join('')}
           </tbody>
         </table>
       </div>
     `;
   } else {
-    // Cards View
+    // Cards View: cleanly removes inline cluster assign, hides any '-' info, and adds live view review & transfer
     container.innerHTML = `
       <div class="unassigned-modal-grid">
-        ${displayList.map(p => `
+        ${displayList.map(p => {
+          const hasValidAuthors = p.authors && p.authors !== '-' && p.authors.trim() !== '' && p.authors.toLowerCase() !== 'academic researchers';
+          const hasValidPub = p.pub && p.pub !== '-' && p.pub.trim() !== '' && p.pub !== '—';
+          const hasValidYear = p.year && p.year !== '-' && String(p.year).trim() !== '' && p.year !== '—';
+          const hasValidDoi = p.doi && p.doi !== '-' && p.doi.trim() !== '';
+          const hasValidDomain = p.domain && p.domain !== '-' && p.domain.trim() !== '' && p.domain.toLowerCase() !== 'general';
+          const hasAnyMeta = hasValidAuthors || hasValidPub;
+
+          return `
           <div class="unassigned-hub-card" data-paper-id="${p.id}">
             <div class="unassigned-card-top">
               <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
-                <span class="unassigned-tag domain">${escapeHtml(p.domain || 'General')}</span>
-                ${p.year ? `<span class="unassigned-year-badge">${p.year}</span>` : ''}
-                ${p.doi ? `<span class="unassigned-tag doi">DOI</span>` : ''}
+                ${hasValidDomain ? `<span class="unassigned-tag domain">${escapeHtml(p.domain)}</span>` : ''}
+                ${hasValidYear ? `<span class="unassigned-year-badge">${p.year}</span>` : ''}
+                ${hasValidDoi ? `<span class="unassigned-tag doi">DOI</span>` : ''}
               </div>
-              <label class="unassigned-card-cb-label" title="Select paper">
+              <label class="unassigned-card-cb-label" title="Select paper for batch transfer">
                 <input type="checkbox" class="unassigned-paper-cb" value="${p.id}" onchange="updateUnassignedSelectedCount()">
               </label>
             </div>
 
-            <h4 class="unassigned-hub-title" onclick="openPaperForReview(${p.id}, event)" title="Click to open paper in split-screen review mode">
-              ${escapeHtml(p.title)}
+            <h4 class="unassigned-hub-title" onclick="openPaperForReview(${p.id}, event)" title="Click to open paper in live split-screen review &amp; cluster transfer mode">
+              ${escapeHtml(p.title || 'Untitled Paper')}
             </h4>
 
-            <div class="unassigned-hub-meta">
-              <div class="unassigned-meta-item">
-                <span class="unassigned-meta-icon">👤</span>
-                <span>${escapeHtml(p.authors || 'Academic Researchers')}</span>
+            ${hasAnyMeta ? `
+              <div class="unassigned-hub-meta">
+                ${hasValidAuthors ? `
+                  <div class="unassigned-meta-item">
+                    <span class="unassigned-meta-icon">👤</span>
+                    <span>${escapeHtml(p.authors)}</span>
+                  </div>
+                ` : ''}
+                ${hasValidPub ? `
+                  <div class="unassigned-meta-item">
+                    <span class="unassigned-meta-icon">🏛️</span>
+                    <span style="font-style: italic;">${escapeHtml(p.pub)}</span>
+                  </div>
+                ` : ''}
               </div>
-              ${p.pub ? `
-                <div class="unassigned-meta-item">
-                  <span class="unassigned-meta-icon">🏛️</span>
-                  <span style="font-style: italic;">${escapeHtml(p.pub)}</span>
-                </div>
-              ` : ''}
-            </div>
+            ` : ''}
 
             <div class="unassigned-card-actions-row">
-              <select class="form-select unassigned-inline-select" id="assign-sel-${p.id}" style="flex: 1;">
-                <option value="">-- Choose Cluster --</option>
-                ${(allClusters || []).map(c => `<option value="${c.id}">${escapeHtml(c.name || '')}</option>`).join('')}
-              </select>
-              <button class="action-btn gold mini-btn unassigned-assign-btn" onclick="assignSingleUnassignedPaper(${p.id})">
-                Assign
-              </button>
-              <button class="action-btn mini-btn unassigned-review-btn" onclick="openPaperForReview(${p.id}, event)" title="Open in Split-Screen Review Workspace">
-                📖 Review
+              <button class="action-btn gold unassigned-card-review-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.52rem 1rem; font-weight: 700;" onclick="openPaperForReview(${p.id}, event)" title="Open Live Split-Screen Review, PRISMA Screening &amp; Cluster Transfer">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                <span>Live Review &amp; Move Cluster</span>
               </button>
             </div>
           </div>
-        `).join('')}
+        `;}).join('')}
       </div>
     `;
   }
@@ -951,6 +1253,9 @@ window.applyFilters = function () {
       if (colTarget === 'domain') return (p.domain || '').toLowerCase().includes(q);
       if (colTarget === 'cluster') return (p.cluster_name || '').toLowerCase().includes(q);
       if (colTarget === 'status') return (p.status || '').toLowerCase().includes(q);
+      if (colTarget === 'advantages') return (p.advantages || p.strengths || '').toLowerCase().includes(q);
+      if (colTarget === 'criticism') return (p.criticism || p.gaps || '').toLowerCase().includes(q);
+      if (colTarget === 'future_directions') return (p.future_directions || p.future_research_direction || '').toLowerCase().includes(q);
       if (colTarget === 'keywords') return Array.isArray(p.keywords) && p.keywords.some(k => (k || '').toLowerCase().includes(q));
       if (colTarget === 'doi') return (p.doi || '').toLowerCase().includes(q) || (p.pdf_url || '').toLowerCase().includes(q);
 
@@ -985,7 +1290,10 @@ window.applyFilters = function () {
       if ((p.doi || '').toLowerCase().includes(q)) return true;
       if ((p.pdf_url || '').toLowerCase().includes(q)) return true;
 
-      // Conceptual columns
+      // Conceptual & evaluation columns
+      if ((p.advantages || '').toLowerCase().includes(q)) return true;
+      if ((p.criticism || '').toLowerCase().includes(q)) return true;
+      if ((p.future_directions || '').toLowerCase().includes(q)) return true;
       if ((p.intuition || '').toLowerCase().includes(q)) return true;
       if ((p.equation || '').toLowerCase().includes(q)) return true;
       if ((p.strengths || '').toLowerCase().includes(q)) return true;
@@ -1015,12 +1323,43 @@ window.applyFilters = function () {
     });
   }
 
+  // 5. Keywords filter
+  if (window.selectedKeywords && window.selectedKeywords.size > 0) {
+    const selKws = Array.from(window.selectedKeywords).map(k => k.toLowerCase().trim().replace(/^#/, ''));
+    const mode = window.keywordFilterMode || 'any';
+    filtered = filtered.filter(p => {
+      if (!Array.isArray(p.keywords)) return false;
+      const pKeywords = p.keywords.map(k => (typeof k === 'string' ? k.toLowerCase().trim().replace(/^#/, '') : ''));
+      if (mode === 'all') {
+        return selKws.every(k => pKeywords.includes(k));
+      } else {
+        return selKws.some(k => pKeywords.includes(k));
+      }
+    });
+  }
+
+  // 6. Sort by SI if requested
+  if (window.siSortOrder === 'desc') {
+    filtered.sort((a, b) => {
+      const sA = a.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(a.id) : a.id);
+      const sB = b.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(b.id) : b.id);
+      return Number(sB) - Number(sA);
+    });
+  } else if (window.siSortOrder === 'asc') {
+    filtered.sort((a, b) => {
+      const sA = a.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(a.id) : a.id);
+      const sB = b.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(b.id) : b.id);
+      return Number(sA) - Number(sB);
+    });
+  }
+
   // Toggle Reset Filters button visibility in UI
   const isFiltered = (currentClusterId && currentClusterId !== 'all') ||
     (currentDomain && currentDomain !== 'all') ||
     (currentStatus && currentStatus !== 'all') ||
     (searchQuery && searchQuery.trim() !== '') ||
-    (window.searchColumnTarget && window.searchColumnTarget !== 'all');
+    (window.searchColumnTarget && window.searchColumnTarget !== 'all') ||
+    (window.selectedKeywords && window.selectedKeywords.size > 0);
 
   const resetBtn = document.getElementById('btn-reset-filters');
   if (resetBtn) {
@@ -1079,6 +1418,10 @@ window.resetAllFilters = function () {
   searchQuery = '';
   window.searchQuery = '';
   window.searchColumnTarget = 'all';
+  window.siSortOrder = 'asc';
+
+  if (window.selectedKeywords) window.selectedKeywords.clear();
+  if (typeof renderKeywordsHub === 'function') renderKeywordsHub();
 
   const clusterFilter = document.getElementById('filter-cluster') || document.getElementById('filter-cluster-select');
   if (clusterFilter) clusterFilter.value = 'all';
@@ -1212,15 +1555,14 @@ function bindWorkspaceEventListeners() {
   const btnCreateCluster = document.getElementById('btn-open-create-cluster');
   if (btnCreateCluster) btnCreateCluster.onclick = openCreateClusterModal;
 
-  const btnFocusAdd = document.getElementById('focus-banner-add-btn');
-  if (btnFocusAdd) btnFocusAdd.onclick = openAddPaperModal;
-
-  const btnFocusEdit = document.getElementById('focus-banner-edit-btn');
-  if (btnFocusEdit) btnFocusEdit.onclick = () => {
-    if (currentClusterId && currentClusterId !== 'all') {
-      editCluster(parseInt(currentClusterId, 10));
-    }
-  };
+  const btnFocusSettings = document.getElementById('focus-banner-settings-btn');
+  if (btnFocusSettings) {
+    btnFocusSettings.onclick = () => {
+      if (currentClusterId && currentClusterId !== 'all') {
+        openClusterSettingsMasterModal(parseInt(currentClusterId, 10));
+      }
+    };
+  }
 
   const btnRefreshSynth = document.getElementById('btn-refresh-synthesis');
   if (btnRefreshSynth) btnRefreshSynth.onclick = loadSynthesisInsights;

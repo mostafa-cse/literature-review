@@ -28,7 +28,7 @@ export async function savePaperToDb(paperData) {
   return new Promise((resolve) => {
     setTimeout(() => {
       try {
-        localStorage.setItem(`litnexis_paper_${paperData.id || 101}`, JSON.stringify(paperData));
+        localStorage.setItem(`litsphere_paper_${paperData.id || 101}`, JSON.stringify(paperData));
       } catch (e) {
         console.warn('LocalStorage save failed:', e);
       }

@@ -1,12 +1,16 @@
 /**
- * LITNEXIS CLUSTER INSIGHTS & UNIQUE VALUE SUMMARY ENGINE
+ * LITSPHERE CLUSTER INSIGHTS & UNIQUE VALUE SUMMARY ENGINE
  * =======================================================================
- * Auto-renders below the master matrix table for every cluster page.
- * - Aggregates distinct unique values across ALL columns (standard, dynamic, split)
- * - 65% / 35% Split View:
- *     - Col 1 (65%): Unique Value (clamped to max 2 lines in collapsed view)
- *     - Col 2 (35%): Reference Papers Serial Numbers (clamped to max 2 lines in collapsed view)
- * - Interactive row-level and card-level expand/collapse toggles to view all details
+ * Auto-renders below the master matrix table for every cluster page and full survey.
+ * - Prioritizes 3 essential columns first:
+ *     1. Advantages
+ *     2. Criticism
+ *     3. Future Research Direction
+ *   followed by remaining columns (Cluster, Year, Publisher, Authors, Domain, etc.)
+ * - Full Drag-and-Drop support to reorder single summary tables anywhere in the grid
+ * - Persists custom table arrangement per survey in localStorage
+ * - 65% / 35% Split View (Unique Value / Ref Papers)
+ * - Available seamlessly across all clusters and filtered subsets
  * - Direct paper viewer trigger on serial badge click
  * - "Copy for Thesis" Markdown synthesis export
  */
@@ -42,6 +46,149 @@
       icon.innerHTML = isExpanded
         ? '<polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/>'
         : '<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>';
+    }
+  };
+
+  /* ────────────────────────────────────────────────────────────────
+     APPLY COLUMNS ORDERING (Default: Advantages, Criticism, Future Directions)
+  ──────────────────────────────────────────────────────────────── */
+  function applySummaryColumnsOrdering(colsSummary, projId) {
+    var pId = projId || (new URLSearchParams(window.location.search).get('project') || 1);
+    var storageKey = 'litsphere_summary_order_' + pId;
+    var savedOrder = null;
+    try {
+      var raw = localStorage.getItem(storageKey);
+      if (raw) savedOrder = JSON.parse(raw);
+    } catch (e) {
+      savedOrder = null;
+    }
+
+    if (Array.isArray(savedOrder) && savedOrder.length > 0) {
+      var orderMap = new Map();
+      savedOrder.forEach(function (k, idx) { orderMap.set(String(k).toLowerCase(), idx); });
+      return colsSummary.slice().sort(function (a, b) {
+        var idxA = orderMap.has(String(a.key).toLowerCase()) ? orderMap.get(String(a.key).toLowerCase()) : 999;
+        var idxB = orderMap.has(String(b.key).toLowerCase()) ? orderMap.get(String(b.key).toLowerCase()) : 999;
+        return idxA - idxB;
+      });
+    }
+
+    // Default Priority: 1. Advantages, 2. Criticism, 3. Future Research Direction, followed by others
+    var priorityKeys = ['advantages', 'criticism', 'future_directions'];
+    return colsSummary.slice().sort(function (a, b) {
+      var pIdxA = priorityKeys.indexOf(String(a.key).toLowerCase());
+      var pIdxB = priorityKeys.indexOf(String(b.key).toLowerCase());
+      if (pIdxA !== -1 && pIdxB !== -1) return pIdxA - pIdxB;
+      if (pIdxA !== -1) return -1;
+      if (pIdxB !== -1) return 1;
+      return 0;
+    });
+  }
+
+  /* ────────────────────────────────────────────────────────────────
+     DRAG AND DROP HANDLERS FOR SUMMARY TABLES
+  ──────────────────────────────────────────────────────────────── */
+  window.handleSummaryCardDragStart = function (e, colKey) {
+    window._draggedSummaryKey = colKey;
+    if (e.dataTransfer) {
+      e.dataTransfer.setData('text/plain', colKey);
+      e.dataTransfer.effectAllowed = 'move';
+    }
+    var card = e.currentTarget.closest('.summary-col-card') || e.currentTarget;
+    if (card) {
+      setTimeout(function () {
+        card.classList.add('is-dragging');
+      }, 0);
+    }
+  };
+
+  window.handleSummaryCardDragOver = function (e) {
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'move';
+    }
+  };
+
+  window.handleSummaryCardDragEnter = function (e, cardEl) {
+    e.preventDefault();
+    if (cardEl && cardEl.getAttribute('data-col-key') !== window._draggedSummaryKey) {
+      cardEl.classList.add('drag-target-over');
+    }
+  };
+
+  window.handleSummaryCardDragLeave = function (e, cardEl) {
+    if (cardEl) {
+      cardEl.classList.remove('drag-target-over');
+    }
+  };
+
+  window.handleSummaryCardDrop = function (e, targetKey) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    document.querySelectorAll('.summary-col-card').forEach(function (c) {
+      c.classList.remove('drag-target-over');
+      c.classList.remove('is-dragging');
+    });
+
+    var draggedKey = window._draggedSummaryKey || (e.dataTransfer ? e.dataTransfer.getData('text/plain') : null);
+    if (!draggedKey || String(draggedKey).toLowerCase() === String(targetKey).toLowerCase()) return;
+
+    var snap = window._lastSummaryData;
+    if (!snap || !snap.columnsSummary) return;
+
+    var cols = snap.columnsSummary;
+    var fromIdx = cols.findIndex(function (c) { return String(c.key).toLowerCase() === String(draggedKey).toLowerCase(); });
+    var toIdx = cols.findIndex(function (c) { return String(c.key).toLowerCase() === String(targetKey).toLowerCase(); });
+
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    var item = cols.splice(fromIdx, 1)[0];
+    cols.splice(toIdx, 0, item);
+
+    var projId = (typeof activeProjectId !== 'undefined' && activeProjectId)
+      ? activeProjectId
+      : (new URLSearchParams(window.location.search).get('project') || 1);
+
+    var newOrder = cols.map(function (c) { return c.key; });
+    try {
+      localStorage.setItem('litsphere_summary_order_' + projId, JSON.stringify(newOrder));
+    } catch (err) {
+      console.warn('Could not save summary order to localStorage:', err);
+    }
+
+    // Smoothly re-render summary cards grid
+    var gridContainer = document.getElementById('summary-cards-container');
+    if (gridContainer) {
+      gridContainer.innerHTML = renderSummaryCardsHtml(cols, snap.paperIndex);
+      if (typeof window.triggerMath === 'function') window.triggerMath(gridContainer);
+    }
+
+    if (typeof showToast === 'function') {
+      showToast('Summary table reordered', 'info');
+    }
+  };
+
+  window.handleSummaryCardDragEnd = function (e) {
+    window._draggedSummaryKey = null;
+    document.querySelectorAll('.summary-col-card').forEach(function (c) {
+      c.classList.remove('drag-target-over');
+      c.classList.remove('is-dragging');
+    });
+  };
+
+  window.resetSummaryCardsOrder = function () {
+    var projId = (typeof activeProjectId !== 'undefined' && activeProjectId)
+      ? activeProjectId
+      : (new URLSearchParams(window.location.search).get('project') || 1);
+    try {
+      localStorage.removeItem('litsphere_summary_order_' + projId);
+    } catch (e) {}
+    if (typeof window.renderClusterSummary === 'function') {
+      window.renderClusterSummary();
+    }
+    if (typeof showToast === 'function') {
+      showToast('Summary tables reset to default order (Advantages, Criticism, Future Directions first)', 'info');
     }
   };
 
@@ -157,7 +304,16 @@
             if (!valMap3.has(k)) valMap3.set(k, new Set());
             valMap3.get(k).add(idx.shortRef);
           }
-          if (col.key === 'authors' && p.authors) {
+          if (col.key === 'advantages') {
+            var advRaw = p.advantages || p.strengths || (p.custom_columns && (p.custom_columns['Advantages'] || p.custom_columns['advantages'] || p.custom_columns['Strengths'])) || '';
+            extractItems(advRaw).forEach(addVal);
+          } else if (col.key === 'criticism') {
+            var critRaw = p.criticism || p.gaps || (p.custom_columns && (p.custom_columns['Criticism'] || p.custom_columns['criticism'] || p.custom_columns['Gaps'])) || '';
+            extractItems(critRaw).forEach(addVal);
+          } else if (col.key === 'future_directions') {
+            var futRaw = p.future_directions || p.future_research_direction || (p.custom_columns && (p.custom_columns['Future Research Direction'] || p.custom_columns['future_directions'] || p.custom_columns['Future Directions'])) || '';
+            extractItems(futRaw).forEach(addVal);
+          } else if (col.key === 'authors' && p.authors) {
             p.authors.split(/[,;&]|\band\b/i).map(function (a) { return a.trim(); }).filter(Boolean).forEach(addVal);
           } else if (col.key === 'year' && p.year) {
             addVal(String(p.year));
@@ -186,6 +342,13 @@
         columnsSummary.push({ key: col.key, name: col.name, colType: 'standard', isDynamic: false, isSplit: false, valItems: valItems3 });
       }
     });
+
+    var projId = (typeof activeProjectId !== 'undefined' && activeProjectId)
+      ? activeProjectId
+      : (new URLSearchParams(window.location.search).get('project') || 1);
+
+    // Apply Priority Ordering (Advantages, Criticism, Future Directions) or Custom Stored Drag-Drop Order
+    columnsSummary = applySummaryColumnsOrdering(columnsSummary, projId);
 
     container.innerHTML = buildSummaryHtml(papers, columnsSummary, clusterTitle, clusterColor, totalDistinctCount, paperIndex);
     if (typeof window.triggerMath === 'function') window.triggerMath(container);
@@ -231,7 +394,7 @@
   }
 
   /* ────────────────────────────────────────────────────────────────
-     BUILD FULL SUMMARY HTML (WITHOUT PAPER REFERENCE INDEX)
+     BUILD FULL SUMMARY HTML
   ──────────────────────────────────────────────────────────────── */
   function buildSummaryHtml(papers, columnsSummary, clusterTitle, clusterColor, totalDistinctCount, paperIndex) {
     var gridHtml = renderSummaryCardsHtml(columnsSummary, paperIndex);
@@ -262,6 +425,10 @@
             '<span class="summary-telemetry-chip gold"><strong>' + totalDistinctCount + '</strong> Unique Values</span>' +
           '</div>' +
           '<div style="display:flex;gap:0.45rem;align-items:center;">' +
+            '<button type="button" class="mini-btn" id="btn-reset-summary-order" onclick="window.resetSummaryCardsOrder()" title="Reset summary cards order to default (Advantages, Criticism, Future Directions first)">' +
+              '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px;"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>' +
+              'Reset Order' +
+            '</button>' +
             '<button type="button" class="mini-btn gold" onclick="window.copyFullClusterSummaryToClipboard()" title="Copy Markdown synthesis with paper references">' +
               '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
               'Copy for Thesis' +
@@ -273,7 +440,7 @@
         '</div>' +
       '</div>' +
 
-      /* Cards 65/35 grid (Paper reference legend removed per requirement) */
+      /* Cards 65/35 grid */
       '<div class="cluster-summary-grid" id="summary-cards-container" style="' + (isSummaryCollapsed ? 'display:none;' : 'display:grid;') + '">' +
         gridHtml +
       '</div>' +
@@ -282,7 +449,7 @@
   }
 
   /* ────────────────────────────────────────────────────────────────
-     RENDER ALL COLUMN CARDS (65% / 35% SPLIT VIEW)
+     RENDER ALL COLUMN CARDS (65% / 35% SPLIT VIEW & DRAG-AND-DROP)
   ──────────────────────────────────────────────────────────────── */
   function renderSummaryCardsHtml(columnsSummary, paperIndex) {
     if (columnsSummary.length === 0) {
@@ -295,6 +462,9 @@
     var badgeType = 'Standard';
     var badgeColor = 'var(--text-tertiary)';
     if (col.isSplit) { badgeType = 'Split'; badgeColor = 'var(--accent-purple)'; }
+    else if (col.key === 'advantages') { badgeType = 'Core'; badgeColor = 'var(--accent-emerald, #10b981)'; }
+    else if (col.key === 'criticism') { badgeType = 'Core'; badgeColor = 'var(--accent-rose, #f43f5e)'; }
+    else if (col.key === 'future_directions') { badgeType = 'Core'; badgeColor = 'var(--accent-amber, #f59e0b)'; }
     else if (col.isDynamic) {
       badgeType = col.colType === 'formula' ? 'Formula' : (col.colType === 'tags' ? 'Tags' : 'Custom');
       badgeColor = 'var(--accent-primary)';
@@ -347,9 +517,20 @@
       }
     }
 
-    return '<div class="summary-col-card" data-col-key="' + esc(col.key) + '">' +
+    return '<div class="summary-col-card" ' +
+      'draggable="true" ' +
+      'data-col-key="' + esc(col.key) + '" ' +
+      'ondragstart="window.handleSummaryCardDragStart(event, \'' + esc(col.key) + '\')" ' +
+      'ondragover="window.handleSummaryCardDragOver(event)" ' +
+      'ondragenter="window.handleSummaryCardDragEnter(event, this)" ' +
+      'ondragleave="window.handleSummaryCardDragLeave(event, this)" ' +
+      'ondrop="window.handleSummaryCardDrop(event, \'' + esc(col.key) + '\')" ' +
+      'ondragend="window.handleSummaryCardDragEnd(event)">' +
       '<div class="summary-col-card-header">' +
-        '<div style="display:flex;align-items:center;gap:0.5rem;overflow:hidden;flex:1;">' +
+        '<div style="display:flex;align-items:center;gap:0.45rem;overflow:hidden;flex:1;">' +
+          '<span class="summary-drag-handle" title="Drag to reorder summary table">' +
+            '<svg width="10" height="14" viewBox="0 0 10 16" fill="currentColor"><circle cx="3" cy="3" r="1.5"/><circle cx="7" cy="3" r="1.5"/><circle cx="3" cy="8" r="1.5"/><circle cx="7" cy="8" r="1.5"/><circle cx="3" cy="13" r="1.5"/><circle cx="7" cy="13" r="1.5"/></svg>' +
+          '</span>' +
           '<h4 class="summary-col-name" title="' + esc(col.name) + '">' + esc(col.name) + '</h4>' +
           '<span class="summary-type-pill" style="color:' + badgeColor + ';border-color:' + badgeColor + '44;background:' + badgeColor + '11;">' + badgeType + '</span>' +
         '</div>' +

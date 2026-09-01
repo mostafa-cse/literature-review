@@ -1,5 +1,5 @@
 /**
- * LITNEXIS COLLABORATION & SUPERVISOR SHARING ENGINE
+ * LITSPHERE COLLABORATION & SUPERVISOR SHARING ENGINE
  * RBAC Team management, role invitations, role modifications, and read-only supervisor share tokens.
  */
 
@@ -20,7 +20,7 @@ window.loadTeamMembers = async function() {
 
   // Get cached user info
   let currentUserId = null;
-  const cachedUserStr = localStorage.getItem('litnexis_user');
+  const cachedUserStr = localStorage.getItem('litsphere_user');
   if (cachedUserStr) {
     try { currentUserId = JSON.parse(cachedUserStr).id; } catch(e) {}
   }
@@ -117,9 +117,9 @@ window.loadTeamMembers = async function() {
             <div style="display: flex; align-items: center; gap: 0.6rem;">
               ${isOwner ? `
                 <select class="team-member-select-role" onchange="updateCollaboratorRole(${m.user_id}, this.value)">
-                  <option value="editor" ${role === 'editor' ? 'selected' : ''}>Editor</option>
-                  <option value="reviewer" ${role === 'reviewer' ? 'selected' : ''}>Reviewer</option>
-                  <option value="viewer" ${role === 'viewer' ? 'selected' : ''}>Viewer</option>
+                  <option value="editor" ${role === 'editor' ? 'selected' : ''}>Editor (Co-Author)</option>
+                  <option value="reviewer" ${role === 'reviewer' ? 'selected' : ''}>Reviewer (Advisor)</option>
+                  <option value="viewer" ${role === 'viewer' ? 'selected' : ''}>Viewer (read-only)</option>
                 </select>
                 <button class="mini-btn danger" style="padding: 0.3rem 0.6rem; font-size: 0.78rem;" onclick="removeCollaborator(${m.user_id}, '${escapeHtml(m.name || m.email)}')" title="Remove Collaborator">
                   Remove

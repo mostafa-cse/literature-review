@@ -1,24 +1,45 @@
 /**
- * LITNEXIS MASTER MATRIX TABLE ENGINE
+ * LITSPHERE MASTER MATRIX TABLE ENGINE
  * Renders Excel-like interactive data matrix, hierarchical table headers, inline editable cells,
  * and column operations (reorder, move left/right/leftmost/rightmost, drag & drop, rename, delete).
  */
 
 window.triggerMath = function(container) {
-  if (window.renderMathInElement) {
-    window.renderMathInElement(container || document.body, {
-      delimiters: [
-        { left: '$$', right: '$$', display: true },
-        { left: '$', right: '$', display: false },
-        { left: '\\(', right: '\\)', display: false },
-        { left: '\\[', right: '\\]', display: true }
-      ],
-      throwOnError: false
-    });
-  } else if (window.MathJax && window.MathJax.typesetPromise) {
-    window.MathJax.typesetPromise(container ? [container] : []).catch(err => {
-      console.warn('MathJax typeset warning:', err);
-    });
+  try {
+    const target = (container && container.nodeType) ? container : (document.getElementById('matrix-table') || document.body);
+    if (!target) return;
+    if (window.renderMathInElement) {
+      window.renderMathInElement(target, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$', right: '$', display: false },
+          { left: '\\(', right: '\\)', display: false },
+          { left: '\\[', right: '\\]', display: true }
+        ],
+        throwOnError: false
+      });
+    } else if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetPromise([target]).catch(err => {
+        console.warn('MathJax typeset warning:', err);
+      });
+    }
+  } catch (err) {
+    console.warn('Math rendering safe catch:', err);
+  }
+};
+
+window.siSortOrder = 'asc';
+
+window.toggleSortSI = function(event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  window.siSortOrder = (window.siSortOrder === 'asc') ? 'desc' : 'asc';
+  if (typeof applyFilters === 'function') {
+    applyFilters();
+  } else if (typeof allPapers !== 'undefined' && Array.isArray(allPapers)) {
+    window.renderMasterMatrix(allPapers);
   }
 };
 
@@ -27,11 +48,15 @@ window.triggerMath = function(container) {
  */
 window.getOrderedColumnsList = function() {
   const baseCols = [
-    { key: 'cluster', name: 'Cluster', isBase: true },
-    { key: 'domain', name: 'Domain', isBase: true },
-    { key: 'authors', name: 'Authors', isBase: true },
+    { key: 'cluster', name: 'Cluster Name', isBase: true },
     { key: 'year', name: 'Publish Year', isBase: true },
-    { key: 'pub', name: 'Publisher / Conf / Journal', isBase: true }
+    { key: 'pub', name: 'Publisher / Conf / Journal', isBase: true },
+    { key: 'advantages', name: 'Advantages', isBase: true },
+    { key: 'criticism', name: 'Criticism', isBase: true },
+    { key: 'future_directions', name: 'Future Research Direction', isBase: true },
+    { key: 'keywords', name: 'Keywords', isBase: true },
+    { key: 'authors', name: 'Authors', isBase: true },
+    { key: 'domain', name: 'Domain', isBase: true }
   ];
 
   const rawCols = window.activeDataColumns || window.activeClusterColumns || [];
@@ -139,7 +164,7 @@ window.moveColumn = function(key, direction, event) {
 };
 
 /**
- * Drag & Drop Column Reordering Handlers
+ * Drag & Drop Column Reordering Handlers (Supports standard & split columns)
  */
 let draggedColKey = null;
 window.handleColDragStart = function(event, key) {
@@ -183,11 +208,18 @@ window.handleColDrop = function(event, targetKey) {
   const item = cols.splice(fromIdx, 1)[0];
   cols.splice(toIdx, 0, item);
   window.saveOrderedColumnsList(cols);
+  
+  const fromKey = draggedColKey;
   draggedColKey = null;
+
   if (typeof applyFilters === 'function') {
     applyFilters();
-  } else if (typeof allPapers !== 'undefined') {
+  } else if (typeof allPapers !== 'undefined' && Array.isArray(allPapers) && allPapers.length > 0) {
     window.renderMasterMatrix(allPapers);
+  } else if (window.lastRenderedPapers && Array.isArray(window.lastRenderedPapers)) {
+    window.renderMasterMatrix(window.lastRenderedPapers);
+  } else {
+    window.reorderMatrixColumnDOM(fromKey, targetKey);
   }
   showToast('Column position updated', 'success');
 };
@@ -196,6 +228,140 @@ window.handleColDragEnd = function(event) {
   document.querySelectorAll('th').forEach(t => t.classList.remove('col-drag-over', 'col-dragging'));
   draggedColKey = null;
 };
+
+/**
+ * Direct DOM column re-ordering engine for Master Matrix table:
+ * Moves parent column (with all its sub-headers and cell blocks) from fromKey to toKey.
+ */
+window.reorderMatrixColumnDOM = function(fromKey, toKey) {
+  const table = document.getElementById('matrix-table');
+  if (!table || !fromKey || !toKey || fromKey === toKey) return false;
+
+  const thead = table.querySelector('thead') || document.getElementById('matrix-thead');
+  const tbody = table.querySelector('tbody') || document.getElementById('matrix-tbody');
+  if (!thead || !tbody) return false;
+
+  const mainRow = thead.querySelector('tr:first-child');
+  if (!mainRow) return false;
+
+  let fromTh = null, toTh = null;
+  let fromHeaderIdx = -1, toHeaderIdx = -1;
+
+  for (let i = 0; i < mainRow.cells.length; i++) {
+    const th = mainRow.cells[i];
+    const key = th.getAttribute('data-col-key');
+    if (key === fromKey) {
+      fromTh = th;
+      fromHeaderIdx = i;
+    }
+    if (key === toKey) {
+      toTh = th;
+      toHeaderIdx = i;
+    }
+  }
+
+  if (!fromTh || !toTh || fromHeaderIdx === -1 || toHeaderIdx === -1) return false;
+
+  const fromSpan = parseInt(fromTh.colSpan, 10) || 1;
+
+  // Calculate starting cell index in tbody for fromHeaderIdx
+  let fromCellIdx = 0;
+  for (let i = 0; i < fromHeaderIdx; i++) {
+    fromCellIdx += (parseInt(mainRow.cells[i].colSpan, 10) || 1);
+  }
+
+  // 1. Move Header in mainRow
+  if (fromHeaderIdx < toHeaderIdx) {
+    mainRow.insertBefore(fromTh, toTh.nextSibling);
+  } else {
+    mainRow.insertBefore(fromTh, toTh);
+  }
+
+  // 2. Rebuild / update sub-headers row if exists
+  const subHeaderRow = document.getElementById('matrix-sub-headers') || thead.querySelector('tr:nth-child(2)');
+  if (subHeaderRow) {
+    subHeaderRow.innerHTML = '';
+    Array.from(mainRow.cells).forEach(th => {
+      const span = parseInt(th.colSpan, 10) || 1;
+      if (span > 1) {
+        const parentName = (th.getAttribute('data-col-name') || th.querySelector('.col-title-text')?.textContent || '').trim();
+        for (let i = 1; i <= span; i++) {
+          const subTh = document.createElement('th');
+          subTh.className = 'matrix-sub-th';
+          subTh.style.width = '140px';
+          subTh.style.minWidth = '140px';
+          const sName = th.dataset[`subName${i}`] || `Sub ${i}`;
+          subTh.textContent = sName;
+          subTh.title = `${parentName} → ${sName}`;
+          subHeaderRow.appendChild(subTh);
+        }
+      }
+    });
+  }
+
+  // 3. Move cell blocks in tbody rows
+  Array.from(tbody.rows).forEach(row => {
+    if (row.cells.length <= 1 && row.cells[0]?.colSpan > 1) return;
+
+    // Collect all fromSpan cells from row
+    const fromCells = [];
+    for (let s = 0; s < fromSpan; s++) {
+      const td = row.cells[fromCellIdx];
+      if (td) {
+        fromCells.push(td);
+        row.removeChild(td);
+      }
+    }
+
+    // Determine target insertion reference cell after fromCells removal
+    let updatedToCellIdx = 0;
+    for (let i = 0; i < mainRow.cells.length; i++) {
+      const th = mainRow.cells[i];
+      if (th === fromTh) break;
+      updatedToCellIdx += (parseInt(th.colSpan, 10) || 1);
+    }
+
+    const refTd = row.cells[updatedToCellIdx] || null;
+    fromCells.forEach(cell => {
+      if (refTd) {
+        row.insertBefore(cell, refTd);
+      } else {
+        row.appendChild(cell);
+      }
+    });
+  });
+
+  return true;
+};
+
+/**
+ * Helper to retrieve sub-columns for a column (supports both dynamic and base columns, backend & DOM data)
+ */
+function _getSubColumnsForCol(col, rawAllCols = []) {
+  if (!col) return [];
+  if (col.col_type && col.col_type !== 'split' && !Array.isArray(col.sub_columns)) {
+    return [];
+  }
+  const colName = (col.name || '').trim().toLowerCase();
+  const cleanKey = (col.key || '').replace(/^dyn_/, '').trim().toLowerCase();
+
+  // 1. Direct sub_columns on column object
+  if (Array.isArray(col.sub_columns) && col.sub_columns.length >= 2) {
+    return col.sub_columns.map((s, idx) => typeof s === 'string' ? { name: s, column_name: s } : s);
+  }
+
+  // 2. From rawAllCols
+  const found = (rawAllCols || []).filter(c => 
+    c.parent_column_id && (
+      (col.id && String(c.parent_column_id) === String(col.id)) ||
+      (c.parent_column_name && c.parent_column_name.toLowerCase() === colName) ||
+      (c.parent_column_name && c.parent_column_name.toLowerCase() === cleanKey)
+    )
+  );
+  if (found.length >= 2) return found;
+
+  return [];
+}
 
 /**
  * Rename Column Modal Engine
@@ -551,55 +717,60 @@ window.toggleColExpand = function(key, btnEl, event) {
   if (event) event.stopPropagation();
 
   const colIdx = _getColIndexByKey(key);
-  if (colIdx === -1) return;
+  const cellStartIdx = _getCellIndexByKey(key);
+  if (colIdx === -1 || cellStartIdx === -1) return;
 
   const table = document.getElementById('matrix-table');
   if (!table) return;
 
-  const th = table.querySelectorAll('thead tr th')[colIdx];
+  const mainRow = table.querySelector('thead tr:first-child');
+  if (!mainRow) return;
+  const th = mainRow.cells[colIdx];
   if (!th) return;
 
+  const span = parseInt(th.colSpan, 10) || 1;
   const isExpanded = th.getAttribute('data-col-expanded') === 'true';
-  const isSplitCol = th.querySelector('.col-split-header-badge') !== null || th.getAttribute('data-is-split') === 'true';
-  const baseWidth = isSplitCol ? COL_SPLIT_W : COL_FIXED_W;
+  const isSplitCol = th.querySelector('.col-split-header-badge') !== null || th.getAttribute('data-is-split') === 'true' || span > 1;
+  const baseWidth = isSplitCol ? `${span * 140}px` : COL_FIXED_W;
 
   if (!isExpanded) {
     // EXPAND: unlock width so content dictates size
-    th.style.width = COL_EXPANDED_MAX;
+    th.style.width = isSplitCol ? `${Math.max(span * 200, 420)}px` : COL_EXPANDED_MAX;
     th.style.minWidth = baseWidth;
-    th.style.maxWidth = COL_EXPANDED_MAX;
+    th.style.maxWidth = 'none';
     th.style.overflow = 'visible';
     th.style.whiteSpace = 'normal';
     th.setAttribute('data-col-expanded', 'true');
 
     table.querySelectorAll('tbody tr').forEach(row => {
-      const td = row.querySelectorAll('td')[colIdx];
-      if (!td) return;
-      td.style.width = COL_EXPANDED_MAX;
-      td.style.minWidth = baseWidth;
-      td.style.maxWidth = COL_EXPANDED_MAX;
-      td.style.overflow = 'visible';
-      td.style.whiteSpace = 'normal';
+      for (let s = 0; s < span; s++) {
+        const td = row.cells[cellStartIdx + s];
+        if (!td) continue;
+        td.style.width = isSplitCol ? '220px' : COL_EXPANDED_MAX;
+        td.style.minWidth = isSplitCol ? '140px' : baseWidth;
+        td.style.maxWidth = 'none';
+        td.style.overflow = 'visible';
+        td.style.whiteSpace = 'normal';
 
-      // Expand split cell values
-      const splitValCells = td.querySelectorAll('.split-cell-val');
-      splitValCells.forEach(svc => {
-        svc.style.whiteSpace = 'normal';
-        svc.style.wordBreak = 'break-word';
-      });
+        // Expand split cell values
+        const splitValCells = td.querySelectorAll('.split-cell-val');
+        splitValCells.forEach(svc => {
+          svc.style.whiteSpace = 'normal';
+          svc.style.wordBreak = 'break-word';
+        });
 
-      // Remove clamp from the inner cell-clamp-2 div
-      const clamp = td.querySelector('.cell-clamp-2');
-      if (clamp) {
-        clamp.style.webkitLineClamp = 'unset';
-        clamp.style.display = 'block';
-        clamp.style.overflow = 'visible';
-        clamp.style.maxHeight = 'none';
-        clamp.style.whiteSpace = 'normal';
+        // Remove clamp from the inner cell-clamp-2 div
+        const clamp = td.querySelector('.cell-clamp-2');
+        if (clamp) {
+          clamp.style.webkitLineClamp = 'unset';
+          clamp.style.display = 'block';
+          clamp.style.overflow = 'visible';
+          clamp.style.maxHeight = 'none';
+          clamp.style.whiteSpace = 'normal';
+        }
+        const popover = td.querySelector('.cell-hover-popover');
+        if (popover) popover.style.display = 'none';
       }
-      // Hide hover popover (not needed when fully visible)
-      const popover = td.querySelector('.cell-hover-popover');
-      if (popover) popover.style.display = 'none';
     });
 
     if (btnEl) {
@@ -611,39 +782,40 @@ window.toggleColExpand = function(key, btnEl, event) {
     // COLLAPSE: restore base width
     th.style.width = baseWidth;
     th.style.minWidth = baseWidth;
-    th.style.maxWidth = isSplitCol ? '580px' : COL_FIXED_W;
+    th.style.maxWidth = isSplitCol ? 'none' : COL_FIXED_W;
     th.style.overflow = 'hidden';
     th.style.whiteSpace = 'nowrap';
     th.setAttribute('data-col-expanded', 'false');
 
     table.querySelectorAll('tbody tr').forEach(row => {
-      const td = row.querySelectorAll('td')[colIdx];
-      if (!td) return;
-      td.style.width = baseWidth;
-      td.style.minWidth = baseWidth;
-      td.style.maxWidth = isSplitCol ? '580px' : COL_FIXED_W;
-      td.style.overflow = 'hidden';
-      td.style.whiteSpace = 'nowrap';
+      for (let s = 0; s < span; s++) {
+        const td = row.cells[cellStartIdx + s];
+        if (!td) continue;
+        td.style.width = isSplitCol ? '140px' : baseWidth;
+        td.style.minWidth = isSplitCol ? '140px' : baseWidth;
+        td.style.maxWidth = isSplitCol ? '200px' : COL_FIXED_W;
+        td.style.overflow = 'hidden';
+        td.style.whiteSpace = 'nowrap';
 
-      // Restore split cell values nowrap
-      const splitValCells = td.querySelectorAll('.split-cell-val');
-      splitValCells.forEach(svc => {
-        svc.style.whiteSpace = 'nowrap';
-        svc.style.wordBreak = 'normal';
-      });
+        // Restore split cell values nowrap
+        const splitValCells = td.querySelectorAll('.split-cell-val');
+        splitValCells.forEach(svc => {
+          svc.style.whiteSpace = 'nowrap';
+          svc.style.wordBreak = 'normal';
+        });
 
-      // Restore 2-line clamp
-      const clamp = td.querySelector('.cell-clamp-2');
-      if (clamp) {
-        clamp.style.webkitLineClamp = '2';
-        clamp.style.display = '-webkit-box';
-        clamp.style.overflow = 'hidden';
-        clamp.style.maxHeight = '2.84em';
-        clamp.style.whiteSpace = 'normal';
+        // Restore 2-line clamp
+        const clamp = td.querySelector('.cell-clamp-2');
+        if (clamp) {
+          clamp.style.webkitLineClamp = '2';
+          clamp.style.display = '-webkit-box';
+          clamp.style.overflow = 'hidden';
+          clamp.style.maxHeight = '2.84em';
+          clamp.style.whiteSpace = 'normal';
+        }
+        const popover = td.querySelector('.cell-hover-popover');
+        if (popover) popover.style.display = '';
       }
-      // Restore hover popover
-      const popover = td.querySelector('.cell-hover-popover');
-      if (popover) popover.style.display = '';
     });
 
     if (btnEl) {
@@ -654,16 +826,62 @@ window.toggleColExpand = function(key, btnEl, event) {
   }
 };
 
-/** Returns the visual column index (including frozen cols) for a given col key */
+/** Returns the visual header column index in the main header row for a given col key */
 function _getColIndexByKey(key) {
   const table = document.getElementById('matrix-table');
   if (!table) return -1;
-  const ths = table.querySelectorAll('thead tr th');
+  const mainRow = table.querySelector('thead tr:first-child');
+  if (!mainRow) return -1;
+  const ths = mainRow.cells;
   for (let i = 0; i < ths.length; i++) {
     if (ths[i].getAttribute('data-col-key') === key) return i;
   }
   return -1;
 }
+
+/** Returns the exact cell index in tbody rows taking preceding colSpans into account */
+function _getCellIndexByKey(key) {
+  const table = document.getElementById('matrix-table');
+  if (!table) return -1;
+  const mainRow = table.querySelector('thead tr:first-child');
+  if (!mainRow) return -1;
+  let cellIdx = 0;
+  for (let i = 0; i < mainRow.cells.length; i++) {
+    const th = mainRow.cells[i];
+    if (th.getAttribute('data-col-key') === key) return cellIdx;
+    cellIdx += (parseInt(th.colSpan, 10) || 1);
+  }
+  return -1;
+}
+
+/**
+ * Extracts sub-column value from paper custom_columns or parent JSON split data
+ */
+window.getSubColumnValue = function(paper, col, subColObj, sIdx, subShortKey, subColName) {
+  if (!paper) return '';
+  const customCols = paper.custom_columns || {};
+  
+  if (subColName && customCols[subColName] !== undefined && customCols[subColName] !== '') return customCols[subColName];
+  if (subColObj?.id && customCols[subColObj.id] !== undefined && customCols[subColObj.id] !== '') return customCols[subColObj.id];
+  if (subColObj?.id && customCols[`col_${subColObj.id}`] !== undefined && customCols[`col_${subColObj.id}`] !== '') return customCols[`col_${subColObj.id}`];
+  if (subShortKey && customCols[subShortKey] !== undefined && customCols[subShortKey] !== '') return customCols[subShortKey];
+  
+  const parentVal = customCols[col.name] !== undefined 
+    ? customCols[col.name] 
+    : (col.id && customCols[col.id] !== undefined ? customCols[col.id] : (customCols[`col_${col.id}`] || ''));
+  
+  if (parentVal) {
+    const splitPairs = window.parseSplitData(parentVal);
+    if (Array.isArray(splitPairs) && splitPairs.length > 0) {
+      const match = splitPairs.find(p => 
+        p.key && (p.key.toLowerCase() === (subShortKey || '').toLowerCase() || p.key.toLowerCase() === (subColName || '').toLowerCase())
+      );
+      if (match) return match.value || '';
+      if (splitPairs[sIdx]) return splitPairs[sIdx].value || '';
+    }
+  }
+  return '';
+};
 
 function closeAllColumnMenus() {
   document.querySelectorAll('.col-dropdown-menu.open').forEach(m => m.classList.remove('open'));
@@ -745,28 +963,52 @@ window.renderMasterMatrix = function(papers) {
     return;
   }
 
+  window.lastRenderedPapers = papers;
   const orderedCols = window.getOrderedColumnsList();
+  const rawAllCols = window.activeDataColumns || window.activeClusterColumns || [];
 
-  // Create Header Row
+  // Check if any column is split to determine if 2 header rows are required
+  const hasAnySplitCol = orderedCols.some(col => {
+    const subCols = _getSubColumnsForCol(col, rawAllCols);
+    return col.col_type === 'split' || subCols.length > 0;
+  });
+
+  // Create Main Header Row (Row 1)
   const trHead = document.createElement('tr');
+  trHead.id = 'matrix-main-headers';
 
-  // Frozen Column 1: #
+  // Frozen Column 1: SI (Clickable to sort rows ascending / descending)
   const thIndex = document.createElement('th');
-  thIndex.textContent = '#';
-  thIndex.className = 'sticky-col';
+  thIndex.id = 'th-sort-si';
+  thIndex.className = 'sticky-col th-sortable';
+  thIndex.rowSpan = hasAnySplitCol ? 2 : 1;
+  thIndex.style.cursor = 'pointer';
+  thIndex.style.userSelect = 'none';
+  thIndex.title = `Click to sort rows by SI (${window.siSortOrder === 'desc' ? 'Descending' : 'Ascending'})`;
+  thIndex.onclick = (e) => window.toggleSortSI(e);
+  const sortIcon = window.siSortOrder === 'desc' ? '▼' : (window.siSortOrder === 'asc' ? '▲' : '⇅');
+  thIndex.innerHTML = `
+    <div style="display: flex; align-items: center; justify-content: center; gap: 0.3rem;">
+      <span style="font-weight: 700;">SI</span>
+      <span id="si-sort-indicator" style="font-size: 0.68rem; color: var(--accent-gold); opacity: 0.9;">${sortIcon}</span>
+    </div>
+  `;
   trHead.appendChild(thIndex);
 
   // Frozen Column 2: Paper Title
   const thTitle = document.createElement('th');
   thTitle.textContent = 'Paper Title';
   thTitle.className = 'sticky-col-2';
-  trHead.appendChild(thTitle);  // Customizable & Reorderable Columns
-  const rawAllCols = window.activeDataColumns || window.activeClusterColumns || [];
+  thTitle.style.textAlign = 'center';
+  thTitle.rowSpan = hasAnySplitCol ? 2 : 1;
+  trHead.appendChild(thTitle);
 
+  // Customizable & Reorderable Columns
   orderedCols.forEach(col => {
-    const subCols = col.isDynamic ? rawAllCols.filter(c => c.parent_column_id && (c.parent_column_id === col.id || (c.parent_column_name && c.parent_column_name.toLowerCase() === col.name.toLowerCase()))) : [];
+    const subCols = _getSubColumnsForCol(col, rawAllCols);
     const isSplitCol = col.col_type === 'split' || subCols.length > 0;
-    
+    const splitCount = isSplitCol ? (subCols.length >= 2 ? subCols.length : 2) : 1;
+
     let subBadgeHtml = '';
     if (isSplitCol) {
       const shortBadges = subCols.length > 0
@@ -775,17 +1017,34 @@ window.renderMasterMatrix = function(papers) {
       subBadgeHtml = `<span class="col-split-header-badge" title="Split Column (${subCols.map(s => s.name).join(', ') || 'Sub-Columns'})">${escapeHtml(shortBadges.join(' | '))}</span>`;
     }
 
-    const colWidth = isSplitCol ? COL_SPLIT_W : COL_FIXED_W;
+    const colWidth = isSplitCol ? `${splitCount * 140}px` : COL_FIXED_W;
 
     const th = document.createElement('th');
     th.setAttribute('draggable', 'true');
     th.setAttribute('data-col-key', col.key);
+    th.setAttribute('data-col-name', col.name);
+    if (col.id) th.setAttribute('data-col-id', col.id);
     th.setAttribute('data-is-split', isSplitCol ? 'true' : 'false');
     th.setAttribute('data-col-expanded', 'false');
-    // Stamp fixed width as inline style — toggleColExpand overrides this directly
-    th.style.width = colWidth;
-    th.style.minWidth = colWidth;
-    th.style.maxWidth = isSplitCol ? '580px' : COL_FIXED_W;
+
+    if (isSplitCol) {
+      th.colSpan = splitCount;
+      th.rowSpan = 1;
+      th.style.width = colWidth;
+      th.style.minWidth = colWidth;
+      th.style.maxWidth = 'none';
+      subCols.forEach((s, idx) => {
+        const sName = s.name.match(/\(([^)]+)\)$/)?.[1] || s.name;
+        th.dataset[`subName${idx + 1}`] = sName;
+      });
+    } else {
+      th.colSpan = 1;
+      th.rowSpan = hasAnySplitCol ? 2 : 1;
+      th.style.width = colWidth;
+      th.style.minWidth = colWidth;
+      th.style.maxWidth = COL_FIXED_W;
+    }
+
     th.style.overflow = 'visible';
     th.ondragstart = (e) => window.handleColDragStart(e, col.key);
     th.ondragover = (e) => window.handleColDragOver(e);
@@ -809,8 +1068,11 @@ window.renderMasterMatrix = function(papers) {
             <button type="button" class="col-menu-item" data-col-key="${escapeHtml(col.key)}" onclick="window.openRenameColumnModal(this.getAttribute('data-col-key'), event)">
               <span>Rename Column</span>
             </button>
+            <button type="button" class="col-menu-item" data-col-key="${escapeHtml(col.key)}" onclick="window.quickAddSubColumn(this.getAttribute('data-col-key'), null, event)">
+              <span>+ Add Sub-Column</span>
+            </button>
             <button type="button" class="col-menu-item" data-col-key="${escapeHtml(col.key)}" onclick="window.openSplitColumnModal(this.getAttribute('data-col-key'), event)">
-              <span>Split Column</span>
+              <span>${isSplitCol ? 'Manage Column' : 'Split Column'}</span>
             </button>
             <button type="button" class="col-menu-item" data-col-key="${escapeHtml(col.key)}" onclick="window.toggleColExpand(this.getAttribute('data-col-key'), null, event); window.closeAllColumnMenus();">
               <span>Expand / Collapse</span>
@@ -841,8 +1103,53 @@ window.renderMasterMatrix = function(papers) {
 
   matrixThead.appendChild(trHead);
 
+  // Create Sub-Header Row (Row 2) if any split columns exist
+  if (hasAnySplitCol) {
+    const trSubHead = document.createElement('tr');
+    trSubHead.id = 'matrix-sub-headers';
+    trSubHead.className = 'matrix-sub-header-row';
+
+    orderedCols.forEach(col => {
+      const subCols = _getSubColumnsForCol(col, rawAllCols);
+      const isSplitCol = col.col_type === 'split' || subCols.length > 0;
+      const splitCount = isSplitCol ? (subCols.length >= 2 ? subCols.length : 2) : 1;
+
+      if (isSplitCol) {
+        for (let sIdx = 0; sIdx < splitCount; sIdx++) {
+          const subColObj = subCols[sIdx];
+          const subName = subColObj ? (subColObj.name.match(/\(([^)]+)\)$/)?.[1] || subColObj.name) : `Sub ${sIdx + 1}`;
+          const subTh = document.createElement('th');
+          subTh.className = 'matrix-sub-th';
+          subTh.style.width = '140px';
+          subTh.style.minWidth = '140px';
+          subTh.textContent = subName;
+          subTh.title = `${col.name} → ${subName}`;
+          trSubHead.appendChild(subTh);
+        }
+      }
+    });
+
+    matrixThead.appendChild(trSubHead);
+  }
+
+  // Sort papers according to active siSortOrder
+  const sortedPapers = [...papers];
+  if (window.siSortOrder === 'desc') {
+    sortedPapers.sort((a, b) => {
+      const sA = a.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(a.id) : a.id);
+      const sB = b.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(b.id) : b.id);
+      return Number(sB) - Number(sA);
+    });
+  } else if (window.siSortOrder === 'asc') {
+    sortedPapers.sort((a, b) => {
+      const sA = a.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(a.id) : a.id);
+      const sB = b.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(b.id) : b.id);
+      return Number(sA) - Number(sB);
+    });
+  }
+
   // Populate Table Body Rows
-  papers.forEach((p, index) => {
+  sortedPapers.forEach((p, index) => {
     const tr = document.createElement('tr');
     const statusVal = p.status || 'unread';
     tr.className = `matrix-row row-status-${statusVal}`;
@@ -871,81 +1178,149 @@ window.renderMasterMatrix = function(papers) {
 
     // 3. Render cells in the exact order of orderedCols
     orderedCols.forEach(col => {
-      const subCols = col.isDynamic ? rawAllCols.filter(c => c.parent_column_id && (c.parent_column_id === col.id || (c.parent_column_name && c.parent_column_name.toLowerCase() === col.name.toLowerCase()))) : [];
+      const subCols = _getSubColumnsForCol(col, rawAllCols);
       const isSplitCol = col.col_type === 'split' || subCols.length > 0;
-      const cellWidth = isSplitCol ? COL_SPLIT_W : COL_FIXED_W;
+      const splitCount = isSplitCol ? (subCols.length >= 2 ? subCols.length : 2) : 1;
 
-      // Helper to stamp fixed width on a newly created td
-      function applyColFixedWidth(td) {
-        td.style.width = cellWidth;
-        td.style.minWidth = cellWidth;
-        td.style.maxWidth = isSplitCol ? '580px' : COL_FIXED_W;
-        td.style.overflow = 'hidden';
-        td.setAttribute('data-col-key', col.key);
-        td.setAttribute('data-is-split', isSplitCol ? 'true' : 'false');
-      }
+      if (isSplitCol) {
+        // Render separate individual <td> cells for each sub-column
+        for (let sIdx = 0; sIdx < splitCount; sIdx++) {
+          const subColObj = subCols[sIdx];
+          const subShortKey = subColObj ? (subColObj.name.match(/\(([^)]+)\)$/)?.[1] || subColObj.name) : `Sub ${sIdx + 1}`;
+          const subColName = subColObj ? subColObj.name : `${col.name}(${subShortKey})`;
+          const subVal = window.getSubColumnValue(p, col, subColObj, sIdx, subShortKey, subColName);
 
-      if (col.key === 'cluster') {
-        const tdCluster = document.createElement('td');
-        applyColFixedWidth(tdCluster);
-        tdCluster.className = 'editable-cell';
-        tdCluster.style.fontWeight = '600';
-        tdCluster.style.color = 'var(--accent-primary)';
-        tdCluster.textContent = p.cluster_name || 'Unassigned';
-        tr.appendChild(tdCluster);
-      } else if (col.key === 'domain') {
-        const tdDomain = document.createElement('td');
-        applyColFixedWidth(tdDomain);
-        tdDomain.className = 'editable-cell';
-        tdDomain.setAttribute('data-paper-id', p.id);
-        tdDomain.setAttribute('data-raw-val', p.domain || 'General');
-        tdDomain.innerHTML = formatCellContent(p.domain, 'domain', p.id);
-        makeCellEditable(tdDomain, 'domain', p.id, true);
-        tr.appendChild(tdDomain);
-      } else if (col.key === 'authors') {
-        const tdAuthors = document.createElement('td');
-        applyColFixedWidth(tdAuthors);
-        tdAuthors.className = 'editable-cell';
-        tdAuthors.setAttribute('data-paper-id', p.id);
-        tdAuthors.setAttribute('data-raw-val', p.authors || '');
-        tdAuthors.style.color = 'var(--text-secondary)';
-        tdAuthors.innerHTML = formatCellContent(p.authors || '-', 'authors', p.id);
-        makeCellEditable(tdAuthors, 'authors', p.id, true);
-        tr.appendChild(tdAuthors);
-      } else if (col.key === 'year') {
-        const tdYear = document.createElement('td');
-        applyColFixedWidth(tdYear);
-        tdYear.className = 'editable-cell';
-        tdYear.setAttribute('data-paper-id', p.id);
-        tdYear.setAttribute('data-raw-val', p.year || '');
-        tdYear.style.fontFamily = 'var(--font-mono)';
-        tdYear.innerHTML = formatCellContent(p.year || '-', 'year', p.id);
-        makeCellEditable(tdYear, 'year', p.id, false);
-        tr.appendChild(tdYear);
-      } else if (col.key === 'pub') {
-        const tdPub = document.createElement('td');
-        applyColFixedWidth(tdPub);
-        tdPub.className = 'editable-cell';
-        tdPub.setAttribute('data-paper-id', p.id);
-        tdPub.setAttribute('data-raw-val', p.pub || '');
-        tdPub.innerHTML = formatCellContent(p.pub || '-', 'pub', p.id);
-        makeCellEditable(tdPub, 'pub', p.id, true);
-        tr.appendChild(tdPub);
-      } else if (col.isDynamic) {
-        const tdCol = document.createElement('td');
-        applyColFixedWidth(tdCol);
-        tdCol.className = 'editable-cell';
-        const colName = col.name;
-        const colId = col.id;
-        const customCols = p.custom_columns || {};
-        const val = (customCols[colName] !== undefined ? customCols[colName] : (colId && customCols[colId] !== undefined ? customCols[colId] : (customCols[`col_${colId}`] || '')));
-        tdCol.setAttribute('data-col-id', colId || '');
-        tdCol.setAttribute('data-col-name', colName);
-        tdCol.setAttribute('data-paper-id', p.id);
-        tdCol.setAttribute('data-raw-val', typeof val === 'object' ? JSON.stringify(val) : (val || ''));
-        tdCol.innerHTML = formatCellContent(val, 'dynamic', p.id);
-        makeCellEditable(tdCol, 'dynamic', p.id, true, colId, colName);
-        tr.appendChild(tdCol);
+          const tdSub = document.createElement('td');
+          tdSub.className = 'editable-cell';
+          tdSub.style.width = '140px';
+          tdSub.style.minWidth = '140px';
+          tdSub.style.maxWidth = '200px';
+          tdSub.style.overflow = 'hidden';
+          tdSub.setAttribute('data-col-key', col.key);
+          tdSub.setAttribute('data-col-name', subColName);
+          if (subColObj?.id) tdSub.setAttribute('data-col-id', subColObj.id);
+          else if (col.id) tdSub.setAttribute('data-col-id', col.id);
+          tdSub.setAttribute('data-paper-id', p.id);
+          tdSub.setAttribute('data-subcol-index', sIdx + 1);
+          tdSub.setAttribute('data-subcol-name', subShortKey);
+          tdSub.setAttribute('data-raw-val', typeof subVal === 'object' ? JSON.stringify(subVal) : (subVal || ''));
+          tdSub.innerHTML = formatCellContent(subVal, 'dynamic', p.id);
+          makeCellEditable(tdSub, 'dynamic', p.id, true, subColObj?.id || col.id, subColName);
+          tr.appendChild(tdSub);
+        }
+      } else {
+        // Helper to stamp fixed width on a newly created td
+        function applyColFixedWidth(td) {
+          td.style.width = COL_FIXED_W;
+          td.style.minWidth = COL_FIXED_W;
+          td.style.maxWidth = COL_FIXED_W;
+          td.style.overflow = 'hidden';
+          td.setAttribute('data-col-key', col.key);
+          td.setAttribute('data-is-split', 'false');
+        }
+
+        if (col.key === 'cluster') {
+          const tdCluster = document.createElement('td');
+          applyColFixedWidth(tdCluster);
+          tdCluster.className = 'editable-cell';
+          tdCluster.style.fontWeight = '600';
+          tdCluster.style.color = 'var(--accent-primary)';
+          tdCluster.textContent = p.cluster_name || 'Unassigned';
+          tr.appendChild(tdCluster);
+        } else if (col.key === 'domain') {
+          const tdDomain = document.createElement('td');
+          applyColFixedWidth(tdDomain);
+          tdDomain.className = 'editable-cell';
+          tdDomain.setAttribute('data-paper-id', p.id);
+          tdDomain.setAttribute('data-raw-val', p.domain || 'General');
+          tdDomain.innerHTML = formatCellContent(p.domain, 'domain', p.id);
+          makeCellEditable(tdDomain, 'domain', p.id, true);
+          tr.appendChild(tdDomain);
+        } else if (col.key === 'authors') {
+          const tdAuthors = document.createElement('td');
+          applyColFixedWidth(tdAuthors);
+          tdAuthors.className = 'editable-cell';
+          tdAuthors.setAttribute('data-paper-id', p.id);
+          tdAuthors.setAttribute('data-raw-val', p.authors || '');
+          tdAuthors.style.color = 'var(--text-secondary)';
+          tdAuthors.innerHTML = formatCellContent(p.authors || '-', 'authors', p.id);
+          makeCellEditable(tdAuthors, 'authors', p.id, true);
+          tr.appendChild(tdAuthors);
+        } else if (col.key === 'year') {
+          const tdYear = document.createElement('td');
+          applyColFixedWidth(tdYear);
+          tdYear.className = 'editable-cell';
+          tdYear.setAttribute('data-paper-id', p.id);
+          tdYear.setAttribute('data-raw-val', p.year || '');
+          tdYear.style.fontFamily = 'var(--font-mono)';
+          tdYear.innerHTML = formatCellContent(p.year || '-', 'year', p.id);
+          makeCellEditable(tdYear, 'year', p.id, false);
+          tr.appendChild(tdYear);
+        } else if (col.key === 'pub') {
+          const tdPub = document.createElement('td');
+          applyColFixedWidth(tdPub);
+          tdPub.className = 'editable-cell';
+          tdPub.setAttribute('data-paper-id', p.id);
+          tdPub.setAttribute('data-raw-val', p.pub || '');
+          tdPub.innerHTML = formatCellContent(p.pub || '-', 'pub', p.id);
+          makeCellEditable(tdPub, 'pub', p.id, true);
+          tr.appendChild(tdPub);
+        } else if (col.key === 'advantages') {
+          const tdAdv = document.createElement('td');
+          applyColFixedWidth(tdAdv);
+          tdAdv.className = 'editable-cell';
+          const rawAdv = p.advantages || p.strengths || (p.custom_columns && (p.custom_columns['Advantages'] || p.custom_columns['advantages'] || p.custom_columns['Strengths'])) || '-';
+          tdAdv.setAttribute('data-paper-id', p.id);
+          tdAdv.setAttribute('data-raw-val', typeof rawAdv === 'object' ? JSON.stringify(rawAdv) : (rawAdv || ''));
+          tdAdv.innerHTML = formatCellContent(rawAdv, 'advantages', p.id);
+          makeCellEditable(tdAdv, 'advantages', p.id, true);
+          tr.appendChild(tdAdv);
+        } else if (col.key === 'criticism') {
+          const tdCrit = document.createElement('td');
+          applyColFixedWidth(tdCrit);
+          tdCrit.className = 'editable-cell';
+          const rawCrit = p.criticism || p.gaps || (p.custom_columns && (p.custom_columns['Criticism'] || p.custom_columns['criticism'] || p.custom_columns['Gaps'])) || '-';
+          tdCrit.setAttribute('data-paper-id', p.id);
+          tdCrit.setAttribute('data-raw-val', typeof rawCrit === 'object' ? JSON.stringify(rawCrit) : (rawCrit || ''));
+          tdCrit.innerHTML = formatCellContent(rawCrit, 'criticism', p.id);
+          makeCellEditable(tdCrit, 'criticism', p.id, true);
+          tr.appendChild(tdCrit);
+        } else if (col.key === 'future_directions') {
+          const tdFut = document.createElement('td');
+          applyColFixedWidth(tdFut);
+          tdFut.className = 'editable-cell';
+          const rawFut = p.future_directions || p.future_research_direction || (p.custom_columns && (p.custom_columns['Future Research Direction'] || p.custom_columns['future_directions'] || p.custom_columns['Future Directions'])) || '-';
+          tdFut.setAttribute('data-paper-id', p.id);
+          tdFut.setAttribute('data-raw-val', typeof rawFut === 'object' ? JSON.stringify(rawFut) : (rawFut || ''));
+          tdFut.innerHTML = formatCellContent(rawFut, 'future_directions', p.id);
+          makeCellEditable(tdFut, 'future_directions', p.id, true);
+          tr.appendChild(tdFut);
+        } else if (col.key === 'keywords') {
+          const tdKw = document.createElement('td');
+          applyColFixedWidth(tdKw);
+          tdKw.className = 'editable-cell';
+          const kws = Array.isArray(p.keywords) ? p.keywords : (typeof p.keywords === 'string' ? p.keywords.split(/[,;\n]+/).map(s => s.trim().replace(/^#/, '')).filter(Boolean) : []);
+          tdKw.setAttribute('data-paper-id', p.id);
+          tdKw.setAttribute('data-raw-val', kws.join(', '));
+          tdKw.innerHTML = formatCellContent(kws, 'keywords', p.id);
+          makeCellEditable(tdKw, 'keywords', p.id, true);
+          tr.appendChild(tdKw);
+        } else if (col.isDynamic) {
+          const tdCol = document.createElement('td');
+          applyColFixedWidth(tdCol);
+          tdCol.className = 'editable-cell';
+          const colName = col.name;
+          const colId = col.id;
+          const customCols = p.custom_columns || {};
+          const val = (customCols[colName] !== undefined ? customCols[colName] : (colId && customCols[colId] !== undefined ? customCols[colId] : (customCols[`col_${colId}`] || '')));
+          tdCol.setAttribute('data-col-id', colId || '');
+          tdCol.setAttribute('data-col-name', colName);
+          tdCol.setAttribute('data-paper-id', p.id);
+          tdCol.setAttribute('data-raw-val', typeof val === 'object' ? JSON.stringify(val) : (val || ''));
+          tdCol.innerHTML = formatCellContent(val, 'dynamic', p.id);
+          makeCellEditable(tdCol, 'dynamic', p.id, true, colId, colName);
+          tr.appendChild(tdCol);
+        }
       }
     });
 
@@ -1036,16 +1411,7 @@ window.makeCellEditable = function(cell, fieldType, paperId, isMultiline = true,
       }
     };
 
-    // 1. Check if cell is currently in Split Mode
-    let splitPairs = window.parseSplitData(originalRaw);
-
-    if (splitPairs && splitPairs.length > 0) {
-      expandThisColumn();
-      renderSplitCellEditor(splitPairs);
-      return;
-    }
-
-    // 2. Standard Single-Value Inline Input
+    // 1. Standard Single-Value Inline Input
     let input;
     if (fieldType === 'year') {
       input = document.createElement('input');
@@ -1069,41 +1435,6 @@ window.makeCellEditable = function(cell, fieldType, paperId, isMultiline = true,
 
     cell.innerHTML = '';
     cell.appendChild(input);
-
-    // If dynamic cell, add a quick "Split Cell" helper button below textarea
-    if (fieldType === 'dynamic') {
-      const splitHelperBar = document.createElement('div');
-      splitHelperBar.className = 'split-cell-helper-bar';
-      splitHelperBar.style.display = 'flex';
-      splitHelperBar.style.justifyContent = 'center';
-      splitHelperBar.style.alignItems = 'center';
-      splitHelperBar.style.marginTop = '6px';
-
-      const btnSplitThisCell = document.createElement('button');
-      btnSplitThisCell.type = 'button';
-      btnSplitThisCell.className = 'mini-btn btn-split-cell-action';
-      btnSplitThisCell.innerHTML = 'Split Cell';
-      btnSplitThisCell.title = 'Split this cell into multiple sub-values';
-      
-      btnSplitThisCell.onmousedown = (be) => be.stopPropagation();
-      btnSplitThisCell.onclick = (be) => {
-        be.stopPropagation();
-        const currentVal = input.value.trim();
-
-        // 1. Auto-expand column view when splitting
-        expandThisColumn();
-
-        // 2. If empty: default row with empty sub-key and empty value
-        // 3. If contains value: default row with empty sub-key and current cell value
-        const initialPairs = [
-          { key: '', value: currentVal }
-        ];
-        renderSplitCellEditor(initialPairs);
-      };
-
-      splitHelperBar.appendChild(btnSplitThisCell);
-      cell.appendChild(splitHelperBar);
-    }
 
     input.focus();
     if (input.setSelectionRange) {
@@ -1130,12 +1461,11 @@ window.makeCellEditable = function(cell, fieldType, paperId, isMultiline = true,
     }
 
     input.addEventListener('blur', () => {
-      // Delay slightly in case user clicked the Split Cell button
       setTimeout(() => {
-        if (cell.classList.contains('editing') && !cell.querySelector('.split-inline-editor')) {
+        if (cell.classList.contains('editing')) {
           saveInlineEdit();
         }
-      }, 150);
+      }, 180);
     });
 
     input.addEventListener('keydown', (ke) => {
@@ -1149,132 +1479,6 @@ window.makeCellEditable = function(cell, fieldType, paperId, isMultiline = true,
         restoreCellDisplay(cell, fieldType, originalRaw);
       }
     });
-
-    // 3. Sub-Function: Renders Multi-Row Split Editor
-    function renderSplitCellEditor(pairs) {
-      cell.innerHTML = '';
-      const editor = document.createElement('div');
-      editor.className = 'split-inline-editor';
-      editor.onclick = (ce) => ce.stopPropagation();
-
-      const headerRow = document.createElement('div');
-      headerRow.style.display = 'flex';
-      headerRow.style.justifyContent = 'space-between';
-      headerRow.style.alignItems = 'center';
-      headerRow.style.marginBottom = '0.2rem';
-      headerRow.innerHTML = `
-        <span style="font-size:0.75rem; font-weight:700; color:var(--accent-primary); text-transform:uppercase; letter-spacing:0.05em;">Split Cell</span>
-        <button type="button" class="mini-btn btn-add-subpair" style="font-size:0.7rem; padding:1px 5px;">+ Sub-Key</button>
-      `;
-      editor.appendChild(headerRow);
-
-      const rowsContainer = document.createElement('div');
-      rowsContainer.style.display = 'flex';
-      rowsContainer.style.flexDirection = 'column';
-      rowsContainer.style.gap = '0.35rem';
-      editor.appendChild(rowsContainer);
-
-      const actionsRow = document.createElement('div');
-      actionsRow.className = 'split-edit-actions';
-      actionsRow.innerHTML = `
-        <button type="button" class="mini-btn btn-cancel-split" style="font-size:0.75rem;">Cancel</button>
-        <div style="display:flex; gap:0.35rem;">
-          <button type="button" class="mini-btn btn-unsplit" style="font-size:0.72rem; opacity:0.8;" title="Revert to plain single text">Plain Text</button>
-          <button type="button" class="action-btn btn-save-split" style="font-size:0.75rem; padding:3px 10px;">Save</button>
-        </div>
-      `;
-
-      function renderPairRows() {
-        rowsContainer.innerHTML = '';
-        pairs.forEach((pair, idx) => {
-          const rowEl = document.createElement('div');
-          rowEl.className = 'split-edit-row';
-          rowEl.innerHTML = `
-            <input type="text" class="split-edit-key-input" placeholder="Sub-key" value="${escapeHtml(pair.key)}">
-            <input type="text" class="split-edit-val-input" placeholder="Value" value="${escapeHtml(pair.value)}">
-            <button type="button" class="split-edit-del-btn" title="Remove sub-key"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
-          `;
-
-          const keyIn = rowEl.querySelector('.split-edit-key-input');
-          const valIn = rowEl.querySelector('.split-edit-val-input');
-          const delBtn = rowEl.querySelector('.split-edit-del-btn');
-
-          keyIn.oninput = (ie) => { pair.key = ie.target.value; };
-          valIn.oninput = (ie) => { pair.value = ie.target.value; };
-
-          const handleKeyEnter = (ke) => {
-            if (ke.key === 'Enter') {
-              ke.preventDefault();
-              actionsRow.querySelector('.btn-save-split').click();
-            } else if (ke.key === 'Escape') {
-              ke.preventDefault();
-              actionsRow.querySelector('.btn-cancel-split').click();
-            }
-          };
-
-          keyIn.onkeydown = handleKeyEnter;
-          valIn.onkeydown = handleKeyEnter;
-
-          delBtn.onclick = () => {
-            if (pairs.length <= 1) {
-              showToast('Must retain at least 1 sub-key or convert to single text', 'warning');
-              return;
-            }
-            pairs.splice(idx, 1);
-            renderPairRows();
-          };
-
-          rowsContainer.appendChild(rowEl);
-        });
-      }
-
-      renderPairRows();
-
-      headerRow.querySelector('.btn-add-subpair').onclick = () => {
-        pairs.push({ key: '', value: '' });
-        renderPairRows();
-        const allKeyInputs = rowsContainer.querySelectorAll('.split-edit-key-input');
-        if (allKeyInputs.length > 0) {
-          allKeyInputs[allKeyInputs.length - 1].focus();
-        }
-      };
-
-      actionsRow.querySelector('.btn-cancel-split').onclick = () => {
-        cell.classList.remove('editing');
-        collapseThisColumn();
-        restoreCellDisplay(cell, fieldType, originalRaw);
-      };
-
-      actionsRow.querySelector('.btn-unsplit').onclick = () => {
-        const plainText = pairs.map(p => (p.key ? `${p.key}: ${p.value}` : p.value)).filter(Boolean).join('; ');
-        cell.classList.remove('editing');
-        collapseThisColumn();
-        saveValueToBackend(plainText);
-      };
-
-      actionsRow.querySelector('.btn-save-split').onclick = async () => {
-        const finalObj = {};
-        pairs.forEach(p => {
-          const k = (p.key || '').trim();
-          if (k) finalObj[k] = (p.value || '').trim();
-        });
-        const serialized = JSON.stringify(finalObj);
-        cell.classList.remove('editing');
-        collapseThisColumn();
-        await saveValueToBackend(serialized);
-      };
-
-      editor.appendChild(actionsRow);
-      cell.appendChild(editor);
-
-      const firstKeyInput = rowsContainer.querySelector('.split-edit-key-input');
-      const firstValInput = rowsContainer.querySelector('.split-edit-val-input');
-      if (firstKeyInput && !firstKeyInput.value.trim()) {
-        firstKeyInput.focus();
-      } else if (firstValInput) {
-        firstValInput.focus();
-      }
-    }
 
     async function saveValueToBackend(valToSave) {
       try {
@@ -1308,8 +1512,25 @@ window.makeCellEditable = function(cell, fieldType, paperId, isMultiline = true,
           }
         } else {
           const bodyPayload = {};
-          if (fieldType === 'year') bodyPayload.year = valToSave ? parseInt(valToSave, 10) : null;
-          else bodyPayload[fieldType] = valToSave;
+          if (fieldType === 'year') {
+            bodyPayload.year = valToSave ? parseInt(valToSave, 10) : null;
+          } else if (fieldType === 'advantages') {
+            bodyPayload.advantages = valToSave;
+            bodyPayload.strengths = valToSave;
+          } else if (fieldType === 'criticism') {
+            bodyPayload.criticism = valToSave;
+            bodyPayload.gaps = valToSave;
+          } else if (fieldType === 'future_directions') {
+            bodyPayload.future_directions = valToSave;
+            bodyPayload.future_research_direction = valToSave;
+          } else if (fieldType === 'keywords') {
+            const kwArr = typeof valToSave === 'string'
+              ? valToSave.split(/[,;\n]+/).map(k => k.trim().replace(/^#/, '')).filter(Boolean)
+              : (Array.isArray(valToSave) ? valToSave : []);
+            bodyPayload.keywords = kwArr;
+          } else {
+            bodyPayload[fieldType] = valToSave;
+          }
 
           const res = await fetch(`/api/papers/${paperId}`, {
             method: 'PUT',
@@ -1324,6 +1545,15 @@ window.makeCellEditable = function(cell, fieldType, paperId, isMultiline = true,
             const pObj = (typeof allPapers !== 'undefined' && Array.isArray(allPapers)) ? allPapers.find(item => item.id === paperId) : null;
             if (pObj) {
               pObj[fieldType] = valToSave;
+              if (fieldType === 'advantages') pObj.strengths = valToSave;
+              if (fieldType === 'criticism') pObj.gaps = valToSave;
+              if (fieldType === 'future_directions') pObj.future_research_direction = valToSave;
+              if (fieldType === 'keywords') {
+                pObj.keywords = bodyPayload.keywords;
+                if (typeof window.renderKeywordsHub === 'function') {
+                  window.renderKeywordsHub();
+                }
+              }
             }
             if (fieldType === 'domain') {
               if (typeof window.registerCustomDomain === 'function') {
@@ -1343,7 +1573,7 @@ window.makeCellEditable = function(cell, fieldType, paperId, isMultiline = true,
           }
         }
       } catch (err) {
-        showToast('Failed to save edit: ' + err.message, 'error');
+        showToast('Failed to save cell: ' + err.message, 'error');
         restoreCellDisplay(cell, fieldType, originalRaw);
       }
     }
@@ -1364,27 +1594,40 @@ function formatCellContent(val, fieldType, paperId = null) {
   if (fieldType === 'domain') {
     return `<span class="domain-tag">${escapeHtml(val || 'General')}</span>`;
   }
-
-  // Check if val is split key-value sub-table
-  const splitPairs = window.parseSplitData(val);
-  if (splitPairs && splitPairs.length > 0) {
-    const rowsHtml = splitPairs.map(p => `
-      <tr class="split-cell-row">
-        <td class="split-cell-key">${escapeHtml(p.key)}</td>
-        <td class="split-cell-val">${escapeHtml(p.value || '-')}</td>
-      </tr>
-    `).join('');
-
-    return `
-      <div class="split-cell-wrapper">
-        <table class="split-cell-table">
-          <tbody>${rowsHtml}</tbody>
-        </table>
-      </div>
-    `;
+  if (fieldType === 'keywords') {
+    const arr = Array.isArray(val)
+      ? val
+      : (typeof val === 'string' ? val.split(/[,;\n]+/).map(s => s.trim().replace(/^#/, '')).filter(Boolean) : []);
+    if (arr.length === 0) return '<span style="color: var(--text-tertiary); font-size: 0.82rem;">-</span>';
+    return `<div style="display: flex; gap: 0.3rem; flex-wrap: wrap; align-items: center;">${arr.map(k => {
+      const isSel = window.selectedKeywords && (window.selectedKeywords.has(k) || Array.from(window.selectedKeywords).some(sk => sk.toLowerCase() === k.toLowerCase()));
+      return `<span class="kw-tag ${isSel ? 'active' : ''}" onclick="event.stopPropagation(); if (typeof window.toggleKeywordFilter === 'function') window.toggleKeywordFilter('${escapeHtml(k)}');" title="Filter by #${escapeHtml(k)}">#${escapeHtml(k)}</span>`;
+    }).join('')}</div>`;
   }
   
-  const text = (val !== null && val !== undefined && val !== '') ? String(val).trim() : '-';
+  let text = '';
+  if (val !== null && val !== undefined) {
+    if (typeof val === 'object') {
+      text = Object.entries(val).map(([k, v]) => `${k}: ${v}`).join('; ');
+    } else {
+      const trimmed = String(val).trim();
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            text = Object.entries(parsed).map(([k, v]) => `${k}: ${v}`).join('; ');
+          } else {
+            text = trimmed;
+          }
+        } catch (_) {
+          text = trimmed;
+        }
+      } else {
+        text = trimmed;
+      }
+    }
+  }
+  if (!text) text = '-';
   const escaped = escapeHtml(text);
   
   const isTitle = fieldType === 'title';

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LitNexis - Dynamic React Paper Review</title>
+  <title>LitSphere - Dynamic React Paper Review</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2'><path d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20'/><path d='M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'/></svg>">
   
   <!-- React 18, ReactDOM, and Babel Standalone for Instant In-Browser Execution -->
@@ -57,7 +57,7 @@
       return new Promise((resolve) => {
         setTimeout(() => {
           try {
-            localStorage.setItem(`litnexis_paper_${paperData.id || 101}`, JSON.stringify(paperData));
+            localStorage.setItem(`litsphere_paper_${paperData.id || 101}`, JSON.stringify(paperData));
           } catch (e) {}
           resolve({ success: true, timestamp: new Date().toISOString() });
         }, 400);
@@ -172,16 +172,17 @@
             {/* Row 1: Breadcrumb */}
             <div className="header-left-row1">
               <nav className="header-breadcrumb" aria-label="Breadcrumb">
-                {/* Segment 1: LitNexis (clickable → Home/Matrix) */}
+                {/* Segment 1: LitSphere (clickable → Home/Matrix) */}
                 <span
                   className="breadcrumb-item breadcrumb-home"
-                  onClick={handleHomeClick}
-                  title="LitNexis - Return to Survey Matrix"
-                  role="button"
+                  id="breadcrumb-home"
+                  title="LitSphere - Return to Survey Matrix"
                   tabIndex={0}
+                  role="button"
+                  onClick={handleHomeClick}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleHomeClick(e); }}
                 >
-                  LitNexis
+                  LitSphere
                 </span>
 
                 <span className="breadcrumb-sep" aria-hidden="true">›</span>
@@ -772,19 +773,19 @@
     // 10. Main App Component
     function PaperReviewApp() {
       const [theme, setTheme] = useState(() => {
-        return localStorage.getItem('litnexis_theme') || 
+        return localStorage.getItem('litsphere_theme') || 
                document.documentElement.getAttribute('data-theme') || 
                'dark';
       });
 
       useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
-        localStorage.setItem('litnexis_theme', theme);
+        localStorage.setItem('litsphere_theme', theme);
       }, [theme]);
 
       const [leftPaneWidth, setLeftPaneWidth] = useState(() => {
         try {
-          const saved = localStorage.getItem('litnexis_review_split');
+          const saved = localStorage.getItem('litsphere_review_split');
           if (saved) return Math.max(20, Math.min(75, parseFloat(saved)));
         } catch (e) {}
         return 42;
@@ -793,13 +794,13 @@
       const handleResizeDrag = (pct) => {
         setLeftPaneWidth(pct);
         try {
-          localStorage.setItem('litnexis_review_split', pct);
+          localStorage.setItem('litsphere_review_split', pct);
           document.documentElement.style.setProperty('--split-left-width', `${pct}%`);
         } catch (e) {}
       };
       const [paper, setPaper] = useState(() => {
         try {
-          const saved = localStorage.getItem('litnexis_paper_101');
+          const saved = localStorage.getItem('litsphere_paper_101');
           if (saved) return JSON.parse(saved);
         } catch (e) {}
         return INITIAL_PAPER_STATE;
@@ -812,7 +813,7 @@
       const [stagedCluster, setStagedCluster] = useState(() => paper.selectedCluster || '');
 
       function getAuthHeaders() {
-        const token = localStorage.getItem('litnexis_auth_token') || localStorage.getItem('token') || localStorage.getItem('jwt');
+        const token = localStorage.getItem('litsphere_auth_token') || localStorage.getItem('token') || localStorage.getItem('jwt');
         const headers = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = `Bearer ${token}`;
         return headers;

@@ -135,16 +135,16 @@ export function Header({
         <div className="header-left-row1">
           <nav className="header-breadcrumb" aria-label="Breadcrumb">
 
-            {/* Segment 1: LitNexis (clickable → Home/Matrix) */}
+            {/* Segment 1: LitSphere (clickable → Home/Matrix) */}
             <span
               className="breadcrumb-item breadcrumb-home"
               onClick={handleHomeClick}
-              title="LitNexis - Return to Survey Matrix"
+              title="LitSphere - Return to Survey Matrix"
               role="button"
               tabIndex={0}
               onKeyDown={(e) => { if (e.key === 'Enter') handleHomeClick(e); }}
             >
-              LitNexis
+              LitSphere
             </span>
 
             <span className="breadcrumb-sep" aria-hidden="true">›</span>

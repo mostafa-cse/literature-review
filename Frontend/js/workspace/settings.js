@@ -1,5 +1,5 @@
 /**
- * LITNEXIS SURVEY SETTINGS CONTROLLER
+ * LITSPHERE SURVEY SETTINGS CONTROLLER
  * Manages Survey Configuration, Metadata Edits, Ownership Transfer,
  * JSON Backups, Project Duplication, Matrix Resets, and Cascading Deletion.
  */
@@ -149,7 +149,7 @@ window.saveGeneralSettings = async function(e) {
       const curOpt = activeSelect.querySelector(`option[value="${pid}"]`);
       if (curOpt) curOpt.textContent = updated.name;
     }
-    document.title = `Literature Survey on ${updated.name} | LitNexis`;
+    document.title = `Literature Survey on ${updated.name} | LitSphere`;
 
     showToast('Survey details saved successfully.', 'success');
     closeModal('settings-modal-overlay');

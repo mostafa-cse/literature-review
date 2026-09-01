@@ -3,26 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="LitNexis — Intelligent Literature Review, Research Taxonomy & Multi-Level Matrix Benchmarking Platform. Built for Thesis, Surveys, and Academic Research.">
-  <title>LitNexis | Next-Generation Literature Review & Benchmark Platform</title>
+  <meta name="description" content="LitSphere — Intelligent Literature Review &amp; Research Discovery Platform. Built for Thesis, Surveys, and Academic Research.">
+  <title>LitSphere - Intelligent Literature Review &amp; Research Discovery Platform</title>
 
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20'/%3E%3Cpath d='M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'/%3E%3C/svg%3E">
-  <!-- Unified Professional Typography: Inter, Outfit & JetBrains Mono -->
+  <!-- Unified Academic Typography: Inter, Outfit, JetBrains Mono, Cinzel & Playfair Display -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+  <!-- Core Modular Stylesheets -->
+  <link rel="stylesheet" href="/css/navbar.css">
+  <link rel="stylesheet" href="/css/footer.css">
 
   <!-- KaTeX for live LaTeX rendering -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
   <script>
     (function() {
-      const savedTheme = localStorage.getItem('litnexis_theme') || 
+      const savedTheme = localStorage.getItem('litsphere_theme') || 
                          localStorage.getItem('lr_platform_theme') || 
                          localStorage.getItem('fs_theme') || 
                          (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
       document.documentElement.setAttribute('data-theme', savedTheme);
-      localStorage.setItem('litnexis_theme', savedTheme);
+      localStorage.setItem('litsphere_theme', savedTheme);
     })();
   </script>
 
@@ -211,383 +215,6 @@
       transform: translateY(-5px);
       box-shadow: var(--shadow-lg);
       border-color: rgba(56, 189, 248, 0.3);
-    }
-
-    /* =========================================================
-       Choice 2: Oxford / Overleaf Prestige Academic Header
-       ========================================================= */
-    header.site-header {
-      position: sticky;
-      top: 0;
-      z-index: 1000;
-      width: 100%;
-      background: rgba(8, 13, 24, 0.95);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-bottom: 1.5px solid rgba(212, 175, 55, 0.35);
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), inset 0 -1px 0 rgba(212, 175, 55, 0.15);
-      transition: all 0.25s ease;
-    }
-    [data-theme="light"] header.site-header {
-      background: rgba(252, 250, 246, 0.96);
-      border-bottom: 1.5px solid rgba(180, 83, 9, 0.28);
-      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.05), inset 0 -1px 0 rgba(180, 83, 9, 0.12);
-    }
-    .nav-container {
-      max-width: 1440px;
-      margin: 0 auto;
-      padding: 0.75rem 2rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 1.5rem;
-    }
-
-    /* Left Brand Group */
-    .brand-group {
-      display: flex;
-      align-items: center;
-      gap: 0.85rem;
-      text-decoration: none;
-      color: inherit;
-    }
-    .brand-logo-crest {
-      width: 38px;
-      height: 38px;
-      border-radius: 8px;
-      background: linear-gradient(145deg, #182238, #0a0f1d);
-      border: 1.5px solid #d4af37;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #e5c07b;
-      font-weight: 800;
-      font-family: 'Outfit', 'Inter', sans-serif;
-      font-size: 1.05rem;
-      letter-spacing: 0.02em;
-      box-shadow: 0 2px 10px rgba(212, 175, 55, 0.25);
-      transition: all 0.25s ease;
-    }
-    [data-theme="light"] .brand-logo-crest {
-      background: linear-gradient(145deg, #fbf7ee, #eee5d3);
-      border: 1.5px solid #b45309;
-      color: #92400e;
-      box-shadow: 0 2px 8px rgba(180, 83, 9, 0.15);
-    }
-    .brand-title-wrap {
-      display: flex;
-      flex-direction: column;
-    }
-    .brand-name {
-      font-size: 1.25rem;
-      font-weight: 800;
-      font-family: 'Outfit', 'Inter', sans-serif;
-      letter-spacing: -0.02em;
-      color: var(--text-primary);
-      line-height: 1.15;
-    }
-    .brand-subtitle {
-      font-size: 0.72rem;
-      font-family: 'JetBrains Mono', monospace;
-      color: #e5c07b;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-    /* Right Navigation Items */
-    .nav-actions {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-    .nav-link-academic {
-      color: var(--text-secondary);
-      text-decoration: none;
-      font-size: 0.92rem;
-      font-weight: 600;
-      height: 38px;
-      padding: 0 0.95rem;
-      border-radius: 8px;
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.45rem;
-      background: transparent;
-      border: 1.5px solid transparent;
-      position: relative;
-      box-sizing: border-box;
-    }
-    [data-theme="light"] .nav-link-academic {
-      background: transparent;
-      border: 1.5px solid transparent;
-      color: var(--text-secondary);
-    }
-    .nav-link-academic:hover:not(.active) {
-      color: #ffffff;
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.18);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-      transform: translateY(-1px);
-    }
-    [data-theme="light"] .nav-link-academic:hover:not(.active) {
-      color: #1c1917;
-      background: rgba(0, 0, 0, 0.06);
-      border-color: rgba(0, 0, 0, 0.12);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    }
-    .nav-link-academic.active {
-      color: #e5c07b;
-      background: rgba(212, 175, 55, 0.14);
-      border: 1.5px solid #d4af37;
-      box-shadow: 0 0 16px rgba(212, 175, 55, 0.25), inset 0 0 8px rgba(212, 175, 55, 0.08);
-      font-weight: 700;
-    }
-    .nav-link-academic.active:hover {
-      background: rgba(212, 175, 55, 0.2);
-      border-color: #e5c07b;
-      box-shadow: 0 0 20px rgba(212, 175, 55, 0.35);
-      transform: translateY(-1px);
-    }
-    [data-theme="light"] .nav-link-academic.active {
-      color: #92400e;
-      background: rgba(180, 83, 9, 0.1);
-      border: 1.5px solid #b45309;
-      box-shadow: 0 0 12px rgba(180, 83, 9, 0.18);
-    }
-    .nav-link-academic.active::after {
-      content: '';
-      position: absolute;
-      bottom: -7px;
-      left: 18%;
-      right: 18%;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, #d4af37 50%, transparent);
-      border-radius: 2px;
-    }
-    [data-theme="light"] .nav-link-academic.active::after {
-      background: linear-gradient(90deg, transparent, #b45309 50%, transparent);
-    }
-
-    /* Academic Theme Toggle */
-    .theme-toggle-academic {
-      background: transparent;
-      border: 1.5px solid transparent;
-      color: var(--text-primary);
-      width: 38px;
-      height: 38px;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      font-size: 1.05rem;
-      transition: all 0.2s ease;
-      box-sizing: border-box;
-    }
-    [data-theme="light"] .theme-toggle-academic {
-      background: transparent;
-      border: 1.5px solid transparent;
-    }
-    .theme-toggle-academic:hover {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.18);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-      transform: translateY(-1px);
-    }
-    [data-theme="light"] .theme-toggle-academic:hover {
-      background: rgba(0, 0, 0, 0.06);
-      border-color: rgba(0, 0, 0, 0.12);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    }
-
-    /* Account / Username Academic Dropdown */
-    .account-dropdown-wrapper { position: relative; }
-    .account-academic-btn {
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.45rem;
-      height: 38px;
-      background: transparent;
-      border: 1.5px solid transparent;
-      color: #d4af37;
-      padding: 0 0.95rem;
-      border-radius: 8px;
-      font-size: 0.92rem;
-      font-weight: 700;
-      font-family: 'Inter', sans-serif;
-      transition: all 0.2s ease;
-      outline: none;
-      box-sizing: border-box;
-    }
-    [data-theme="light"] .account-academic-btn {
-      background: transparent;
-      border: 1.5px solid transparent;
-      color: #92400e;
-    }
-    .account-academic-btn:hover, .account-academic-btn.open {
-      background: rgba(212, 175, 55, 0.14);
-      border-color: rgba(212, 175, 55, 0.4);
-      box-shadow: 0 4px 14px rgba(212, 175, 55, 0.2);
-      transform: translateY(-1px);
-    }
-    .account-dropdown-menu {
-      position: absolute;
-      top: calc(100% + 8px);
-      right: 0;
-      width: 250px;
-      background: var(--bg-surface);
-      border: 1.5px solid rgba(212, 175, 55, 0.35);
-      border-radius: 10px;
-      padding: 0.75rem;
-      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(212, 175, 55, 0.15);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      display: none;
-      flex-direction: column;
-      gap: 0.35rem;
-      z-index: 1000;
-      animation: academicDropdownFade 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-    [data-theme="light"] .account-dropdown-menu {
-      background: #ffffff;
-      border-color: rgba(180, 83, 9, 0.3);
-      box-shadow: 0 14px 35px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(180, 83, 9, 0.1);
-    }
-    .account-dropdown-menu.show { display: flex; }
-    @keyframes academicDropdownFade {
-      from { opacity: 0; transform: translateY(-6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .dropdown-user-header {
-      padding: 0.55rem 0.65rem 0.75rem;
-      border-bottom: 1px solid var(--border-base);
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-    .dropdown-user-name {
-      font-weight: 700;
-      color: var(--text-primary);
-      font-size: 0.95rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .dropdown-user-email {
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      font-family: 'JetBrains Mono', monospace;
-    }
-    .dropdown-item {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-      padding: 0.55rem 0.75rem;
-      border-radius: 10px;
-      font-size: 0.88rem;
-      font-weight: 500;
-      color: var(--text-primary);
-      text-decoration: none;
-      transition: all 0.15s ease;
-      cursor: pointer;
-      background: transparent;
-      border: none;
-      width: 100%;
-      text-align: left;
-    }
-    .dropdown-item:hover {
-      background: var(--bg-surface-raised);
-      color: var(--accent-gold);
-    }
-    .dropdown-item.danger {
-      color: var(--accent-rose);
-      border-top: 1px solid var(--border-base);
-      margin-top: 0.25rem;
-      padding-top: 0.65rem;
-    }
-    .dropdown-item.danger:hover {
-      background: rgba(244, 63, 94, 0.12);
-      color: #fb7185;
-    }
-
-    .nav-menu { display: flex; align-items: center; gap: 0.6rem; list-style: none; }
-    @media (max-width: 900px) { .nav-menu { display: none; } }
-    .nav-link {
-      color: var(--text-secondary);
-      text-decoration: none;
-      font-size: 0.94rem;
-      font-weight: 600;
-      letter-spacing: 0.015em;
-      padding: 0.45rem 0.95rem;
-      border-radius: 6px;
-      border: 1px solid transparent;
-      transition: all 0.2s ease;
-    }
-    .nav-link:hover {
-      color: #e5c07b;
-      background: rgba(212, 175, 55, 0.08);
-      border-color: rgba(212, 175, 55, 0.3);
-    }
-    [data-theme="light"] .nav-link:hover {
-      color: #92400e;
-      background: rgba(180, 83, 9, 0.08);
-      border-color: rgba(180, 83, 9, 0.3);
-    }
-
-    .nav-actions { display: flex; align-items: center; gap: 0.85rem; }
-    .theme-toggle-btn {
-      background: var(--bg-surface);
-      border: 1px solid rgba(212, 175, 55, 0.3);
-      color: var(--text-primary);
-      padding: 0.48rem 0.95rem;
-      border-radius: 6px;
-      font-size: 0.9rem;
-      font-weight: 500;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      transition: all 0.2s ease;
-    }
-    .theme-toggle-btn:hover {
-      background: var(--bg-surface-raised);
-      border-color: #d4af37;
-    }
-    .btn-launch-nav {
-      background: rgba(212, 175, 55, 0.08);
-      border: 1px solid rgba(212, 175, 55, 0.35);
-      color: #e5c07b;
-      font-weight: 600;
-      text-decoration: none;
-      padding: 0.5rem 1.15rem;
-      border-radius: 6px;
-      font-size: 0.92rem;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      transition: all 0.2s ease;
-    }
-    [data-theme="light"] .btn-launch-nav {
-      background: rgba(180, 83, 9, 0.08);
-      border: 1px solid rgba(180, 83, 9, 0.3);
-      color: #92400e;
-    }
-    .btn-launch-nav:hover {
-      background: #d4af37;
-      color: #0b1120;
-      border-color: #d4af37;
-      box-shadow: 0 2px 12px rgba(212, 175, 55, 0.3);
-    }
-    [data-theme="light"] .btn-launch-nav:hover {
-      background: #b45309;
-      color: #ffffff;
-      border-color: #b45309;
-      box-shadow: 0 2px 10px rgba(180, 83, 9, 0.25);
     }
 
     /* Hero Section */
@@ -875,65 +502,6 @@
     .cta-title { font-family: 'Outfit', sans-serif; font-size: 3rem; font-weight: 800; letter-spacing: -0.025em; margin-bottom: 1rem; color: var(--text-primary); }
     .cta-subtext { font-size: 1.25rem; color: var(--text-secondary); max-width: 760px; margin: 0 auto 2.5rem; line-height: 1.7; }
 
-    /* Modern Footer */
-    footer {
-      border-top: 1px solid var(--border-subtle);
-      background: var(--bg-surface);
-      padding: 5rem 2rem 2.5rem;
-      color: var(--text-tertiary);
-      position: relative;
-      z-index: 10;
-    }
-    footer::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0; height: 1px;
-      background: linear-gradient(90deg, transparent, var(--accent-primary), var(--accent-indigo), transparent);
-    }
-    .footer-top-grid {
-      max-width: 1380px;
-      margin: 0 auto 3.75rem;
-      display: grid;
-      grid-template-columns: 1.6fr 1fr 1fr 1fr 1fr;
-      gap: 2.75rem;
-    }
-    @media (max-width: 1024px) { .footer-top-grid { grid-template-columns: 1fr 1fr; } }
-    @media (max-width: 640px) { .footer-top-grid { grid-template-columns: 1fr; } }
-    .footer-brand-col { display: flex; flex-direction: column; gap: 1.1rem; }
-    .footer-brand-header { display: flex; align-items: center; gap: 0.75rem; }
-    .footer-brand-desc { font-size: 0.94rem; color: var(--text-secondary); line-height: 1.65; max-width: 350px; }
-    .footer-status-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.55rem;
-      font-size: 0.84rem;
-      font-family: 'JetBrains Mono', monospace;
-      padding: 0.38rem 0.85rem;
-      border-radius: 9999px;
-      background: rgba(16, 185, 129, 0.12);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      color: var(--accent-emerald);
-      width: fit-content;
-    }
-    .footer-status-dot {
-      width: 7px; height: 7px; border-radius: 50%; background: var(--accent-emerald); box-shadow: 0 0 8px var(--accent-emerald);
-      animation: radarPing 2s infinite ease-out;
-    }
-    .footer-col-title {
-      font-size: 0.9rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-primary); margin-bottom: 1.2rem;
-    }
-    .footer-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
-    .footer-list li a {
-      font-size: 0.95rem; color: var(--text-secondary); text-decoration: none; display: inline-block; transition: transform 0.2s, color 0.2s;
-    }
-    .footer-list li a:hover { color: var(--accent-primary); transform: translateX(4px); }
-    .footer-bottom-bar {
-      max-width: 1380px; margin: 0 auto; padding-top: 2.25rem; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.25rem; font-size: 0.92rem;
-    }
-    .footer-copyright { color: var(--text-tertiary); }
-    .footer-badge-group { display: flex; align-items: center; gap: 0.75rem; font-family: 'JetBrains Mono', monospace; font-size: 0.84rem; }
-    .footer-tech-tag { background: var(--bg-surface-raised); border: 1px solid var(--border-base); color: var(--text-secondary); padding: 0.25rem 0.65rem; border-radius: 5px; }
-
   </style>
 </head>
 <body>
@@ -944,87 +512,13 @@
   <!-- Ambient Interactive Particle Network Canvas -->
   <canvas id="hero-canvas"></canvas>
 
-  <!-- Choice 2: Oxford / Overleaf Prestige Academic Header -->
-  <header class="site-header">
-    <div class="nav-container">
-      <!-- Left: Logo Crest + Name -->
-      <a href="/" class="brand-group">
-        <div class="brand-logo-crest">LN</div>
-        <div class="brand-title-wrap">
-          <span class="brand-name">LitNexis</span>
-          <span class="brand-subtitle">Academic Intelligence</span>
-        </div>
-      </a>
-
-      <!-- Right: Guest Group (when not logged in) -->
-      <!-- Right: Guest Group (when not logged in) -->
-      <div id="nav-guest-group" class="nav-actions" style="display: flex; align-items: center; gap: 0.6rem;">
-        <a href="/" class="nav-link-academic active">Home</a>
-        <a href="/about" class="nav-link-academic">About</a>
-        <button class="theme-toggle-academic theme-toggle-pill" id="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
-          <span id="theme-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></span>
-        </button>
-        <a href="/login" class="nav-link-academic">Sign In</a>
-        <a href="/register" class="nav-link-academic" style="background: linear-gradient(135deg, #d97706, #b45309); color: #ffffff; border: 1px solid #f59e0b; font-weight: 700; box-shadow: 0 2px 10px rgba(217,119,6,0.35);">Create Account</a>
-      </div>
-
-      <!-- Right: Authenticated Group (when logged in) -->
-      <div id="nav-auth-group" class="nav-actions" style="display: none; align-items: center; gap: 0.75rem;">
-        <a href="/" class="nav-link-academic active" id="nav-link-home">Home</a>
-        <a href="/about" class="nav-link-academic" id="nav-link-about">About</a>
-        <a href="/dashboard" class="nav-link-academic" id="nav-link-dashboard">Dashboard</a>
-        <a href="/admin" id="nav-admin-link" class="nav-link-academic" style="display: none; color: var(--accent-rose);">Admin</a>
-
-        <button class="theme-toggle-academic theme-toggle-pill" id="theme-toggle-auth" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
-          <span class="theme-icon-indicator"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></span>
-        </button>
-
-        <!-- Account / Username Academic Dropdown -->
-        <div class="account-dropdown-wrapper" id="account-dropdown-wrap">
-          <button type="button" class="account-academic-btn" id="account-dropdown-toggle" onclick="toggleAccountDropdown(event)" aria-haspopup="true" aria-expanded="false" title="Account Menu">
-            <span id="nav-user-name">Username</span>
-            <span style="font-size: 0.72rem; margin-left: 0.2rem; opacity: 0.7;">▼</span>
-          </button>
-
-          <div class="account-dropdown-menu" id="account-dropdown-menu">
-            <div class="dropdown-user-header">
-              <div class="dropdown-user-name">
-                <span id="dropdown-user-name-txt">Researcher</span>
-                <span id="nav-user-role-badge" class="role-badge-pill role-user" style="font-size: 0.72rem; font-family: 'JetBrains Mono', monospace; font-weight: 700; padding: 0.12rem 0.45rem; border-radius: 4px; background: rgba(212,175,55,0.15); color: var(--accent-gold); border: 1px solid rgba(212,175,55,0.3);">USER</span>
-              </div>
-              <div class="dropdown-user-email" id="dropdown-user-email-txt">researcher@litnexis.ac</div>
-            </div>
-
-            <a href="/profile" class="dropdown-item">
-              <span>Profile & Settings</span>
-            </a>
-
-            <a href="/admin" class="dropdown-item" id="dropdown-admin-link" style="display: none; color: var(--accent-rose);">
-              <span>Admin Console</span>
-            </a>
-
-            <button type="button" class="dropdown-item danger" onclick="handleHomeLogout()">
-              <span>Sign Out</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </header>
+  <!-- Choice 2: Oxford / Overleaf Prestige Academic Header (Auto-rendered by /js/core/navbar.js) -->
+  <header class="site-header" id="site-header"></header>
 
   <!-- Hero Section with Masked Line Animations & Live Word Flipper -->
   <section class="hero-section" id="overview">
     <div class="hero-container">
       
-      <!-- Pill Badge with Radar Ping -->
-      <div class="pill-badge">
-        <div class="pill-dot-wrap">
-          <span class="pill-dot"></span>
-          <span class="pill-radar"></span>
-        </div>
-        <span>Built for Final Year Thesis & Systematic Literature Reviews</span>
-      </div>
-
       <!-- Masked Line Reveals -->
       <h1 class="hero-heading">
         <span class="mask-wrap">
@@ -1040,12 +534,17 @@
 
       <div class="mask-wrap">
         <p class="hero-subtitle mask-inner delay-3">
-          LitNexis replaces disjointed spreadsheets, lost PDFs, and manual notes with an intelligent research synthesis engine. Bulk ingest papers via PDF & CrossRef DOI, review with split-screen LaTeX math viewers, edit inline with instant SQLite WAL auto-save, and export multi-level Excel benchmarks for your thesis.
+          LitSphere replaces disjointed spreadsheets, lost PDFs, and manual notes with an intelligent research synthesis engine. Bulk ingest papers via PDF & CrossRef DOI, review with split-screen LaTeX math viewers, edit inline with instant SQLite WAL auto-save, and export multi-level Excel benchmarks for your thesis.
         </p>
       </div>
 
-      <!-- Overleaf-Style Quick Registration Banner -->
+      <!-- Overleaf-Style Quick Registration Banner (only shown when not logged in) -->
       <div id="hero-overleaf-auth" style="max-width: 620px; margin: 2.25rem auto 3.5rem; text-align: center; position: relative; z-index: 20;">
+        <script>
+          if (localStorage.getItem('litsphere_auth_token')) {
+            document.getElementById('hero-overleaf-auth').style.display = 'none';
+          }
+        </script>
         
         <!-- LaTeX Tag -->
         <div style="display: inline-flex; align-items: center; gap: 0.35rem; font-family: 'JetBrains Mono', monospace; font-size: 1.55rem; font-weight: 800; margin-bottom: 0.75rem;">
@@ -1053,32 +552,10 @@
         </div>
 
         <p style="font-size: 1.05rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
-          Synthesize literature like a lead scientist with LitNexis — the intelligent matrix synthesis platform for researchers.
+          Synthesize literature like a lead scientist with LitSphere — Intelligent Literature Review & Research Discovery Platform.
         </p>
 
-        <!-- Side-by-Side SSO Buttons -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.15rem;">
-          <a href="/login" class="btn-sso-pill" style="padding: 0.75rem 1rem; background: #ffffff; color: #1f2937; border-radius: 9999px; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none; box-shadow: 0 2px 10px rgba(0,0,0,0.15); transition: transform 0.2s;">
-            <svg width="18" height="18" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
-              <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"/>
-              <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
-              <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.93 6.72-4.93z"/>
-            </svg>
-            <span>Sign up with Google</span>
-          </a>
 
-          <a href="/login" class="btn-sso-pill" style="padding: 0.75rem 1rem; background: #ffffff; color: #1f2937; border-radius: 9999px; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none; box-shadow: 0 2px 10px rgba(0,0,0,0.15); transition: transform 0.2s;">
-            <div style="width: 19px; height: 19px; border-radius: 50%; background: #a6ce39; color: #ffffff; font-size: 0.68rem; font-weight: 900; display: flex; align-items: center; justify-content: center;">iD</div>
-            <span>Sign up with ORCID</span>
-          </a>
-        </div>
-
-        <div class="auth-divider" style="display: flex; align-items: center; text-align: center; margin: 0.9rem 0 1.15rem; color: var(--text-tertiary); font-size: 0.74rem; font-family: 'JetBrains Mono', monospace;">
-          <span style="flex: 1; border-bottom: 1px solid var(--border-base);"></span>
-          <span style="padding: 0 0.85rem;">OR</span>
-          <span style="flex: 1; border-bottom: 1px solid var(--border-base);"></span>
-        </div>
 
         <!-- Overleaf Inline Registration Bar -->
         <div style="display: flex; gap: 0.65rem; flex-wrap: wrap; justify-content: center;">
@@ -1112,7 +589,7 @@
               <div class="film-dot" style="background: #10b981;"></div>
             </div>
             <div style="font-size: 0.88rem; font-family: 'JetBrains Mono', monospace; color: var(--text-tertiary);">
-              litnexis.local/workspace · High-Dimensional Feature Selection
+              litsphere.local/workspace · High-Dimensional Feature Selection
             </div>
             <div style="font-size: 0.84rem; color: var(--accent-emerald); font-weight: 700; display: flex; align-items: center; gap: 0.4rem;">
               <span class="pill-dot" style="background: var(--accent-emerald); box-shadow: 0 0 8px var(--accent-emerald);"></span>
@@ -1283,12 +760,12 @@
 
 
 
-  <!-- Why LitNexis Section (Comparison Panel) -->
-  <section class="content-section" id="why-litnexis">
+  <!-- Why LitSphere Section (Comparison Panel) -->
+  <section class="content-section" id="why-litsphere">
     <div class="section-eyebrow">The Academic Reality</div>
     <h2 class="section-headline">Why Traditional Spreadsheets Fail for Research Reviews</h2>
     <p class="section-subtext">
-      Standard spreadsheets and folder directories weren't built for literature reviews. LitNexis was purpose-built from the ground up for researchers, thesis authors, and survey papers.
+      Standard spreadsheets and folder directories weren't built for literature reviews. LitSphere was purpose-built from the ground up for researchers, thesis authors, and survey papers.
     </p>
 
     <div class="comparison-grid">
@@ -1308,7 +785,7 @@
 
       <div class="glow-card compare-card highlight reveal-card">
         <div style="font-size: 0.9rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--accent-teal); text-transform: uppercase; margin-bottom: 0.6rem;">
-          The LitNexis Solution
+          The LitSphere Solution
         </div>
         <h3 style="font-size: 1.35rem; font-weight: 800; font-family: 'Outfit', sans-serif; margin-bottom: 1rem;">Structured, Deep & Automated</h3>
         <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.9rem; font-size: 0.98rem; color: var(--text-primary);">
@@ -1453,7 +930,7 @@
       <div class="glow-card capability-card reveal-card">
         <h4 style="font-family: 'Outfit', sans-serif; font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">Dynamic Keyword Autocomplete</h4>
         <p style="font-size: 0.96rem; color: var(--text-secondary); line-height: 1.65;">
-          As you type research keywords, LitNexis queries the database in real-time to suggest existing tags with live paper frequency counts.
+          As you type research keywords, LitSphere queries the database in real-time to suggest existing tags with live paper frequency counts.
         </p>
       </div>
 
@@ -1477,7 +954,7 @@
   <section class="content-section" id="workflow">
     <div class="section-eyebrow">Structured Methodology</div>
     <h2 class="section-headline">The 5-Step Research Benchmarking Pipeline</h2>
-    <p class="section-subtext">From initial literature gathering to final publication matrix, LitNexis provides a seamless workflow.</p>
+    <p class="section-subtext">From initial literature gathering to final publication matrix, LitSphere provides a seamless workflow.</p>
 
     <div class="workflow-timeline">
       <div class="glow-card step-card reveal-card">
@@ -1560,82 +1037,8 @@
     </div>
   </section>
 
-  <!-- Commercial Enterprise & Academic Platform Footer -->
-  <footer>
-    <div class="footer-top-grid">
-      <div class="footer-brand-col">
-        <div class="footer-brand-header">
-          <div class="brand-logo-icon">LN</div>
-          <div class="brand-text-col">
-            <span class="brand-name">LitNexis Inc.</span>
-            <span class="brand-tagline">Enterprise & Academic Research Intelligence</span>
-          </div>
-        </div>
-        <p class="footer-brand-desc">
-          The next-generation literature intelligence and systematic synthesis platform for universities, biomedical institutes, and enterprise R&D laboratories. Accelerating scientific discovery with split-screen citation grounding, high-density matrix benchmarking, and camera-ready LaTeX synthesis.
-        </p>
-        <div class="footer-status-pill">
-          <span class="footer-status-dot"></span>
-          <span>Enterprise Cloud & Local-First WAL Engine • Active</span>
-        </div>
-      </div>
-
-      <div>
-        <h4 class="footer-col-title">Solutions & Products</h4>
-        <ul class="footer-list">
-          <li><a href="/dashboard">Systematic Survey Engine</a></li>
-          <li><a href="/workspace">Smart PDF Ingestion & DOI</a></li>
-          <li><a href="/workspace">Split-Screen Citation Grounding</a></li>
-          <li><a href="/workspace">KaTeX Math Formula Matrix</a></li>
-          <li><a href="/workspace">Multi-Level XLSX & LaTeX Export</a></li>
-          <li><a href="/dashboard">PRISMA 2020 Review Screening</a></li>
-        </ul>
-      </div>
-
-      <div>
-        <h4 class="footer-col-title">Industries & Use Cases</h4>
-        <ul class="footer-list">
-          <li><a href="/workspace">University Faculty & Thesis Labs</a></li>
-          <li><a href="/workspace">Biomedical & Clinical Systematic Reviews</a></li>
-          <li><a href="/workspace">Computer Science & AI Benchmarking</a></li>
-          <li><a href="/workspace">Pharmaceutical & Prior Art R&D</a></li>
-          <li><a href="/workspace">Metaheuristic & Swarm Optimizers</a></li>
-          <li><a href="/workspace">Multi-Stage Hybrid Ensembles</a></li>
-        </ul>
-      </div>
-
-      <div>
-        <h4 class="footer-col-title">Enterprise & Security</h4>
-        <ul class="footer-list">
-          <li><a href="/about">System Architecture & Specs</a></li>
-          <li><a href="/admin">Role-Based Access Control (RBAC)</a></li>
-          <li><a href="/admin" style="color: var(--accent-rose); font-weight: 600;">Enterprise Admin Center</a></li>
-          <li><a href="/profile">Security & 2FA Configuration</a></li>
-          <li><a href="/api/stats" target="_blank">Live REST API Diagnostics</a></li>
-        </ul>
-      </div>
-
-      <div>
-        <h4 class="footer-col-title">Platform Access</h4>
-        <ul class="footer-list">
-          <li><a href="#overview">Top of Overview</a></li>
-          <li><a href="/dashboard" style="color: var(--accent-primary); font-weight: 600;">Research Dashboard</a></li>
-          <li><a href="/profile" style="color: var(--accent-gold); font-weight: 600;">Account & Quota Settings</a></li>
-          <li><a href="javascript:void(0)" onclick="typeof toggleTheme === 'function' ? toggleTheme() : document.getElementById('theme-toggle')?.click()">Switch Color Theme</a></li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- Bottom Sub-Footer Bar -->
-    <div class="footer-bottom-bar">
-      <div class="footer-copyright">
-        © 2026 <strong>LitNexis Technologies Inc.</strong> All rights reserved. Precision Literature Benchmarking &amp; Research Matrix Systems.
-      </div>
-      <div class="footer-badge-group">
-        <span style="font-size: 0.85rem; color: var(--text-tertiary); font-family: 'JetBrains Mono', monospace; font-weight: 500;">developed by Mostafa Kamal @ Cyber Security Lab, JUST</span>
-      </div>
-    </div>
-  </footer>
+  <!-- Commercial Enterprise & Academic Platform Footer (Auto-rendered by /js/core/footer.js) -->
+  <footer id="site-footer"></footer>
 
 
 
@@ -1736,7 +1139,7 @@
     function applyTheme(theme) {
       const targetTheme = theme === 'light' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', targetTheme);
-      localStorage.setItem('litnexis_theme', targetTheme);
+      localStorage.setItem('litsphere_theme', targetTheme);
       localStorage.setItem('lr_platform_theme', targetTheme);
       localStorage.setItem('fs_theme', targetTheme);
 
@@ -1765,14 +1168,14 @@
 
     // Sync across browser tabs
     window.addEventListener('storage', (e) => {
-      if (e.key === 'litnexis_theme' || e.key === 'lr_platform_theme' || e.key === 'fs_theme') {
+      if (e.key === 'litsphere_theme' || e.key === 'lr_platform_theme' || e.key === 'fs_theme') {
         if (e.newValue) applyTheme(e.newValue);
       }
     });
 
     // Initialize theme state & active link on DOM load
     document.addEventListener('DOMContentLoaded', () => {
-      const saved = localStorage.getItem('litnexis_theme') || document.documentElement.getAttribute('data-theme') || 'dark';
+      const saved = localStorage.getItem('litsphere_theme') || document.documentElement.getAttribute('data-theme') || 'dark';
       applyTheme(saved);
 
       // Auto highlight active nav link
@@ -1894,7 +1297,7 @@
     });
 
     function handleNavProtectedClick(targetPath) {
-      const token = localStorage.getItem('litnexis_auth_token');
+      const token = localStorage.getItem('litsphere_auth_token');
       if (!token) {
         window.location.href = '/login?redirect=' + encodeURIComponent(targetPath);
       } else {
@@ -1902,17 +1305,19 @@
       }
     }
 
-    // Check if already authenticated to update header
+    // Check if already authenticated to update header and hero signup section
     async function checkCurrentSession() {
-      const token = localStorage.getItem('litnexis_auth_token');
+      const token = localStorage.getItem('litsphere_auth_token');
       const guestGroup = document.getElementById('nav-guest-group');
       const authGroup = document.getElementById('nav-auth-group');
       const userNameEl = document.getElementById('nav-user-name');
       const adminLink = document.getElementById('nav-admin-link');
+      const heroOverleafAuth = document.getElementById('hero-overleaf-auth');
 
       if (!token) {
         if (guestGroup) guestGroup.style.display = 'flex';
         if (authGroup) authGroup.style.display = 'none';
+        if (heroOverleafAuth) heroOverleafAuth.style.display = 'block';
         return;
       }
 
@@ -1924,6 +1329,7 @@
           const data = await res.json();
           if (guestGroup) guestGroup.style.display = 'none';
           if (authGroup) authGroup.style.display = 'flex';
+          if (heroOverleafAuth) heroOverleafAuth.style.display = 'none';
           if (userNameEl && data.user) {
             const displayUsername = data.user.username || (data.user.name ? data.user.name.split(' ')[0] : 'User');
             userNameEl.textContent = displayUsername;
@@ -1936,13 +1342,15 @@
             adminLink.style.display = 'inline-flex';
           }
         } else {
-          localStorage.removeItem('litnexis_auth_token');
+          localStorage.removeItem('litsphere_auth_token');
           if (guestGroup) guestGroup.style.display = 'flex';
           if (authGroup) authGroup.style.display = 'none';
+          if (heroOverleafAuth) heroOverleafAuth.style.display = 'block';
         }
       } catch (e) {
         if (guestGroup) guestGroup.style.display = 'flex';
         if (authGroup) authGroup.style.display = 'none';
+        if (heroOverleafAuth) heroOverleafAuth.style.display = 'block';
       }
     }
 
@@ -1972,8 +1380,8 @@
     });
 
     function handleHomeLogout() {
-      localStorage.removeItem('litnexis_auth_token');
-      localStorage.removeItem('litnexis_user');
+      localStorage.removeItem('litsphere_auth_token');
+      localStorage.removeItem('litsphere_user');
       window.location.reload();
     }
 
@@ -2004,5 +1412,9 @@
       }, 300);
     });
   </script>
+
+  <!-- Modular Core Scripts -->
+  <script src="/js/core/navbar.js"></script>
+  <script src="/js/core/footer.js"></script>
 </body>
 </html>

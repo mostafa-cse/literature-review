@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Systematic Surveys Dashboard • LitNexis Academic</title>
+  <title>Systematic Surveys Dashboard • LitSphere Academic</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20'/%3E%3Cpath d='M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'/%3E%3C/svg%3E">
   <meta name="description" content="Manage your systematic literature reviews, PRISMA screening pipelines, taxonomy clusters, and collaborative benchmarks — all in one unified workspace.">
 
@@ -21,7 +21,7 @@
   <!-- Inline theme flash prevention -->
   <script>
     (function() {
-      const t = localStorage.getItem('litnexis_theme') || 'dark';
+      const t = localStorage.getItem('litsphere_theme') || 'dark';
       document.documentElement.setAttribute('data-theme', t);
     })();
   </script>
@@ -29,51 +29,9 @@
 <body>
 
   <!-- ═══════════════════════════════════════════
-       OXFORD / OVERLEAF PRESTIGE HEADER
+       OXFORD / OVERLEAF PRESTIGE HEADER (Auto-rendered by /js/core/navbar.js)
   ══════════════════════════════════════════════ -->
-  <header class="site-header" id="site-header">
-    <div class="nav-container">
-      <a href="/" class="brand-group">
-        <div class="brand-logo-crest">LN</div>
-        <div class="brand-title-wrap">
-          <span class="brand-name">LitNexis</span>
-          <span class="brand-subtitle">Academic Intelligence</span>
-        </div>
-      </a>
-
-      <div class="nav-actions">
-        <a href="/" class="nav-link-academic">Home</a>
-        <a href="/about" class="nav-link-academic">About</a>
-        <a href="/dashboard" class="nav-link-academic active">Dashboard</a>
-        <a href="/admin" id="nav-admin-link" class="nav-link-academic" style="display:none; color:var(--accent-rose);">Admin</a>
-
-        <button class="theme-toggle-academic theme-toggle-pill" id="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
-          <span id="theme-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></span>
-        </button>
-
-        <div class="account-dropdown-wrapper" id="account-dropdown-wrap">
-          <button type="button" class="account-academic-btn" id="account-dropdown-toggle"
-            onclick="toggleAccountDropdown(event)" aria-haspopup="true" aria-expanded="false">
-            <span id="user-nav-name">Researcher</span>
-            <span style="font-size:0.7rem; opacity:0.65; margin-left:0.2rem;">▼</span>
-          </button>
-          <div class="account-dropdown-menu" id="account-dropdown-menu">
-            <div class="dropdown-user-header">
-              <div class="dropdown-user-name">
-                <span id="dropdown-user-name-txt">Researcher</span>
-                <span id="nav-user-role-badge" class="role-badge-pill role-user">USER</span>
-              </div>
-              <div class="dropdown-user-email" id="dropdown-user-email-txt">researcher@litnexis.ac</div>
-            </div>
-            <a href="/profile" class="dropdown-item">Profile &amp; Settings</a>
-            <a href="/dashboard" class="dropdown-item">Surveys Dashboard</a>
-            <a href="/admin" class="dropdown-item" id="dropdown-admin-link" style="display:none; color:var(--accent-rose);">Admin Console</a>
-            <button type="button" class="dropdown-item danger" onclick="handleLogout()">Sign Out</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </header>
+  <header class="site-header" id="site-header"></header>
 
   <!-- ═══════════════════════════════════════════
        MAIN DASHBOARD CONTENT
@@ -100,36 +58,7 @@
       </div>
     </section>
 
-    <!-- 2. KPI TELEMETRY GRID ────────────────── -->
-    <section class="kpi-grid">
-      <div class="kpi-card">
-        <div class="kpi-header"><span class="kpi-label">Working Surveys</span></div>
-        <div class="kpi-val" id="kpi-total-surveys">--</div>
-        <div class="kpi-sub"><span style="color:var(--accent-emerald);">●</span> Active research projects</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-header"><span class="kpi-label">Ingested Papers</span></div>
-        <div class="kpi-val" id="kpi-total-papers">--</div>
-        <div class="kpi-sub">Across all literature surveys</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-header"><span class="kpi-label">Reading Completion</span></div>
-        <div class="kpi-val" id="kpi-completion-rate">--%</div>
-        <div class="kpi-sub" id="kpi-completion-sub">0 Read • 0 In Progress</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-header"><span class="kpi-label">Screenings &amp; Notes</span></div>
-        <div class="kpi-val" id="kpi-screenings-count">--</div>
-        <div class="kpi-sub">PRISMA blind review decisions</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-header"><span class="kpi-label">Taxonomy Clusters</span></div>
-        <div class="kpi-val" id="kpi-clusters-count">--</div>
-        <div class="kpi-sub">Sub-domains &amp; methodology sets</div>
-      </div>
-    </section>
-
-    <!-- 3. WORKING SURVEYS SECTION ─────────────── -->
+    <!-- 2. WORKING SURVEYS SECTION ─────────────── -->
     <section>
       <!-- Section header -->
       <div class="section-header">
@@ -183,77 +112,9 @@
   </main>
 
   <!-- ═══════════════════════════════════════════
-       ACADEMIC MULTI-COLUMN FOOTER
+       ACADEMIC MULTI-COLUMN FOOTER (Auto-rendered by /js/core/footer.js)
   ══════════════════════════════════════════════ -->
-  <footer>
-    <div class="footer-top-grid">
-      <div class="footer-brand-col">
-        <div class="footer-brand-header">
-          <div class="brand-logo-crest" style="width:36px;height:36px;font-size:0.95rem;">LN</div>
-          <div>
-            <div style="font-weight:800; color:var(--text-primary); font-size:1.05rem;">LitNexis Dashboard</div>
-            <div style="font-size:0.82rem; color:var(--accent-gold); font-family:'JetBrains Mono',monospace;">Systematic Review Cloud</div>
-          </div>
-        </div>
-        <p class="footer-brand-desc">
-          Systematic survey management, interactive taxonomy hierarchies, PRISMA 2020 workflows, and blueprint cloning.
-        </p>
-        <div class="footer-status-pill">
-          <span class="footer-status-dot"></span>
-          <span>SQLite WAL Engine Active</span>
-        </div>
-      </div>
-
-      <div>
-        <h4 class="footer-col-title">Navigation</h4>
-        <ul class="footer-list">
-          <li><a href="/">Home Overview</a></li>
-          <li><a href="/about">About Platform</a></li>
-          <li><a href="/dashboard">Surveys Dashboard</a></li>
-          <li><a href="/workspace">Interactive Matrix</a></li>
-          <li><a href="/profile">Profile Settings</a></li>
-        </ul>
-      </div>
-
-      <div>
-        <h4 class="footer-col-title">Taxonomies</h4>
-        <ul class="footer-list">
-          <li><a href="javascript:void(0)" onclick="openCreateSurveyModal()">+ Create New Survey</a></li>
-          <li><a href="/workspace">Feature Selection Matrix</a></li>
-          <li><a href="/workspace">Taxonomy Cluster Hub</a></li>
-        </ul>
-      </div>
-
-      <div>
-        <h4 class="footer-col-title">Engine Specs</h4>
-        <ul class="footer-list">
-          <li><a href="javascript:void(0)">Node.js &amp; Express REST</a></li>
-          <li><a href="javascript:void(0)">SQLite WAL Persistence</a></li>
-          <li><a href="javascript:void(0)">KaTeX LaTeX Rendering</a></li>
-          <li><a href="javascript:void(0)">SheetJS Multi-Level XLSX</a></li>
-          <li><a href="/api/stats" target="_blank">Live REST API Stats</a></li>
-        </ul>
-      </div>
-
-      <div>
-        <h4 class="footer-col-title">Preferences</h4>
-        <ul class="footer-list">
-          <li><a href="javascript:void(0)" onclick="typeof toggleTheme === 'function' ? toggleTheme() : document.getElementById('theme-toggle')?.click()">Toggle Dark/Light Mode</a></li>
-          <li><a href="javascript:void(0)" onclick="window.scrollTo({top:0,behavior:'smooth'})">Back to Top</a></li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- Bottom Sub-Footer Bar -->
-    <div class="footer-bottom-bar">
-      <div class="footer-copyright">
-        © 2026 <strong>LitNexis Technologies Inc.</strong> All rights reserved. Precision Literature Benchmarking &amp; Research Matrix Systems.
-      </div>
-      <div class="footer-badge-group">
-        <span style="font-size: 0.85rem; color: var(--text-tertiary); font-family: 'JetBrains Mono', monospace; font-weight: 500;">developed by Mostafa Kamal @ Cyber Security Lab, JUST</span>
-      </div>
-    </div>
-  </footer>
+  <footer id="site-footer"></footer>
 
   <!-- ═══════════════════════════════════════════
        MODAL: CREATE NEW SURVEY
@@ -284,9 +145,10 @@
           <input type="text" id="new-survey-name" class="survey-field-input"
             placeholder="e.g. Graph Neural Networks for Drug Discovery"
             maxlength="120"
-            oninput="document.getElementById('survey-name-count').textContent = this.value.length + '/120'">
+            oninput="handleNewSurveyNameInput(this.value)">
+          <div id="survey-name-feedback" class="survey-name-feedback" style="display:none; font-size:0.82rem; font-weight:600; margin-top:0.4rem; padding: 0.3rem 0.65rem; border-radius: 6px; transition:all 0.2s ease;"></div>
           <div class="survey-field-hint">
-            <span>A clear, descriptive name for your review project</span>
+            <span>A unique, descriptive name for your review project</span>
             <span id="survey-name-count" style="font-family:'JetBrains Mono',monospace; font-size:0.78rem; color:var(--text-tertiary);">0/120</span>
           </div>
         </div>
@@ -332,7 +194,8 @@
         <input type="hidden" id="edit-survey-id">
         <div class="form-group">
           <label class="form-label">Survey Name *</label>
-          <input type="text" id="edit-survey-name" class="form-input">
+          <input type="text" id="edit-survey-name" class="form-input" oninput="handleEditSurveyNameInput(this.value)">
+          <div id="edit-survey-name-feedback" class="survey-name-feedback" style="display:none; font-size:0.82rem; font-weight:600; margin-top:0.4rem; padding: 0.3rem 0.65rem; border-radius: 6px; transition:all 0.2s ease;"></div>
         </div>
         <div class="form-group">
           <label class="form-label">Description</label>
@@ -349,19 +212,19 @@
   <!-- Toast Container -->
   <div class="toast-container" id="toast-container"></div>
 
-  <!-- Modular Scripts -->
   <script src="/js/core/api.js"></script>
   <script src="/js/core/modal.js"></script>
   <script src="/js/core/toast.js"></script>
   <script src="/js/core/navbar.js"></script>
-  <script src="/js/dashboard/dashboard.js"></script>
+  <script src="/js/core/footer.js"></script>
+  <script src="/js/dashboard/dashboard.js?v=2"></script>
 
   <!-- Welcome banner dismiss logic -->
   <script>
     (function() {
       // Key is per-token so each new login session starts fresh
-      const token = localStorage.getItem('litnexis_auth_token') || 'anon';
-      const DISMISS_KEY = 'litnexis_welcome_dismissed_' + token.slice(-12);
+      const token = localStorage.getItem('litsphere_auth_token') || 'anon';
+      const DISMISS_KEY = 'litsphere_welcome_dismissed_' + token.slice(-12);
 
       const banner = document.getElementById('welcome-hero-banner');
       if (!banner) return;
@@ -397,8 +260,8 @@
       }, { once: true });
 
       // Persist the dismissal for this login session
-      const token = localStorage.getItem('litnexis_auth_token') || 'anon';
-      const DISMISS_KEY = 'litnexis_welcome_dismissed_' + token.slice(-12);
+      const token = localStorage.getItem('litsphere_auth_token') || 'anon';
+      const DISMISS_KEY = 'litsphere_welcome_dismissed_' + token.slice(-12);
       localStorage.setItem(DISMISS_KEY, '1');
     };
   </script>

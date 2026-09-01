@@ -160,6 +160,10 @@ router.get('/papers', (req, res) => {
         } catch (e) {
           p.gaps_list = p.gaps ? [p.gaps] : [];
         }
+
+        p.advantages = (p.advantages && p.advantages !== '-') ? p.advantages : (p.strengths || '-');
+        p.criticism = (p.criticism && p.criticism !== '-') ? p.criticism : (p.gaps || '-');
+        p.future_directions = p.future_directions || '-';
       }
     }
 
@@ -187,8 +191,19 @@ router.get('/papers/:id', (req, res) => {
 
     if (!paper) return res.status(404).json({ error: 'Paper not found' });
 
-    // Dynamic Columns and values for this paper's cluster
-    const clusterCols = paper.cluster_id ? db.prepare('SELECT * FROM dynamic_columns WHERE cluster_id = ?').all(paper.cluster_id) : [];
+    // Dynamic Columns and values for this paper's project and cluster
+    const clusterCols = db.prepare(`
+      SELECT MIN(dc.id) as id, MIN(dc.cluster_id) as cluster_id, dc.column_name, dc.column_name as name, dc.parent_column_id, dc.col_type, p.column_name as parent_column_name
+      FROM dynamic_columns dc
+      LEFT JOIN clusters c ON c.id = dc.cluster_id
+      LEFT JOIN dynamic_columns p ON p.id = dc.parent_column_id
+      WHERE (c.project_id IS NOT NULL AND c.project_id = ?)
+         OR (dc.cluster_id IS NOT NULL AND dc.cluster_id = ?)
+         OR dc.id IN (SELECT pcv.column_id FROM paper_column_values pcv JOIN papers pa ON pa.id = pcv.paper_id WHERE pa.project_id = ?)
+      GROUP BY dc.column_name
+      ORDER BY dc.parent_column_id ASC, MIN(dc.id) ASC
+    `).all(paper.project_id || 0, paper.cluster_id || 0, paper.project_id || 0);
+
     const colValues = db.prepare(`
       SELECT pcv.*, dc.column_name, dc.parent_column_id, dc.col_type
       FROM paper_column_values pcv
@@ -283,7 +298,9 @@ router.post('/papers', (req, res) => {
   try {
     const {
       cluster_id, project_id, title, authors, year, pub, domain, doi, pdf_url,
-      status, intuition, equation, strengths, gaps, custom_columns, keywords
+      status, intuition, equation, strengths, gaps,
+      advantages, criticism, future_directions, future_research_direction,
+      custom_columns, keywords
     } = req.body;
 
     if (!title) return res.status(400).json({ error: 'Paper title is required' });
@@ -303,54 +320,84 @@ router.post('/papers', (req, res) => {
       }
     }
 
-    const strengthsStr = Array.isArray(strengths) ? JSON.stringify(strengths) : (strengths || '');
-    const gapsStr = Array.isArray(gaps) ? JSON.stringify(gaps) : (gaps || '');
+    const rawAdv = advantages !== undefined ? advantages : strengths;
+    const rawCrit = criticism !== undefined ? criticism : gaps;
+    const rawFut = future_directions !== undefined ? future_directions : future_research_direction;
+
+    const strengthsStr = Array.isArray(rawAdv) ? JSON.stringify(rawAdv) : (rawAdv || '-');
+    const gapsStr = Array.isArray(rawCrit) ? JSON.stringify(rawCrit) : (rawCrit || '-');
+    const advStr = Array.isArray(rawAdv) ? JSON.stringify(rawAdv) : (rawAdv || '-');
+    const critStr = Array.isArray(rawCrit) ? JSON.stringify(rawCrit) : (rawCrit || '-');
+    const futStr = Array.isArray(rawFut) ? JSON.stringify(rawFut) : (rawFut || '-');
+
+    const finalTitle = (title && String(title).trim()) ? String(title).trim() : '-';
+    const finalAuthors = (authors && String(authors).trim()) ? String(authors).trim() : '-';
+    const finalYear = (year && String(year).trim()) ? String(year).trim() : '-';
+    const finalPub = (pub && String(pub).trim()) ? String(pub).trim() : '-';
+    const finalDomain = (domain && String(domain).trim()) ? String(domain).trim() : '-';
+    const finalDoi = (doi && String(doi).trim()) ? String(doi).trim() : '-';
 
     const result = db.prepare(`
       INSERT INTO papers (
         project_id, cluster_id, title, authors, year, pub, domain, doi, pdf_url,
-        status, intuition, equation, strengths, gaps
+        status, intuition, equation, strengths, gaps, advantages, criticism, future_directions
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       pid,
       cluster_id || null,
-      title,
-      authors || '',
-      year ? parseInt(year, 10) : null,
-      pub || '',
-      domain || 'General',
-      doi || '',
+      finalTitle,
+      finalAuthors,
+      finalYear,
+      finalPub,
+      finalDomain,
+      finalDoi,
       pdf_url || '',
       status || 'unread',
-      intuition || '',
-      equation || '',
+      intuition || '-',
+      equation || '-',
       strengthsStr,
-      gapsStr
+      gapsStr,
+      advStr,
+      critStr,
+      futStr
     );
 
     const paperId = result.lastInsertRowid;
 
-    // Save custom column values if provided
+    // Handle initial custom columns
     if (custom_columns && typeof custom_columns === 'object') {
-      const insertColVal = db.prepare('INSERT OR REPLACE INTO paper_column_values (paper_id, column_id, value) VALUES (?, ?, ?)');
-      for (const [colId, val] of Object.entries(custom_columns)) {
-        if (!isNaN(colId)) {
-          insertColVal.run(paperId, parseInt(colId, 10), String(val));
+      const insertVal = db.prepare(`
+        INSERT INTO paper_column_values (paper_id, column_id, value)
+        VALUES (?, ?, ?)
+        ON CONFLICT(paper_id, column_id) DO UPDATE SET value = excluded.value
+      `);
+      for (const [colKey, val] of Object.entries(custom_columns)) {
+        let colId = null;
+        if (!isNaN(colKey)) {
+          colId = parseInt(colKey, 10);
+        } else {
+          const colRecord = db.prepare('SELECT id FROM dynamic_columns WHERE column_name = ? AND cluster_id = ?').get(colKey, cluster_id);
+          if (colRecord) colId = colRecord.id;
+        }
+        if (colId) {
+          const valStr = typeof val === 'object' ? JSON.stringify(val) : String(val);
+          insertVal.run(paperId, colId, valStr);
         }
       }
     }
 
-    // Save keywords if provided
-    if (Array.isArray(keywords)) {
+    // Handle initial keywords
+    if (Array.isArray(keywords) && keywords.length > 0) {
       const insertKw = db.prepare('INSERT INTO keywords (paper_id, keyword) VALUES (?, ?)');
       for (const kw of keywords) {
-        if (kw && kw.trim()) insertKw.run(paperId, kw.trim());
+        if (kw && String(kw).trim()) {
+          insertKw.run(paperId, String(kw).trim());
+        }
       }
     }
 
-    const created = db.prepare('SELECT * FROM papers WHERE id = ?').get(paperId);
-    res.status(201).json(created);
+    res.status(201).json({ id: paperId, message: 'Paper added successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -361,7 +408,9 @@ router.put('/papers/:id', (req, res) => {
   try {
     const {
       cluster_id, title, authors, year, pub, domain, doi, pdf_url,
-      status, intuition, equation, strengths, gaps, custom_columns, keywords,
+      status, intuition, equation, strengths, gaps,
+      advantages, criticism, future_directions, future_research_direction,
+      custom_columns, keywords,
       screening_decision, screening_reason
     } = req.body;
 
@@ -389,8 +438,15 @@ router.put('/papers/:id', (req, res) => {
       }
     }
 
-    const strengthsStr = strengths !== undefined ? (Array.isArray(strengths) ? JSON.stringify(strengths) : String(strengths)) : existing.strengths;
-    const gapsStr = gaps !== undefined ? (Array.isArray(gaps) ? JSON.stringify(gaps) : String(gaps)) : existing.gaps;
+    const rawAdv = advantages !== undefined ? advantages : (strengths !== undefined ? strengths : existing.advantages);
+    const rawCrit = criticism !== undefined ? criticism : (gaps !== undefined ? gaps : existing.criticism);
+    const rawFut = future_directions !== undefined ? future_directions : (future_research_direction !== undefined ? future_research_direction : existing.future_directions);
+
+    const strengthsStr = strengths !== undefined ? (Array.isArray(strengths) ? JSON.stringify(strengths) : String(strengths)) : (rawAdv ? (Array.isArray(rawAdv) ? JSON.stringify(rawAdv) : String(rawAdv)) : existing.strengths);
+    const gapsStr = gaps !== undefined ? (Array.isArray(gaps) ? JSON.stringify(gaps) : String(gaps)) : (rawCrit ? (Array.isArray(rawCrit) ? JSON.stringify(rawCrit) : String(rawCrit)) : existing.gaps);
+    const advStr = rawAdv !== undefined ? (Array.isArray(rawAdv) ? JSON.stringify(rawAdv) : String(rawAdv)) : existing.advantages;
+    const critStr = rawCrit !== undefined ? (Array.isArray(rawCrit) ? JSON.stringify(rawCrit) : String(rawCrit)) : existing.criticism;
+    const futStr = rawFut !== undefined ? (Array.isArray(rawFut) ? JSON.stringify(rawFut) : String(rawFut)) : existing.future_directions;
 
     db.prepare(`
       UPDATE papers SET
@@ -406,7 +462,10 @@ router.put('/papers/:id', (req, res) => {
         intuition = COALESCE(?, intuition),
         equation = COALESCE(?, equation),
         strengths = ?,
-        gaps = ?
+        gaps = ?,
+        advantages = ?,
+        criticism = ?,
+        future_directions = ?
       WHERE id = ?
     `).run(
       cluster_id !== undefined ? cluster_id : existing.cluster_id,
@@ -422,6 +481,9 @@ router.put('/papers/:id', (req, res) => {
       equation !== undefined ? equation : existing.equation,
       strengthsStr,
       gapsStr,
+      advStr,
+      critStr,
+      futStr,
       paperId
     );
 

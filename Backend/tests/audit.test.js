@@ -42,7 +42,7 @@ async function runFullBackendAudit() {
     const loginRes = await request({
       host: 'localhost', port: 3000, path: '/api/auth/login', method: 'POST',
       headers: { 'Content-Type': 'application/json' }
-    }, { email: 'researcher@litnexis.ac', password: 'researcher123' });
+    }, { email: 'researcher@litsphere.ac', password: 'researcher123' });
     const token = loginRes.body && loginRes.body.token;
     const authHeaders = { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) };
 
@@ -87,9 +87,24 @@ async function runFullBackendAudit() {
     const colsList = await request({ host: 'localhost', port: 3000, path: `/api/dynamic-columns?cluster_id=${testClusterId}`, method: 'GET', headers: authHeaders });
     assert('GET /api/dynamic-columns', colsList.status === 200 && Array.isArray(colsList.body) && colsList.body.length >= 2, `(Received ${colsList.body.length} columns)`);
 
+    // Test Unsplit Endpoint
+    const colUnsplit = await request({
+      host: 'localhost', port: 3000, path: '/api/dynamic-columns/unsplit', method: 'POST',
+      headers: authHeaders
+    }, { cluster_id: testClusterId, parent_column_name: 'Computational Complexity' });
+    assert('POST /api/dynamic-columns/unsplit', colUnsplit.status === 200 && colUnsplit.body.success === true);
+
+    // Re-split for downstream tests
+    await request({
+      host: 'localhost', port: 3000, path: '/api/dynamic-columns/split', method: 'POST',
+      headers: authHeaders
+    }, { cluster_id: testClusterId, parent_column_name: 'Computational Complexity', sub_columns: ['Time Complexity', 'Space Complexity'] });
+
+    const updatedCols = await request({ host: 'localhost', port: 3000, path: `/api/dynamic-columns?cluster_id=${testClusterId}`, method: 'GET', headers: authHeaders });
+
     // 4. Papers API & Ingestion
     console.log('\n--- 4. Testing Papers CRUD, Inline Editing & Values ---');
-    const timeCol = colsList.body.find(c => c.column_name === 'Time Complexity');
+    const timeCol = updatedCols.body.find(c => c.column_name === 'Time Complexity');
     const paperCreate = await request({
       host: 'localhost', port: 3000, path: '/api/papers', method: 'POST',
       headers: authHeaders

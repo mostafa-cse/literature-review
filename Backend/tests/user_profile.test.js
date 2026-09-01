@@ -11,7 +11,7 @@ async function testUserProfileSuite() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      email: 'researcher@litnexis.ac',
+      email: 'researcher@litsphere.ac',
       password: 'researcher123'
     })
   });
@@ -28,7 +28,7 @@ async function testUserProfileSuite() {
   });
   assert.strictEqual(meRes.status, 200);
   const meData = await meRes.json();
-  assert.strictEqual(meData.user.email, 'researcher@litnexis.ac');
+  assert.strictEqual(meData.user.email, 'researcher@litsphere.ac');
   console.log('  ✅ Profile verified:', meData.user.name, `(${meData.user.email})`);
 
   // 3. Update profile with new Gmail address, bio, institution, ORCID, Scholar
@@ -59,7 +59,7 @@ async function testUserProfileSuite() {
 
   const updatedToken = updateData.token;
 
-  // 4. Test duplicate email restriction (try taking admin@litnexis.ac)
+  // 4. Test duplicate email restriction (try taking admin@litsphere.ac)
   console.log('  4️⃣ Testing duplicate email collision protection...');
   const dupRes = await fetch(`${BASE_URL}/api/auth/profile`, {
     method: 'PUT',
@@ -69,14 +69,14 @@ async function testUserProfileSuite() {
     },
     body: JSON.stringify({
       name: 'Dr. Mostafa Kamal',
-      email: 'admin@litnexis.ac'
+      email: 'admin@litsphere.ac'
     })
   });
   assert.strictEqual(dupRes.status, 409, 'Duplicate email should return HTTP 409 Conflict');
   console.log('  ✅ Duplicate email prevented with HTTP 409 Conflict.');
 
-  // 5. Revert back to researcher@litnexis.ac for consistent test suite state
-  console.log('  5️⃣ Reverting email back to researcher@litnexis.ac for environment stability...');
+  // 5. Revert back to researcher@litsphere.ac for consistent test suite state
+  console.log('  5️⃣ Reverting email back to researcher@litsphere.ac for environment stability...');
   const revertRes = await fetch(`${BASE_URL}/api/auth/profile`, {
     method: 'PUT',
     headers: {
@@ -85,15 +85,15 @@ async function testUserProfileSuite() {
     },
     body: JSON.stringify({
       name: 'Lead Researcher',
-      email: 'researcher@litnexis.ac',
-      institution: 'LitNexis Machine Learning Lab',
+      email: 'researcher@litsphere.ac',
+      institution: 'LitSphere Machine Learning Lab',
       bio: 'High-dimensional benchmarking and PRISMA systematic literature reviews.',
       orcid: '0000-0002-1825-0097',
       google_scholar: 'https://scholar.google.com'
     })
   });
   assert.strictEqual(revertRes.status, 200);
-  console.log('  ✅ Reverted cleanly to researcher@litnexis.ac.');
+  console.log('  ✅ Reverted cleanly to researcher@litsphere.ac.');
 
   console.log('\n=======================================================');
   console.log('🎉 User Profile & Email Update Suite: ALL TESTS PASSED!');

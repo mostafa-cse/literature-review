@@ -394,8 +394,88 @@ router.post('/templates', (req, res) => {
   }
 });
 
+// DELETE /api/admin/templates/:id - Delete a master template
+router.delete('/templates/:id', (req, res) => {
+  const { id } = req.params;
+  const db = getDb();
+
+  try {
+    const t = db.prepare("SELECT id, name FROM master_templates WHERE id = ?").get(id);
+    if (!t) return res.status(404).json({ error: 'Template not found.' });
+
+    db.prepare("DELETE FROM master_templates WHERE id = ?").run(id);
+    logAuditEvent(req, 'ADMIN_TEMPLATE_DELETE', `Deleted template ID ${id} (${t.name})`, 'SUCCESS');
+    res.json({ message: `Template "${t.name}" deleted successfully.` });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete template: ' + err.message });
+  }
+});
+
 // ==========================================
-// 5. AUDIT LOGS & SECURITY GOVERNANCE
+// 5. GLOBAL SURVEY PROJECTS OVERSIGHT
+// ==========================================
+
+// GET /api/admin/projects - List all systematic review projects across platform
+router.get('/projects', (req, res) => {
+  const { search } = req.query;
+  const db = getDb();
+
+  try {
+    let query = `
+      SELECT p.id, p.name, p.description, p.is_public, p.share_token, p.owner_id, p.created_at,
+             u.name as owner_name, u.email as owner_email,
+             (SELECT count(*) FROM papers WHERE papers.project_id = p.id) as paper_count,
+             (SELECT count(*) FROM clusters WHERE clusters.project_id = p.id) as cluster_count
+      FROM projects p
+      LEFT JOIN users u ON p.owner_id = u.id
+    `;
+    const params = [];
+
+    if (search && search.trim()) {
+      query += ` WHERE (p.name LIKE ? OR p.description LIKE ? OR u.name LIKE ? OR u.email LIKE ?) `;
+      params.push(`%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`);
+    }
+
+    query += ` ORDER BY p.id DESC LIMIT 100`;
+
+    const projects = db.prepare(query).all(...params);
+    res.json({ projects });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve projects: ' + err.message });
+  }
+});
+
+// DELETE /api/admin/projects/:id - Admin cascading delete project
+router.delete('/projects/:id', (req, res) => {
+  const { id } = req.params;
+  const db = getDb();
+
+  try {
+    const project = db.prepare("SELECT id, name FROM projects WHERE id = ?").get(id);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found.' });
+    }
+
+    // Cascading deletion
+    db.prepare("DELETE FROM paper_column_values WHERE paper_id IN (SELECT id FROM papers WHERE project_id = ?)").run(id);
+    db.prepare("DELETE FROM prisma_screenings WHERE paper_id IN (SELECT id FROM papers WHERE project_id = ?)").run(id);
+    db.prepare("DELETE FROM comments WHERE paper_id IN (SELECT id FROM papers WHERE project_id = ?)").run(id);
+    db.prepare("DELETE FROM papers WHERE project_id = ?").run(id);
+    db.prepare("DELETE FROM clusters WHERE project_id = ?").run(id);
+    db.prepare("DELETE FROM dynamic_columns WHERE project_id = ?").run(id);
+    db.prepare("DELETE FROM project_members WHERE project_id = ?").run(id);
+    db.prepare("DELETE FROM projects WHERE id = ?").run(id);
+
+    logAuditEvent(req, 'ADMIN_PROJECT_DELETE', `Admin purged project ID ${id} (${project.name})`, 'WARNING');
+
+    res.json({ message: `Project "${project.name}" deleted successfully.` });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete project: ' + err.message });
+  }
+});
+
+// ==========================================
+// 6. AUDIT LOGS & SECURITY GOVERNANCE
 // ==========================================
 
 // GET /api/admin/audit-logs - Stream recent audit logs

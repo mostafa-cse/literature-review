@@ -1,5 +1,5 @@
 /**
- * LITNEXIS WORKSPACE STATS ENGINE
+ * LITSPHERE WORKSPACE STATS ENGINE
  * Dynamic telemetry counters for both Global Workspace Overview and Dedicated Cluster Pages.
  */
 

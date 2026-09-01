@@ -72,30 +72,30 @@ async function runCollaborationTests() {
     let reviewerToken = '';
     let guestToken = ''; // unauthenticated viewer
 
-    // 1. Sign in as Owner (researcher@litnexis.ac)
-    await test('Sign in as Project Owner (researcher@litnexis.ac)', async () => {
+    // 1. Sign in as Owner (researcher@litsphere.ac)
+    await test('Sign in as Project Owner (researcher@litsphere.ac)', async () => {
       const res = await makeRequest('POST', '/api/auth/login', {
-        email: 'researcher@litnexis.ac',
+        email: 'researcher@litsphere.ac',
         password: 'researcher123'
       });
       assert.strictEqual(res.status, 200);
       ownerToken = res.body.token;
     });
 
-    // 2. Sign in as Co-Author (coauthor@litnexis.ac)
-    await test('Sign in as Co-Author (coauthor@litnexis.ac)', async () => {
+    // 2. Sign in as Co-Author (coauthor@litsphere.ac)
+    await test('Sign in as Co-Author (coauthor@litsphere.ac)', async () => {
       const res = await makeRequest('POST', '/api/auth/login', {
-        email: 'coauthor@litnexis.ac',
+        email: 'coauthor@litsphere.ac',
         password: 'coauthor123'
       });
       assert.strictEqual(res.status, 200);
       editorToken = res.body.token;
     });
 
-    // 3. Sign in as Advisor Reviewer (advisor@litnexis.ac)
-    await test('Sign in as Advisor / Reviewer (advisor@litnexis.ac)', async () => {
+    // 3. Sign in as Advisor Reviewer (advisor@litsphere.ac)
+    await test('Sign in as Advisor / Reviewer (advisor@litsphere.ac)', async () => {
       const res = await makeRequest('POST', '/api/auth/login', {
-        email: 'advisor@litnexis.ac',
+        email: 'advisor@litsphere.ac',
         password: 'advisor123'
       });
       assert.strictEqual(res.status, 200);
@@ -145,14 +145,14 @@ async function runCollaborationTests() {
     // 5. Owner invites Co-Author as 'editor' and Advisor as 'reviewer'
     await test('Owner invites Co-Author as Editor and Advisor as Reviewer', async () => {
       const invEditor = await makeRequest('POST', `/api/projects/${projectId}/members`, {
-        email: 'coauthor@litnexis.ac',
+        email: 'coauthor@litsphere.ac',
         role: 'editor'
       }, { 'Authorization': `Bearer ${ownerToken}` });
       assert.strictEqual(invEditor.status, 201);
       assert.strictEqual(invEditor.body.role, 'editor');
 
       const invReviewer = await makeRequest('POST', `/api/projects/${projectId}/members`, {
-        email: 'advisor@litnexis.ac',
+        email: 'advisor@litsphere.ac',
         role: 'reviewer'
       }, { 'Authorization': `Bearer ${ownerToken}` });
       assert.strictEqual(invReviewer.status, 201);
@@ -161,8 +161,8 @@ async function runCollaborationTests() {
       // Verify members list
       const mList = await makeRequest('GET', `/api/projects/${projectId}/members`);
       assert.strictEqual(mList.status, 200);
-      assert.ok(mList.body.members.some(m => m.project_role === 'editor' && m.email === 'coauthor@litnexis.ac'));
-      assert.ok(mList.body.members.some(m => m.project_role === 'reviewer' && m.email === 'advisor@litnexis.ac'));
+      assert.ok(mList.body.members.some(m => m.project_role === 'editor' && m.email === 'coauthor@litsphere.ac'));
+      assert.ok(mList.body.members.some(m => m.project_role === 'reviewer' && m.email === 'advisor@litsphere.ac'));
     });
 
     // 6. Editor permissions: Can edit cell values & update papers
@@ -233,6 +233,14 @@ async function runCollaborationTests() {
 
     // 10. Viewer (Public Guest) permissions: Read-only access, cannot mutate
     await test('Viewer (Guest) can read matrix data but cannot edit or comment', async () => {
+      // Register or ensure viewer user exists
+      await makeRequest('POST', '/api/auth/register', {
+        username: 'viewerGuest',
+        email: 'viewer@test.com',
+        password: 'password123',
+        name: 'Viewer Guest'
+      });
+
       // Invite a dedicated viewer user
       await makeRequest('POST', `/api/projects/${projectId}/members`, {
         email: 'viewer@test.com',

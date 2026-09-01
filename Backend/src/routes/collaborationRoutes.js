@@ -51,7 +51,7 @@ router.get('/projects/:id/members', (req, res) => {
     res.json({
       project_id: Number(projectId),
       project_name: project.name,
-      owner: owner || { id: project.owner_id, name: 'Project Owner', email: 'owner@litnexis.local' },
+      owner: owner || { id: project.owner_id, name: 'Project Owner', email: 'owner@litsphere.local' },
       members
     });
   } catch (err) {
@@ -78,7 +78,7 @@ router.post('/projects/:id/members', authenticateToken, (req, res) => {
   try {
     const targetUser = db.prepare("SELECT id, name, email FROM users WHERE email = ?").get(cleanEmail);
     if (!targetUser) {
-      return res.status(404).json({ error: `User with email "${cleanEmail}" does not exist on LitNexis. They must register first.` });
+      return res.status(404).json({ error: `User with email "${cleanEmail}" does not exist on LitSphere. They must register first.` });
     }
 
     const project = db.prepare("SELECT owner_id, name FROM projects WHERE id = ?").get(projectId);

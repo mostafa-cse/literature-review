@@ -1,10 +1,14 @@
 /**
- * LITNEXIS CORE API & AUTHENTICATION CLIENT
+ * LITSPHERE CORE API & AUTHENTICATION CLIENT
  * Unified JWT authorization headers and fetch helper with session expiration handling.
  */
 
 window.getAuthToken = function() {
-  return localStorage.getItem('litnexis_auth_token') || '';
+  const token = localStorage.getItem('litsphere_auth_token') || localStorage.getItem('litnexis_auth_token') || '';
+  if (token && !localStorage.getItem('litsphere_auth_token')) {
+    localStorage.setItem('litsphere_auth_token', token);
+  }
+  return token;
 };
 
 window.getAuthHeaders = function(extraHeaders = {}) {
@@ -35,8 +39,8 @@ window.fetchWithAuth = async function(url, options = {}) {
   const response = await fetch(url, options);
 
   if (response.status === 401) {
-    localStorage.removeItem('litnexis_auth_token');
-    localStorage.removeItem('litnexis_user');
+    localStorage.removeItem('litsphere_auth_token');
+    localStorage.removeItem('litsphere_user');
     window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search);
     throw new Error('Session expired. Please sign in again.');
   }

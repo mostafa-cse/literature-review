@@ -1,5 +1,5 @@
 /**
- * LITNEXIS REVIEW COMMENTS & PRISMA SCREENING ENGINE
+ * LITSPHERE REVIEW COMMENTS & PRISMA SCREENING ENGINE
  * Handles blind screening votes, exclusion criteria, quote attachments, and peer discussion timeline.
  */
 

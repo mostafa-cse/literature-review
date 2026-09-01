@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Researcher Profile &amp; Settings • LitNexis Academic</title>
+  <title>Researcher Profile &amp; Settings • LitSphere Academic</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20'/%3E%3Cpath d='M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'/%3E%3C/svg%3E">
   <meta name="description" content="Manage your researcher identity, institutional affiliation, ORCID ID, security settings, and systematic review preferences.">
 
@@ -23,7 +23,7 @@
   <!-- Inline theme flash prevention -->
   <script>
     (function() {
-      const t = localStorage.getItem('litnexis_theme') || 'dark';
+      const t = localStorage.getItem('litsphere_theme') || 'dark';
       document.documentElement.setAttribute('data-theme', t);
     })();
   </script>
@@ -31,51 +31,9 @@
 <body>
 
   <!-- ═══════════════════════════════════════════
-       OXFORD / OVERLEAF PRESTIGE HEADER
+       OXFORD / OVERLEAF PRESTIGE HEADER (Auto-rendered by /js/core/navbar.js)
   ══════════════════════════════════════════════ -->
-  <header class="site-header" id="site-header">
-    <div class="nav-container">
-      <a href="/" class="brand-group">
-        <div class="brand-logo-crest">LN</div>
-        <div class="brand-title-wrap">
-          <span class="brand-name">LitNexis</span>
-          <span class="brand-subtitle">Academic Intelligence</span>
-        </div>
-      </a>
-
-      <div class="nav-actions">
-        <a href="/" class="nav-link-academic">Home</a>
-        <a href="/about" class="nav-link-academic">About</a>
-        <a href="/dashboard" class="nav-link-academic">Dashboard</a>
-        <a href="/admin" id="nav-admin-link" class="nav-link-academic" style="display:none; color:var(--accent-rose);">Admin</a>
-
-        <button class="theme-toggle-academic theme-toggle-pill" id="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
-          <span id="theme-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></span>
-        </button>
-
-        <div class="account-dropdown-wrapper" id="account-dropdown-wrap">
-          <button type="button" class="account-academic-btn" id="account-dropdown-toggle"
-            onclick="toggleAccountDropdown(event)" aria-haspopup="true" aria-expanded="false">
-            <span id="user-nav-name">Researcher</span>
-            <span style="font-size:0.7rem; opacity:0.65; margin-left:0.2rem;">▼</span>
-          </button>
-          <div class="account-dropdown-menu" id="account-dropdown-menu">
-            <div class="dropdown-user-header">
-              <div class="dropdown-user-name">
-                <span id="dropdown-user-name-txt">Researcher</span>
-                <span id="nav-user-role-badge" class="role-badge-pill role-user">USER</span>
-              </div>
-              <div class="dropdown-user-email" id="dropdown-user-email-txt">researcher@litnexis.ac</div>
-            </div>
-            <a href="/profile" class="dropdown-item" style="color:var(--accent-gold); font-weight:700;">Profile &amp; Settings</a>
-            <a href="/dashboard" class="dropdown-item">Surveys Dashboard</a>
-            <a href="/admin" class="dropdown-item" id="dropdown-admin-link" style="display:none; color:var(--accent-rose);">Admin Console</a>
-            <button type="button" class="dropdown-item danger" onclick="handleLogout()">Sign Out</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </header>
+  <header class="site-header" id="site-header"></header>
 
   <!-- ═══════════════════════════════════════════
        MAIN PROFILE CONTENT
@@ -380,7 +338,7 @@
               </div>
               <div class="kv-item">
                 <span class="kv-key">Primary Email</span>
-                <span class="kv-val" id="about-email-txt">researcher@litnexis.ac</span>
+                <span class="kv-val" id="about-email-txt">researcher@litsphere.ac</span>
               </div>
               <div class="kv-item">
                 <span class="kv-key">Laboratory / Phone</span>
@@ -401,7 +359,7 @@
               <h2 class="card-title">Research Workspace Privileges</h2>
             </div>
             <p class="card-subtitle" style="line-height:1.7; margin-bottom:1rem;">
-              Your account has full systematic review capabilities across LitNexis Academic:
+              Your account has full systematic review capabilities across LitSphere Academic:
             </p>
             <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:0.65rem; font-size:0.88rem;">
               <li style="display:flex; align-items:center; gap:0.5rem; color:var(--accent-emerald);">
@@ -589,7 +547,7 @@
             <div style="margin-top:1.5rem; padding:1.15rem; background:rgba(212,175,55,0.06); border:1.5px solid rgba(212,175,55,0.25); border-radius:10px;">
               <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.35rem;">
                 <span style="font-size:1.1rem;">💎</span>
-                <span style="font-weight:700; color:var(--accent-gold); font-size:0.92rem;">LitNexis Storage Tier Architecture</span>
+                <span style="font-weight:700; color:var(--accent-gold); font-size:0.92rem;">LitSphere Storage Tier Architecture</span>
               </div>
               <p style="font-size:0.84rem; color:var(--text-secondary); line-height:1.6; margin:0;">
                 Current Tier: <strong>Academic Standard (500 MB)</strong>. Enhanced lab tiers with up to 50 GB persistent SQLite database blobs and institutional cloud sharding will be available in the upcoming enterprise release.
@@ -620,7 +578,7 @@
             </div>
 
             <div style="margin-top:1.15rem; padding:1rem 1.15rem; background:rgba(99,102,241,0.06); border:1px solid rgba(99,102,241,0.2); border-radius:8px; font-size:0.85rem; color:var(--text-secondary); line-height:1.6;">
-              <strong style="color:#a5b4fc;">Coming Soon in LitNexis Pro:</strong> Direct prompt-to-matrix generation, automatic abstract &amp; equation vectorization, and cross-cluster PRISMA consensus assistance powered by Google Gemini and specialized biomedical LLMs.
+              <strong style="color:#a5b4fc;">Coming Soon in LitSphere Pro:</strong> Direct prompt-to-matrix generation, automatic abstract &amp; equation vectorization, and cross-cluster PRISMA consensus assistance powered by Google Gemini and specialized biomedical LLMs.
             </div>
           </div>
         </div>
@@ -658,78 +616,9 @@
   </main>
 
   <!-- ═══════════════════════════════════════════
-       ACADEMIC MULTI-COLUMN FOOTER
+       ACADEMIC MULTI-COLUMN FOOTER (Auto-rendered by /js/core/footer.js)
   ══════════════════════════════════════════════ -->
-  <footer>
-    <div class="footer-top-grid">
-      <div class="footer-brand-col">
-        <div class="footer-brand-header">
-          <div class="brand-logo-crest" style="width:36px;height:36px;font-size:0.95rem;">LN</div>
-          <div>
-            <div style="font-weight:800; color:var(--text-primary); font-size:1.05rem;">LitNexis Academic</div>
-            <div style="font-size:0.82rem; color:var(--accent-gold); font-family:'JetBrains Mono',monospace;">Researcher Profile &amp; Security</div>
-          </div>
-        </div>
-        <p class="footer-brand-desc">
-          Researcher credentials management, ORCID verification, institutional affiliations, and session security.
-        </p>
-        <div class="footer-status-pill">
-          <span class="footer-status-dot"></span>
-          <span>SQLite WAL Engine Active</span>
-        </div>
-      </div>
-
-      <div>
-        <h4 class="footer-col-title">Navigation</h4>
-        <ul class="footer-list">
-          <li><a href="/">Home Overview</a></li>
-          <li><a href="/about">About Platform</a></li>
-          <li><a href="/dashboard">Surveys Dashboard</a></li>
-          <li><a href="/workspace">Interactive Matrix</a></li>
-          <li><a href="/profile">Profile Settings</a></li>
-        </ul>
-      </div>
-
-      <div>
-        <h4 class="footer-col-title">Taxonomies</h4>
-        <ul class="footer-list">
-          <li><a href="/dashboard">+ Create New Survey</a></li>
-          <li><a href="/dashboard">Blueprint Templates</a></li>
-          <li><a href="/workspace">Feature Selection Matrix</a></li>
-          <li><a href="/workspace">Synthesis Insights</a></li>
-        </ul>
-      </div>
-
-      <div>
-        <h4 class="footer-col-title">Engine Specs</h4>
-        <ul class="footer-list">
-          <li><a href="javascript:void(0)">Node.js &amp; Express REST</a></li>
-          <li><a href="javascript:void(0)">SQLite WAL Persistence</a></li>
-          <li><a href="javascript:void(0)">KaTeX LaTeX Rendering</a></li>
-          <li><a href="javascript:void(0)">SheetJS Multi-Level XLSX</a></li>
-          <li><a href="/api/stats" target="_blank">Live REST API Stats</a></li>
-        </ul>
-      </div>
-
-      <div>
-        <h4 class="footer-col-title">Preferences</h4>
-        <ul class="footer-list">
-          <li><a href="javascript:void(0)" onclick="typeof toggleTheme === 'function' ? toggleTheme() : document.getElementById('theme-toggle')?.click()">Toggle Dark/Light Mode</a></li>
-          <li><a href="javascript:void(0)" onclick="window.scrollTo({top:0,behavior:'smooth'})">Back to Top</a></li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- Bottom Sub-Footer Bar -->
-    <div class="footer-bottom-bar">
-      <div class="footer-copyright">
-        © 2026 <strong>LitNexis Technologies Inc.</strong> All rights reserved. Precision Literature Benchmarking &amp; Research Matrix Systems.
-      </div>
-      <div class="footer-badge-group">
-        <span style="font-size: 0.85rem; color: var(--text-tertiary); font-family: 'JetBrains Mono', monospace; font-weight: 500;">developed by Mostafa Kamal @ Cyber Security Lab, JUST</span>
-      </div>
-    </div>
-  </footer>
+  <footer id="site-footer"></footer>
 
   <!-- Toast Container -->
   <div id="toast-container"></div>
@@ -739,6 +628,7 @@
   <script src="/js/core/modal.js"></script>
   <script src="/js/core/toast.js"></script>
   <script src="/js/core/navbar.js"></script>
+  <script src="/js/core/footer.js"></script>
   <script src="/js/profile/profile.js"></script>
 
   <!-- Global tab switcher -->

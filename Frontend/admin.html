@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin System Operations • LitNexis Security Center</title>
+  <title>Admin Control Center &amp; Telemetry • LitSphere Academic Intelligence</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20'/%3E%3Cpath d='M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'/%3E%3C/svg%3E">
 
   <!-- Typography & Fonts -->
@@ -21,230 +21,729 @@
 
   <script>
     (function() {
-      const savedTheme = localStorage.getItem('litnexis_theme') || 'dark';
+      const savedTheme = localStorage.getItem('litsphere_theme') || 'dark';
       document.documentElement.setAttribute('data-theme', savedTheme);
       if (savedTheme === 'light') document.body?.classList.add('light-mode');
     })();
   </script>
 </head>
 <body>
+  <!-- Oxford / Overleaf Prestige Academic Header (Auto-rendered by /js/core/navbar.js) -->
+  <header class="site-header" id="site-header"></header>
 
-  <!-- Choice 2: Oxford / Overleaf Prestige Academic Header -->
-  <header class="site-header">
-    <div class="nav-container">
-      <!-- Left: Logo Crest + Name -->
-      <a href="/" class="brand-group">
-        <div class="brand-logo-crest">LN</div>
-        <div class="brand-title-wrap">
-          <span class="brand-name">LitNexis</span>
-          <span class="brand-subtitle">Academic Intelligence</span>
+  <main class="admin-container">
+    <!-- Top Administrative Header -->
+    <div class="admin-header-row">
+      <div class="admin-title-area">
+        <div class="admin-badge-row">
+          <span class="admin-prestige-badge">ADMIN CONTROL CENTER</span>
+          <div class="admin-heartbeat-pill" id="admin-heartbeat-pill">
+            <span class="heartbeat-dot" id="heartbeat-dot"></span>
+            <span id="admin-sys-status-text">All Systems Operational</span>
+          </div>
         </div>
-      </a>
+        <h1 class="admin-title">System Administration &amp; Operations</h1>
+        <p class="admin-subtitle">Real-time telemetry, researcher seat governance, systematic survey oversight, and security audit logs.</p>
+      </div>
 
-      <!-- Right: Authenticated Actions -->
-      <div class="nav-actions">
-        <a href="/" class="nav-link-academic">Home</a>
-        <a href="/about" class="nav-link-academic">About</a>
-        <a href="/dashboard" class="nav-link-academic">Dashboard</a>
-        <a href="/admin" id="nav-admin-link" class="nav-link-academic active" style="color: var(--accent-rose);">Admin</a>
-
-        <button class="theme-toggle-academic theme-toggle-pill" id="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
-          <span id="theme-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></span>
+      <!-- Quick Actions / Quick Controls -->
+      <div class="admin-quick-controls">
+        <div class="admin-sysinfo-pill" id="admin-runtime-pill" title="Active Server Runtime">
+          <span class="pill-label">Runtime:</span>
+          <span class="pill-val" id="admin-node-val">Node.js</span>
+        </div>
+        <div class="admin-sysinfo-pill" id="admin-uptime-pill" title="Server Uptime">
+          <span class="pill-label">Uptime:</span>
+          <span class="pill-val" id="admin-uptime-val">--</span>
+        </div>
+        <button type="button" class="admin-btn-secondary" onclick="refreshAdminData()" title="Refresh Telemetry and Datasets">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+          </svg>
+          <span>Refresh</span>
         </button>
+      </div>
+    </div>
 
-        <!-- Account / Username Academic Dropdown -->
-        <div class="account-dropdown-wrapper" id="account-dropdown-wrap">
-          <button type="button" class="account-academic-btn" id="account-dropdown-toggle" onclick="toggleAccountDropdown(event)" aria-haspopup="true" aria-expanded="false" title="Account Menu">
-            <span id="user-nav-name">Administrator</span>
-            <span style="font-size: 0.72rem; margin-left: 0.2rem; opacity: 0.7;">▼</span>
-          </button>
+    <!-- Admin Navigation Tabs -->
+    <div class="admin-tabs-bar" role="tablist" aria-label="Admin Navigation Tabs">
+      <button type="button" class="admin-tab-btn active" data-tab="overview" onclick="switchAdminTab('overview')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+        <span>Overview &amp; Telemetry</span>
+      </button>
+      <button type="button" class="admin-tab-btn" data-tab="users" onclick="switchAdminTab('users')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Researchers &amp; Seats</span>
+      </button>
+      <button type="button" class="admin-tab-btn" data-tab="projects" onclick="switchAdminTab('projects')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <span>Surveys &amp; Corpus</span>
+      </button>
+      <button type="button" class="admin-tab-btn" data-tab="templates" onclick="switchAdminTab('templates')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+        <span>Master Templates</span>
+      </button>
+      <button type="button" class="admin-tab-btn" data-tab="audit" onclick="switchAdminTab('audit')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>Security &amp; Audit Logs</span>
+      </button>
+      <button type="button" class="admin-tab-btn" data-tab="settings" onclick="switchAdminTab('settings')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>System Settings</span>
+      </button>
+    </div>
 
-          <div class="account-dropdown-menu" id="account-dropdown-menu">
-            <div class="dropdown-user-header">
-              <div class="dropdown-user-name">
-                <span id="dropdown-user-name-txt">Administrator</span>
-                <span class="role-badge-pill role-admin" style="font-size: 0.72rem; font-family: 'JetBrains Mono', monospace; font-weight: 700; padding: 0.12rem 0.45rem; border-radius: 4px; background: rgba(244,63,94,0.15); color: var(--accent-rose); border: 1px solid rgba(244,63,94,0.3);">ADMIN</span>
+    <!-- ==========================================
+         TAB 1: OVERVIEW & TELEMETRY
+         ========================================== -->
+    <div class="admin-tab-content active" id="tab-overview">
+      <!-- Telemetry KPIs Grid -->
+      <div class="admin-kpi-grid">
+        <div class="kpi-card" style="--kpi-accent: var(--accent-primary);">
+          <div class="kpi-icon-wrap">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          </div>
+          <div class="kpi-num" id="stat-admin-users">0</div>
+          <div class="kpi-label">Registered Researchers</div>
+          <div class="kpi-subtext" id="stat-admin-users-sub">0 Active Seats</div>
+        </div>
+
+        <div class="kpi-card" style="--kpi-accent: var(--accent-gold);">
+          <div class="kpi-icon-wrap">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          </div>
+          <div class="kpi-num" id="stat-admin-projects">0</div>
+          <div class="kpi-label">Survey Projects</div>
+          <div class="kpi-subtext" id="stat-admin-clusters-sub">0 Taxonomy Clusters</div>
+        </div>
+
+        <div class="kpi-card" style="--kpi-accent: var(--accent-emerald);">
+          <div class="kpi-icon-wrap">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <div class="kpi-num" id="stat-admin-papers">0</div>
+          <div class="kpi-label">Indexed Research Papers</div>
+          <div class="kpi-subtext" id="stat-admin-values-sub">0 Extracted Values</div>
+        </div>
+
+        <div class="kpi-card" style="--kpi-accent: var(--accent-purple);">
+          <div class="kpi-icon-wrap">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+          </div>
+          <div class="kpi-num" id="stat-admin-heap">0 MB</div>
+          <div class="kpi-label">Process Memory Heap</div>
+          <div class="kpi-meter-wrap">
+            <div class="kpi-meter-fill" id="stat-admin-heap-meter" style="width: 0%;"></div>
+          </div>
+          <div class="kpi-subtext" id="stat-admin-heap-sub">0 MB RSS Allocated</div>
+        </div>
+
+        <div class="kpi-card" style="--kpi-accent: var(--accent-cyan, #06b6d4);">
+          <div class="kpi-icon-wrap">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          </div>
+          <div class="kpi-num" id="stat-admin-db-size">0 MB</div>
+          <div class="kpi-label">SQLite WAL Database</div>
+          <div class="kpi-subtext" id="stat-admin-wal-sub">WAL Journal Active</div>
+        </div>
+
+        <div class="kpi-card" style="--kpi-accent: var(--accent-amber);">
+          <div class="kpi-icon-wrap">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div class="kpi-num" id="stat-admin-logs-count">0</div>
+          <div class="kpi-label">Security Audit Events</div>
+          <div class="kpi-subtext">Immutable SQLite Trail</div>
+        </div>
+      </div>
+
+      <!-- System Diagnostics & Health Card -->
+      <div class="admin-grid-2col">
+        <div class="admin-panel-card">
+          <div class="admin-panel-header">
+            <div class="admin-panel-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              <span>System &amp; Server Infrastructure</span>
+            </div>
+            <span class="badge badge-emerald">HEALTHY</span>
+          </div>
+          <div class="admin-diag-list">
+            <div class="diag-row">
+              <span class="diag-key">Operating System &amp; Arch</span>
+              <span class="diag-val" id="diag-os-arch">--</span>
+            </div>
+            <div class="diag-row">
+              <span class="diag-key">CPU Cores &amp; Topology</span>
+              <span class="diag-val" id="diag-cpu-cores">--</span>
+            </div>
+            <div class="diag-row">
+              <span class="diag-key">System Memory (Free / Total)</span>
+              <span class="diag-val" id="diag-sys-ram">--</span>
+            </div>
+            <div class="diag-row">
+              <span class="diag-key">Node.js Engine Version</span>
+              <span class="diag-val" id="diag-node-ver">--</span>
+            </div>
+            <div class="diag-row">
+              <span class="diag-key">Database Engine</span>
+              <span class="diag-val" id="diag-db-engine">SQLite WAL (DatabaseSync Node.js v22+)</span>
+            </div>
+            <div class="diag-row">
+              <span class="diag-key">PID &amp; Execution Environment</span>
+              <span class="diag-val" id="diag-pid">--</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Maintenance & Broadcast Panel -->
+        <div class="admin-panel-card">
+          <div class="admin-panel-header">
+            <div class="admin-panel-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <span>Platform Maintenance &amp; Guardrails</span>
+            </div>
+          </div>
+          <div class="admin-panel-body">
+            <div class="maint-toggle-box">
+              <div>
+                <strong style="font-size: 0.95rem; color: var(--text-primary); display: block;">System Maintenance Mode</strong>
+                <span style="font-size: 0.82rem; color: var(--text-secondary);">When active, non-administrator API requests receive HTTP 503 Service Unavailable.</span>
               </div>
-              <div class="dropdown-user-email" id="dropdown-user-email-txt">admin@student.just.edu.bd</div>
+              <label class="switch-toggle" title="Toggle Maintenance Mode">
+                <input type="checkbox" id="toggle-maintenance-mode" onchange="toggleMaintenance(this.checked)">
+                <span class="switch-slider"></span>
+              </label>
             </div>
 
-            <a href="/profile" class="dropdown-item">
-              <span>Profile & Settings</span>
-            </a>
-            <a href="/dashboard" class="dropdown-item">
-              <span>Systematic Surveys</span>
-            </a>
-            <a href="/admin" class="dropdown-item" style="color: var(--accent-rose);">
-              <span>Admin Console</span>
-            </a>
-            <button type="button" class="dropdown-item danger" onclick="handleLogout()">
-              <span>Sign Out</span>
-            </button>
+            <div style="margin-top: 1.25rem;">
+              <label class="admin-form-label" for="admin-maint-message">Broadcast Maintenance Announcement Banner</label>
+              <textarea id="admin-maint-message" class="admin-input admin-textarea" rows="2" placeholder="System maintenance in progress. Normal operations will resume shortly..."></textarea>
+              <button type="button" class="admin-btn-secondary" onclick="updateMaintenanceMessage()" style="margin-top: 0.65rem; font-size: 0.82rem;">
+                Update Banner Message
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </header>
 
-  <div class="admin-container">
-    <div class="admin-header-row">
-      <div>
-        <h1 class="admin-title">System Administration & Telemetry</h1>
-        <p style="color: var(--text-secondary); font-size: 0.95rem; margin-top: 0.25rem;">Monitor platform health, user quotas, maintenance status, and security audit logs.</p>
-      </div>
+    <!-- ==========================================
+         TAB 2: RESEARCHERS & SEATS
+         ========================================== -->
+    <div class="admin-tab-content" id="tab-users">
+      <div class="admin-table-card">
+        <div class="admin-table-header">
+          <div class="admin-table-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            <span>Registered Researchers &amp; Seat Governance</span>
+            <span class="admin-table-badge" id="admin-users-table-count">0 Users</span>
+          </div>
 
-      <!-- Maintenance Mode Toggle -->
-      <div style="background: var(--bg-card); border: 1.5px solid var(--border-card); padding: 0.65rem 1.15rem; border-radius: var(--radius-lg); display: flex; align-items: center; gap: 0.75rem;">
-        <span style="font-size: 0.88rem; font-weight: 700; color: var(--text-primary);">Maintenance Mode:</span>
-        <label style="position: relative; display: inline-block; width: 44px; height: 24px; cursor: pointer;">
-          <input type="checkbox" id="toggle-maintenance-mode" onchange="toggleMaintenance(this.checked)" style="opacity: 0; width: 0; height: 0;">
-          <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--bg-tertiary); transition: .3s; border-radius: 24px; border: 1px solid var(--border-subtle);"></span>
-        </label>
-      </div>
-    </div>
+          <div class="admin-table-toolbar">
+            <div class="admin-search-box">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="admin-user-search-input" placeholder="Search by name, email, institution..." oninput="handleUserSearch(this.value)">
+            </div>
 
-    <!-- Telemetry KPIs -->
-    <div class="admin-kpi-grid">
-      <div class="kpi-card" style="--kpi-accent: var(--accent-primary);">
-        <div class="kpi-num" id="stat-admin-users">0</div>
-        <div class="kpi-label">Registered Researchers</div>
-      </div>
-      <div class="kpi-card" style="--kpi-accent: var(--accent-gold);">
-        <div class="kpi-num" id="stat-admin-projects">0</div>
-        <div class="kpi-label">Survey Projects</div>
-      </div>
-      <div class="kpi-card" style="--kpi-accent: var(--accent-emerald);">
-        <div class="kpi-num" id="stat-admin-papers">0</div>
-        <div class="kpi-label">Indexed Papers</div>
-      </div>
-      <div class="kpi-card" style="--kpi-accent: var(--accent-purple);">
-        <div class="kpi-num" id="stat-admin-heap">0 MB</div>
-        <div class="kpi-label">Process Memory Heap</div>
-      </div>
-    </div>
+            <select id="admin-user-role-filter" class="admin-select" onchange="loadAdminUsersList()">
+              <option value="all">All Roles</option>
+              <option value="admin">Administrator</option>
+              <option value="user">Researcher (User)</option>
+              <option value="reviewer">Peer Reviewer</option>
+              <option value="supervisor">Advisor / Supervisor</option>
+            </select>
 
-    <!-- Registered Researchers Table -->
-    <div class="admin-table-card">
-      <div class="admin-table-header">
-        <div class="admin-table-title">
-          <span>Registered Researchers &amp; Roles</span>
+            <select id="admin-user-status-filter" class="admin-select" onchange="loadAdminUsersList()">
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="deactivated">Deactivated</option>
+              <option value="banned">Banned</option>
+            </select>
+
+            <button type="button" class="action-btn gold" onclick="openAddUserModal()" style="padding: 0.42rem 0.95rem; font-size: 0.82rem;">
+              + Add Researcher
+            </button>
+          </div>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="admin-data-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">SI</th>
+                <th>Researcher</th>
+                <th>Institution</th>
+                <th>System Role</th>
+                <th>Status</th>
+                <th>AI Tokens / Storage</th>
+                <th>Surveys</th>
+                <th>Joined</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-users-tbody">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
         </div>
       </div>
-      <div style="overflow-x: auto;">
-        <table class="matrix-table" style="width: 100%;">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Full Name</th>
-              <th>Email</th>
-              <th>System Role</th>
-              <th>Joined Date</th>
-            </tr>
-          </thead>
-          <tbody id="admin-users-tbody"></tbody>
-        </table>
+    </div>
+
+    <!-- ==========================================
+         TAB 3: SURVEYS & CORPUS
+         ========================================== -->
+    <div class="admin-tab-content" id="tab-projects">
+      <div class="admin-table-card">
+        <div class="admin-table-header">
+          <div class="admin-table-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            <span>Systematic Survey Projects &amp; Research Corpus</span>
+            <span class="admin-table-badge" id="admin-projects-table-count">0 Surveys</span>
+          </div>
+
+          <div class="admin-table-toolbar">
+            <div class="admin-search-box">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="admin-project-search-input" placeholder="Search surveys, domain, owner..." oninput="handleProjectSearch(this.value)">
+            </div>
+          </div>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="admin-data-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">ID</th>
+                <th>Survey Project Title</th>
+                <th>Domain Category</th>
+                <th>Lead Researcher (Owner)</th>
+                <th>Corpus (Papers / Clusters)</th>
+                <th>Created</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-projects-tbody">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
-    <!-- Security Audit Logs Table -->
-    <div class="admin-table-card">
-      <div class="admin-table-header">
-        <div class="admin-table-title">
-          <span>Security &amp; Operation Audit Logs</span>
+    <!-- ==========================================
+         TAB 4: MASTER TAXONOMY TEMPLATES
+         ========================================== -->
+    <div class="admin-tab-content" id="tab-templates">
+      <div class="admin-table-card">
+        <div class="admin-table-header">
+          <div class="admin-table-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+            <span>Master Taxonomy Domain Templates</span>
+            <span class="admin-table-badge" id="admin-templates-count">0 Templates</span>
+          </div>
+
+          <div class="admin-table-toolbar">
+            <button type="button" class="action-btn gold" onclick="openCreateTemplateModal()" style="padding: 0.42rem 0.95rem; font-size: 0.82rem;">
+              + Create Master Template
+            </button>
+          </div>
+        </div>
+
+        <div class="admin-templates-grid" id="admin-templates-grid" style="padding: 1.5rem;">
+          <!-- Rendered dynamically -->
         </div>
       </div>
-      <div style="overflow-x: auto;">
-        <table class="matrix-table" style="width: 100%;">
-          <thead>
-            <tr>
-              <th>Timestamp</th>
-              <th>Action</th>
-              <th>Details</th>
-              <th>IP Address</th>
-            </tr>
-          </thead>
-          <tbody id="admin-audit-tbody"></tbody>
-        </table>
+    </div>
+
+    <!-- ==========================================
+         TAB 5: SECURITY & AUDIT LOGS
+         ========================================== -->
+    <div class="admin-tab-content" id="tab-audit">
+      <div class="admin-table-card">
+        <div class="admin-table-header">
+          <div class="admin-table-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span>Security &amp; Operation Audit Trail</span>
+            <span class="admin-table-badge" id="admin-audit-table-count">0 Logs</span>
+          </div>
+
+          <div class="admin-table-toolbar">
+            <select id="admin-audit-action-filter" class="admin-select" onchange="loadAdminAuditLogs()">
+              <option value="all">All Action Types</option>
+              <option value="AUTH_LOGIN">AUTH_LOGIN</option>
+              <option value="AUTH_REGISTER">AUTH_REGISTER</option>
+              <option value="ADMIN_USER_CREATE">ADMIN_USER_CREATE</option>
+              <option value="ADMIN_USER_UPDATE">ADMIN_USER_UPDATE</option>
+              <option value="ADMIN_USER_DELETE">ADMIN_USER_DELETE</option>
+              <option value="MAINTENANCE_TOGGLE">MAINTENANCE_TOGGLE</option>
+              <option value="ADMIN_SETTINGS_UPDATE">ADMIN_SETTINGS_UPDATE</option>
+              <option value="ADMIN_PROJECT_DELETE">ADMIN_PROJECT_DELETE</option>
+            </select>
+
+            <select id="admin-audit-status-filter" class="admin-select" onchange="loadAdminAuditLogs()">
+              <option value="all">All Status</option>
+              <option value="SUCCESS">SUCCESS</option>
+              <option value="WARNING">WARNING</option>
+              <option value="FAILED">FAILED</option>
+            </select>
+
+            <button type="button" class="admin-btn-secondary" onclick="exportAuditLogs('csv')" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">
+              Export CSV
+            </button>
+            <button type="button" class="admin-btn-secondary" onclick="exportAuditLogs('json')" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">
+              Export JSON
+            </button>
+          </div>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="admin-data-table">
+            <thead>
+              <tr>
+                <th style="width: 170px;">Timestamp</th>
+                <th>Action</th>
+                <th>Actor / User Email</th>
+                <th>Operation Details</th>
+                <th>IP Address</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="admin-audit-tbody">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==========================================
+         TAB 6: GLOBAL SYSTEM SETTINGS
+         ========================================== -->
+    <div class="admin-tab-content" id="tab-settings">
+      <div class="admin-grid-2col">
+        <div class="admin-panel-card">
+          <div class="admin-panel-header">
+            <div class="admin-panel-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <span>Researcher Default Quotas &amp; Limits</span>
+            </div>
+          </div>
+          <div class="admin-panel-body">
+            <div style="display: flex; flex-direction: column; gap: 1.15rem;">
+              <div>
+                <label class="admin-form-label" for="setting-default-token-quota">Default AI Extraction Token Quota (per User)</label>
+                <input type="number" id="setting-default-token-quota" class="admin-input" value="100000" min="1000" step="5000">
+                <span class="admin-form-hint">Initial tokens credited for automated abstract synthesis and matrix data extraction.</span>
+              </div>
+
+              <div>
+                <label class="admin-form-label" for="setting-default-storage-quota">Default Storage Quota per Researcher (MB)</label>
+                <input type="number" id="setting-default-storage-quota" class="admin-input" value="500" min="50" step="50">
+                <span class="admin-form-hint">Dedicated PDF file attachment and BLOB document repository limit.</span>
+              </div>
+
+              <div>
+                <label class="admin-form-label" for="setting-allow-registration">New Researcher Self-Registration</label>
+                <select id="setting-allow-registration" class="admin-select" style="width: 100%;">
+                  <option value="true">Open (Enabled for all academic emails)</option>
+                  <option value="false">Restricted (Administrator invite only)</option>
+                </select>
+              </div>
+
+              <button type="button" class="action-btn gold" onclick="saveGlobalSettings()" style="align-self: flex-start; margin-top: 0.5rem;">
+                Save Global Policies
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-panel-card">
+          <div class="admin-panel-header">
+            <div class="admin-panel-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <span>Security &amp; Collaboration Policies</span>
+            </div>
+          </div>
+          <div class="admin-panel-body">
+            <div style="display: flex; flex-direction: column; gap: 1.15rem;">
+              <div>
+                <label class="admin-form-label" for="setting-public-share-links">Public Supervisor Read-Only Share Links</label>
+                <select id="setting-public-share-links" class="admin-select" style="width: 100%;">
+                  <option value="true">Enabled (Surveys can generate public review tokens)</option>
+                  <option value="false">Disabled (Strict enterprise internal access only)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="admin-form-label" for="setting-session-timeout-hours">JWT Auth Session Inactivity Lifetime (Hours)</label>
+                <input type="number" id="setting-session-timeout-hours" class="admin-input" value="72" min="1" max="720">
+              </div>
+
+              <div class="admin-callout-box">
+                <strong style="color: var(--accent-gold); display: block; margin-bottom: 0.25rem;">Enterprise Compliance:</strong>
+                <span style="font-size: 0.82rem; color: var(--text-secondary);">Audit records and database WAL snapshots are continuously checksummed under SQLite DatabaseSync.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ==========================================
+       MODALS
+       ========================================== -->
+
+  <!-- MODAL: Add Researcher -->
+  <div class="modal-overlay" id="admin-add-user-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h2 class="modal-title">Provision Researcher Account</h2>
+          <p class="modal-subtitle">Create a new researcher seat with role, institution, and quota parameters.</p>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeModal('admin-add-user-modal')">✕</button>
+      </div>
+      <form onsubmit="handleCreateUserSubmit(event)">
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem;">
+          <div>
+            <label class="admin-form-label" for="new-user-name">Full Name *</label>
+            <input type="text" id="new-user-name" class="admin-input" placeholder="e.g. Dr. Jane Doe" required>
+          </div>
+          <div>
+            <label class="admin-form-label" for="new-user-email">Academic Email *</label>
+            <input type="email" id="new-user-email" class="admin-input" placeholder="e.g. jdoe@oxford.ac.uk" required>
+          </div>
+          <div>
+            <label class="admin-form-label" for="new-user-password">Initial Password *</label>
+            <input type="password" id="new-user-password" class="admin-input" placeholder="At least 6 characters" minlength="6" required>
+          </div>
+          <div>
+            <label class="admin-form-label" for="new-user-role">System Role</label>
+            <select id="new-user-role" class="admin-select" style="width: 100%;">
+              <option value="user">Researcher (Standard)</option>
+              <option value="reviewer">Peer Reviewer</option>
+              <option value="supervisor">Advisor / Supervisor</option>
+              <option value="admin">Administrator</option>
+            </select>
+          </div>
+          <div>
+            <label class="admin-form-label" for="new-user-institution">Institution / Department</label>
+            <input type="text" id="new-user-institution" class="admin-input" placeholder="e.g. Cambridge Institute of Computing" value="Academic Research Institute">
+          </div>
+          <div class="admin-grid-2col" style="gap: 0.75rem;">
+            <div>
+              <label class="admin-form-label" for="new-user-tokens">AI Token Quota</label>
+              <input type="number" id="new-user-tokens" class="admin-input" value="100000" min="1000" step="5000">
+            </div>
+            <div>
+              <label class="admin-form-label" for="new-user-storage">Storage (MB)</label>
+              <input type="number" id="new-user-storage" class="admin-input" value="500" min="50" step="50">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeModal('admin-add-user-modal')">Cancel</button>
+          <button type="submit" class="action-btn gold">Provision Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Edit Researcher Details & Quotas -->
+  <div class="modal-overlay" id="admin-edit-user-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h2 class="modal-title">Edit Researcher Profile &amp; Quotas</h2>
+          <p class="modal-subtitle" id="edit-user-subtitle">Update role, account status, institution, and resource quotas.</p>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeModal('admin-edit-user-modal')">✕</button>
+      </div>
+      <form onsubmit="handleEditUserSubmit(event)">
+        <input type="hidden" id="edit-user-id">
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem;">
+          <div>
+            <label class="admin-form-label" for="edit-user-name">Full Name</label>
+            <input type="text" id="edit-user-name" class="admin-input" required>
+          </div>
+          <div>
+            <label class="admin-form-label" for="edit-user-email">Email (Read-only)</label>
+            <input type="email" id="edit-user-email" class="admin-input" disabled style="opacity: 0.7;">
+          </div>
+          <div>
+            <label class="admin-form-label" for="edit-user-institution">Institution / Department</label>
+            <input type="text" id="edit-user-institution" class="admin-input">
+          </div>
+          <div class="admin-grid-2col" style="gap: 0.75rem;">
+            <div>
+              <label class="admin-form-label" for="edit-user-role">System Role</label>
+              <select id="edit-user-role" class="admin-select" style="width: 100%;">
+                <option value="user">Researcher (Standard)</option>
+                <option value="reviewer">Peer Reviewer</option>
+                <option value="supervisor">Advisor / Supervisor</option>
+                <option value="admin">Administrator</option>
+              </select>
+            </div>
+            <div>
+              <label class="admin-form-label" for="edit-user-status">Account Status</label>
+              <select id="edit-user-status" class="admin-select" style="width: 100%;">
+                <option value="active">Active</option>
+                <option value="deactivated">Deactivated</option>
+                <option value="banned">Banned</option>
+              </select>
+            </div>
+          </div>
+          <div class="admin-grid-2col" style="gap: 0.75rem;">
+            <div>
+              <label class="admin-form-label" for="edit-user-tokens">AI Token Quota</label>
+              <input type="number" id="edit-user-tokens" class="admin-input" min="1000" step="5000">
+            </div>
+            <div>
+              <label class="admin-form-label" for="edit-user-storage">Storage Quota (MB)</label>
+              <input type="number" id="edit-user-storage" class="admin-input" min="50" step="50">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeModal('admin-edit-user-modal')">Cancel</button>
+          <button type="submit" class="action-btn gold">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Admin Reset Password -->
+  <div class="modal-overlay" id="admin-reset-password-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h2 class="modal-title">Reset User Password</h2>
+          <p class="modal-subtitle" id="reset-password-subtitle">Directly set a new password for this researcher account.</p>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeModal('admin-reset-password-modal')">✕</button>
+      </div>
+      <form onsubmit="handleResetPasswordSubmit(event)">
+        <input type="hidden" id="reset-user-id">
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem;">
+          <div>
+            <label class="admin-form-label" for="reset-new-password">New Password *</label>
+            <input type="password" id="reset-new-password" class="admin-input" minlength="6" placeholder="Enter at least 6 characters" required>
+          </div>
+          <div>
+            <label class="admin-form-label" for="reset-confirm-password">Confirm New Password *</label>
+            <input type="password" id="reset-confirm-password" class="admin-input" minlength="6" placeholder="Re-enter new password" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeModal('admin-reset-password-modal')">Cancel</button>
+          <button type="submit" class="action-btn gold">Apply New Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Delete User Confirmation -->
+  <div class="modal-overlay" id="admin-delete-user-modal">
+    <div class="modal-card" style="max-width: 460px;">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h2 class="modal-title" style="color: var(--accent-rose);">Delete Researcher Account</h2>
+          <p class="modal-subtitle" id="delete-user-subtitle">This action is irreversible.</p>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeModal('admin-delete-user-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5;">
+          Are you sure you want to permanently delete user <strong id="delete-user-email-label" style="color: var(--text-primary);"></strong>?
+          All associated survey projects, extracted literature values, and annotations will be deleted.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <input type="hidden" id="delete-user-id">
+        <button type="button" class="btn-cancel" onclick="closeModal('admin-delete-user-modal')">Cancel</button>
+        <button type="button" class="action-btn" onclick="confirmDeleteUser()" style="background: var(--accent-rose); color: #fff; border: none;">
+          Permanently Delete
+        </button>
       </div>
     </div>
   </div>
 
-  <!-- Enhanced Multi-Column Academic Footer -->
-  <footer>
-    <div class="footer-top-grid">
-      <!-- Brand & Mission Column -->
-      <div class="footer-brand-col">
-        <div class="footer-brand-header">
-          <div class="brand-logo-crest" style="width: 36px; height: 36px; font-size: 0.95rem;">LN</div>
+  <!-- MODAL: Delete Survey Project Confirmation -->
+  <div class="modal-overlay" id="admin-delete-project-modal">
+    <div class="modal-card" style="max-width: 460px;">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h2 class="modal-title" style="color: var(--accent-rose);">Purge Survey Project</h2>
+          <p class="modal-subtitle">Cascading deletion of all papers, clusters, and matrix cells.</p>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeModal('admin-delete-project-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5;">
+          Are you sure you want to permanently purge survey <strong id="delete-project-name-label" style="color: var(--text-primary);"></strong>?
+        </p>
+      </div>
+      <div class="modal-footer">
+        <input type="hidden" id="delete-project-id">
+        <button type="button" class="btn-cancel" onclick="closeModal('admin-delete-project-modal')">Cancel</button>
+        <button type="button" class="action-btn" onclick="confirmDeleteProject()" style="background: var(--accent-rose); color: #fff; border: none;">
+          Purge Survey
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Create Master Template -->
+  <div class="modal-overlay" id="admin-create-template-modal">
+    <div class="modal-card" style="max-width: 620px;">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h2 class="modal-title">Create Master Domain Template</h2>
+          <p class="modal-subtitle">Define standardized taxonomy benchmarks and clusters for systematic surveys.</p>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeModal('admin-create-template-modal')">✕</button>
+      </div>
+      <form onsubmit="handleCreateTemplateSubmit(event)">
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem;">
           <div>
-            <div style="font-weight: 800; color: var(--text-primary); font-size: 1.05rem;">LitNexis Admin</div>
-            <div style="font-size: 0.82rem; color: var(--accent-rose); font-family: 'JetBrains Mono', monospace;">Control & Governance Center</div>
+            <label class="admin-form-label" for="new-template-name">Template Name *</label>
+            <input type="text" id="new-template-name" class="admin-input" placeholder="e.g. Large Language Models (LLM) Survey Benchmark" required>
+          </div>
+          <div class="admin-grid-2col" style="gap: 0.75rem;">
+            <div>
+              <label class="admin-form-label" for="new-template-category">Domain Category *</label>
+              <input type="text" id="new-template-category" class="admin-input" placeholder="e.g. Natural Language Processing" required>
+            </div>
+            <div>
+              <label class="admin-form-label" for="new-template-clusters-count">Number of Initial Clusters</label>
+              <input type="text" id="new-template-clusters-count" class="admin-input" value="4 Clusters" readonly style="opacity: 0.8;">
+            </div>
+          </div>
+          <div>
+            <label class="admin-form-label" for="new-template-description">Description &amp; Research Scope</label>
+            <textarea id="new-template-description" class="admin-input admin-textarea" rows="2" placeholder="Standardized taxonomy for empirical literature evaluations..."></textarea>
+          </div>
+          <div>
+            <label class="admin-form-label" for="new-template-clusters-json">Taxonomy Clusters Definition (JSON) *</label>
+            <textarea id="new-template-clusters-json" class="admin-input admin-textarea" rows="5" style="font-family: var(--font-mono); font-size: 0.8rem;" required>[
+  { "name": "Architectures & Attention", "description": "Transformer blocks, MoE, attention mechanisms", "color": "#38bdf8" },
+  { "name": "Pretraining & Alignment", "description": "RLHF, DPO, self-supervised pretraining", "color": "#d4af37" },
+  { "name": "Reasoning & Inference", "description": "Chain-of-thought, speculative decoding", "color": "#10b981" },
+  { "name": "Evaluation & Benchmarks", "description": "MMLU, GSM8K, empirical safety tests", "color": "#a855f7" }
+]</textarea>
           </div>
         </div>
-        <p class="footer-brand-desc">
-          System telemetry, RBAC quotas, SQLite WAL metrics, and platform security auditing.
-        </p>
-        <div class="footer-status-pill">
-          <span class="footer-status-dot"></span>
-          <span>SQLite WAL Engine Active</span>
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeModal('admin-create-template-modal')">Cancel</button>
+          <button type="submit" class="action-btn gold">Publish Template</button>
         </div>
-      </div>
-
-      <!-- Column 1: Core Navigation -->
-      <div>
-        <h4 class="footer-col-title">Navigation</h4>
-        <ul class="footer-list">
-          <li><a href="/">Home Overview</a></li>
-          <li><a href="/about">About Platform</a></li>
-          <li><a href="/dashboard">Surveys Dashboard</a></li>
-          <li><a href="/workspace">Interactive Matrix</a></li>
-          <li><a href="/profile">Profile Settings</a></li>
-        </ul>
-      </div>
-
-      <!-- Column 2: Taxonomies -->
-      <div>
-        <h4 class="footer-col-title">Taxonomies</h4>
-        <ul class="footer-list">
-          <li><a href="/dashboard">+ Create New Survey</a></li>
-          <li><a href="/dashboard">Blueprint Templates</a></li>
-          <li><a href="/workspace">Feature Selection Matrix</a></li>
-          <li><a href="/workspace">Synthesis Insights</a></li>
-        </ul>
-      </div>
-
-      <!-- Column 3: Engine Specs -->
-      <div>
-        <h4 class="footer-col-title">Engine Specs</h4>
-        <ul class="footer-list">
-          <li><a href="javascript:void(0)">Node.js & Express REST</a></li>
-          <li><a href="javascript:void(0)">SQLite WAL Persistence</a></li>
-          <li><a href="javascript:void(0)">KaTeX LaTeX Rendering</a></li>
-          <li><a href="javascript:void(0)">SheetJS Multi-Level XLSX</a></li>
-          <li><a href="/api/stats" target="_blank">Live REST API Stats</a></li>
-        </ul>
-      </div>
-
-      <!-- Column 4: Quick Launch -->
-      <div>
-        <h4 class="footer-col-title">Preferences</h4>
-        <ul class="footer-list">
-          <li><a href="javascript:void(0)" onclick="typeof toggleTheme === 'function' ? toggleTheme() : document.getElementById('theme-toggle')?.click()">Toggle Dark/Light Mode</a></li>
-          <li><a href="javascript:void(0)" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">Back to Top</a></li>
-        </ul>
-      </div>
+      </form>
     </div>
+  </div>
 
-    <!-- Bottom Sub-Footer Bar -->
-    <div class="footer-bottom-bar">
-      <div class="footer-copyright">
-        © 2026 <strong>LitNexis Technologies Inc.</strong> All rights reserved. Precision Literature Benchmarking &amp; Research Matrix Systems.
-      </div>
-      <div class="footer-badge-group">
-        <span style="font-size: 0.85rem; color: var(--text-tertiary); font-family: 'JetBrains Mono', monospace; font-weight: 500;">developed by Mostafa Kamal @ Cyber Security Lab, JUST</span>
-      </div>
-    </div>
-  </footer>
+  <!-- Enhanced Multi-Column Academic Footer (Auto-rendered by /js/core/footer.js) -->
+  <footer id="site-footer"></footer>
 
   <!-- Toast Notification Stack -->
   <div id="toast-container"></div>
@@ -254,6 +753,8 @@
   <script src="/js/core/modal.js"></script>
   <script src="/js/core/toast.js"></script>
   <script src="/js/core/navbar.js"></script>
+  <script src="/js/core/footer.js"></script>
   <script src="/js/admin/admin.js"></script>
 </body>
 </html>
+

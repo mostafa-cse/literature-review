@@ -1,5 +1,5 @@
 /**
- * LITNEXIS ADD PAPER MODAL & METADATA INGESTION ENGINE
+ * LITSPHERE ADD PAPER MODAL & METADATA INGESTION ENGINE
  * Supports Single Paper Ingestion, CrossRef DOI Auto-Fetch, File Browser PDF Uploads,
  * Symmetrical Domain & Cluster creation, and Bulk PDF Batch Ingestion.
  */
@@ -11,9 +11,6 @@ window.openAddPaperModal = function(tab = 'single') {
     return;
   }
 
-  // Populate clusters & domains
-  if (typeof populateClusterDropdowns === 'function') populateClusterDropdowns();
-  populateDomainDropdowns();
   initPaperModalDropzones();
 
   // Reset Single Form
@@ -30,29 +27,15 @@ window.openAddPaperModal = function(tab = 'single') {
   const doiInput = document.getElementById('add-paper-doi');
   if (doiInput) doiInput.value = '';
 
-  // Pre-select cluster if in focus
-  const clusterSel = document.getElementById('add-paper-cluster');
-  if (clusterSel && currentClusterId && currentClusterId !== 'all') {
-    clusterSel.value = currentClusterId;
-  }
-
-  const bulkClusterSel = document.getElementById('upload-target-cluster');
-  if (bulkClusterSel && currentClusterId && currentClusterId !== 'all') {
-    bulkClusterSel.value = currentClusterId;
-  }
-
-  // Hide inline groups
-  const inlineClusterGroup = document.getElementById('add-paper-inline-cluster-group');
-  if (inlineClusterGroup) inlineClusterGroup.style.display = 'none';
-
-  const inlineDomainGroup = document.getElementById('add-paper-inline-domain-group');
-  if (inlineDomainGroup) inlineDomainGroup.style.display = 'none';
-
-  const bulkInlineClusterGroup = document.getElementById('bulk-paper-inline-cluster-group');
-  if (bulkInlineClusterGroup) bulkInlineClusterGroup.style.display = 'none';
-
-  const bulkInlineDomainGroup = document.getElementById('bulk-paper-inline-domain-group');
-  if (bulkInlineDomainGroup) bulkInlineDomainGroup.style.display = 'none';
+  // Reset input fields
+  const titleEl = document.getElementById('add-paper-title');
+  const authorsEl = document.getElementById('add-paper-authors');
+  const yearEl = document.getElementById('add-paper-year');
+  const pubEl = document.getElementById('add-paper-pub');
+  if (titleEl) titleEl.value = '';
+  if (authorsEl) authorsEl.value = '';
+  if (yearEl) yearEl.value = '';
+  if (pubEl) pubEl.value = '';
 
   // Reset bulk list
   const bulkInput = document.getElementById('upload-file-input');
@@ -376,65 +359,25 @@ window.submitAddPaperForm = async function(e) {
   }
 
   const titleEl = document.getElementById('add-paper-title');
-  const title = titleEl ? titleEl.value.trim() : '';
-  if (!title) {
-    showToast('Paper Title is required', 'warning');
-    return;
-  }
-
-  const clusterSel = document.getElementById('add-paper-cluster');
-  let clusterId = clusterSel ? clusterSel.value : '';
-
-  // Handle inline cluster creation
-  if (clusterId === '__new__') {
-    const newClusterInput = document.getElementById('add-paper-new-cluster-name');
-    const newClusterName = newClusterInput ? newClusterInput.value.trim() : '';
-    if (!newClusterName) {
-      showToast('Please enter a name for the new cluster', 'warning');
-      return;
-    }
-
-    try {
-      const cRes = await fetch('/api/clusters', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ project_id: activeProjectId, name: newClusterName, color: '#38bdf8' })
-      });
-      if (cRes.ok) {
-        const newC = await cRes.json();
-        clusterId = newC.id;
-        if (typeof loadClusters === 'function') await loadClusters();
-      }
-    } catch (cErr) {
-      console.warn('Failed inline cluster creation:', cErr);
-    }
-  }
-
-  // Handle Domain Selection & Inline Creation
-  const domainSel = document.getElementById('add-paper-domain-select');
-  let domain = domainSel ? domainSel.value : '';
-  if (domain === '__new__' || (!domain && domainSel)) {
-    const newDomainInput = document.getElementById('add-paper-new-domain-name');
-    domain = (newDomainInput && newDomainInput.value.trim()) ? newDomainInput.value.trim() : '';
-  }
-  if (domain) {
-    if (!window._customDomains) window._customDomains = [];
-    if (!window._customDomains.includes(domain)) window._customDomains.push(domain);
-    if (typeof window.registerCustomDomain === 'function') {
-      window.registerCustomDomain(domain);
-    }
-  }
-
   const authorsEl = document.getElementById('add-paper-authors');
   const yearEl = document.getElementById('add-paper-year');
   const pubEl = document.getElementById('add-paper-pub');
   const doiEl = document.getElementById('add-paper-doi');
 
-  const authors = authorsEl ? authorsEl.value.trim() : '';
-  const year = yearEl ? yearEl.value.trim() : '';
-  const pub = pubEl ? pubEl.value.trim() : '';
+  // If user doesn't fill any default text box, fill it up with '-'
+  if (titleEl && !titleEl.value.trim()) titleEl.value = '-';
+  if (authorsEl && !authorsEl.value.trim()) authorsEl.value = '-';
+  if (yearEl && !yearEl.value.trim()) yearEl.value = '-';
+  if (pubEl && !pubEl.value.trim()) pubEl.value = '-';
+  if (doiEl && !doiEl.value.trim()) doiEl.value = '-';
+
+  const title = (titleEl && titleEl.value.trim()) ? titleEl.value.trim() : '-';
+  const authors = (authorsEl && authorsEl.value.trim()) ? authorsEl.value.trim() : '-';
+  const year = (yearEl && yearEl.value.trim()) ? yearEl.value.trim() : '-';
+  const pub = (pubEl && pubEl.value.trim()) ? pubEl.value.trim() : '-';
+  const doi = (doiEl && doiEl.value.trim()) ? doiEl.value.trim() : '-';
+  const domain = '-';
   const status = 'unread';
-  const doi = doiEl ? doiEl.value.trim() : '';
 
   const fileInput = document.getElementById('add-paper-file-input');
   const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
@@ -442,23 +385,20 @@ window.submitAddPaperForm = async function(e) {
   const btnSubmit = document.getElementById('btn-submit-single-paper');
   if (btnSubmit) {
     btnSubmit.disabled = true;
-    btnSubmit.textContent = hasFile ? 'Uploading Paper Document...' : 'Adding Paper...';
+    btnSubmit.textContent = hasFile ? 'Uploading Research Paper...' : 'Adding Research Paper...';
   }
 
   try {
-    let targetClusterNum = (clusterId && clusterId !== 'unassigned' && clusterId !== '__new__') ? parseInt(clusterId, 10) : null;
-
     if (hasFile) {
       const formData = new FormData();
       formData.append('pdf', fileInput.files[0]);
       formData.append('project_id', activeProjectId);
-      if (targetClusterNum) formData.append('cluster_id', targetClusterNum);
       formData.append('title', title);
-      formData.append('authors', authors || 'Academic Researchers');
-      formData.append('year', year || new Date().getFullYear());
+      formData.append('authors', authors);
+      formData.append('year', year);
       formData.append('pub', pub);
       formData.append('status', 'unread');
-      formData.append('domain', domain || '');
+      formData.append('domain', domain);
       formData.append('doi', doi);
 
       const res = await fetch('/api/upload', {
@@ -474,13 +414,13 @@ window.submitAddPaperForm = async function(e) {
     } else {
       const payload = {
         project_id: activeProjectId,
-        cluster_id: targetClusterNum,
+        cluster_id: null,
         title,
-        authors: authors || 'Academic Researchers',
-        year: year ? parseInt(year, 10) : new Date().getFullYear(),
+        authors,
+        year,
         pub,
         status: 'unread',
-        domain: domain || '',
+        domain,
         doi,
         keywords: []
       };
@@ -500,7 +440,6 @@ window.submitAddPaperForm = async function(e) {
     closeModal('upload-modal-overlay');
     showToast(hasFile ? 'Research Paper & PDF Document uploaded successfully!' : 'Research Paper added successfully!', 'success');
 
-    if (typeof populateDomainDropdowns === 'function') populateDomainDropdowns();
     if (typeof loadPapers === 'function') await loadPapers();
     if (typeof loadStats === 'function') await loadStats();
     if (typeof loadSynthesisInsights === 'function') await loadSynthesisInsights();
@@ -509,7 +448,7 @@ window.submitAddPaperForm = async function(e) {
   } finally {
     if (btnSubmit) {
       btnSubmit.disabled = false;
-      btnSubmit.textContent = 'Add Paper to Matrix';
+      btnSubmit.textContent = 'Add Research Paper to Matrix';
     }
   }
 };
@@ -527,56 +466,12 @@ window.submitBulkPdfUpload = async function() {
     return;
   }
 
-  const clusterSel = document.getElementById('upload-target-cluster');
-  let clusterId = clusterSel ? clusterSel.value : '';
-
-  // Handle inline cluster creation for bulk
-  let newClusterName = '';
-  if (clusterId === '__new__') {
-    const newClusterInput = document.getElementById('bulk-paper-new-cluster-name');
-    newClusterName = newClusterInput ? newClusterInput.value.trim() : '';
-    if (!newClusterName) {
-      showToast('Please enter a name for the new target cluster', 'warning');
-      return;
-    }
-
-    try {
-      const cRes = await fetch('/api/clusters', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ project_id: activeProjectId, name: newClusterName, color: '#38bdf8' })
-      });
-      if (cRes.ok) {
-        const newC = await cRes.json();
-        clusterId = newC.id;
-        if (typeof loadClusters === 'function') await loadClusters();
-      }
-    } catch (cErr) {
-      console.warn('Failed inline bulk cluster creation:', cErr);
-    }
-  }
-
-  // Handle Bulk Domain Selection & Inline Creation
-  const domainSel = document.getElementById('bulk-paper-domain-select');
-  let domain = domainSel ? domainSel.value : 'General';
-  let newDomainName = '';
-  if (domain === '__new__') {
-    const newDomainInput = document.getElementById('bulk-paper-new-domain-name');
-    newDomainName = (newDomainInput && newDomainInput.value.trim()) ? newDomainInput.value.trim() : '';
-    domain = newDomainName || 'General';
-  }
-  if (domain && domain !== 'General' && typeof window.registerCustomDomain === 'function') {
-    window.registerCustomDomain(domain);
-  }
-
-  const targetClusterNum = (clusterId && clusterId !== 'unassigned' && clusterId !== '__new__') ? parseInt(clusterId, 10) : null;
-
   const btnSubmit = document.getElementById('btn-submit-upload');
   const statusEl = document.getElementById('upload-status');
 
   if (btnSubmit) {
     btnSubmit.disabled = true;
-    btnSubmit.textContent = `Ingesting ${files.length} PDFs...`;
+    btnSubmit.textContent = `Ingesting ${files.length} Research PDFs...`;
   }
   if (statusEl) {
     statusEl.innerHTML = `<span style="color: var(--accent-gold);">Ingesting and extracting metadata from ${files.length} files...</span>`;
