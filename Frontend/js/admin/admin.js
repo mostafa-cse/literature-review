@@ -157,13 +157,13 @@ window.loadAdminSystemHealth = async function(silent = false) {
     }
 
     if (document.getElementById('diag-node-ver')) {
-      document.getElementById('diag-node-ver').textContent = data.node_version || process.version || 'v22';
+      document.getElementById('diag-node-ver').textContent = data.node_version || 'v22';
     }
     if (document.getElementById('admin-node-val')) {
       document.getElementById('admin-node-val').textContent = data.node_version || 'Node.js';
     }
     if (document.getElementById('diag-pid')) {
-      document.getElementById('diag-pid').textContent = `PID ${process.pid || 1447} (Production Daemon)`;
+      document.getElementById('diag-pid').textContent = `PID ${data.pid || 1447} (Production Daemon)`;
     }
 
     // 5. Format Server Uptime
