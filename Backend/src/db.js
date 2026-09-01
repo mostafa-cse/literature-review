@@ -59,6 +59,7 @@ function initDb() {
       owner_id INTEGER DEFAULT 1,
       name TEXT NOT NULL,
       description TEXT,
+      domain TEXT DEFAULT 'Computer Science',
       is_public INTEGER DEFAULT 0,
       share_token TEXT UNIQUE,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -267,6 +268,13 @@ function initDb() {
     }
     if (!paperCols.some(c => c.name === 'future_directions')) {
       db.exec("ALTER TABLE papers ADD COLUMN future_directions TEXT;");
+    }
+
+    // Automatic Migration: Add domain column if it doesn't exist
+    try {
+      db.exec("ALTER TABLE projects ADD COLUMN domain TEXT DEFAULT 'Computer Science'");
+    } catch (e) {
+      // Column already exists
     }
   } catch (err) {
     console.warn('Migration note:', err.message);

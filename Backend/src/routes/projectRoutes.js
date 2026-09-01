@@ -309,7 +309,7 @@ router.post('/projects', (req, res) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Authentication required to create a survey.' });
 
-    const { name, description } = req.body;
+    const { name, description, domain } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Project name is required' });
 
     const cleanName = name.trim();
@@ -326,7 +326,7 @@ router.post('/projects', (req, res) => {
       return res.status(409).json({ error: `You already have a literature survey titled "${cleanName}". All survey titles must be unique.` });
     }
 
-    const result = db.prepare('INSERT INTO projects (name, description, owner_id) VALUES (?, ?, ?)').run(cleanName, description || '', ownerId);
+    const result = db.prepare('INSERT INTO projects (name, description, domain, owner_id) VALUES (?, ?, ?, ?)').run(cleanName, description || '', domain || 'Computer Science', ownerId);
     const newProjectId = Number(result.lastInsertRowid);
 
     db.prepare(`
@@ -360,7 +360,7 @@ router.put('/projects/:id', (req, res) => {
       });
     }
 
-    const { name, description } = req.body;
+    const { name, description, domain } = req.body;
     if (name !== undefined && !name.trim()) return res.status(400).json({ error: 'Survey name cannot be empty.' });
 
     let cleanName = null;
@@ -372,8 +372,8 @@ router.put('/projects/:id', (req, res) => {
       }
     }
 
-    const result = db.prepare('UPDATE projects SET name = COALESCE(?, name), description = COALESCE(?, description) WHERE id = ?')
-      .run(cleanName, description !== undefined ? description : null, pid);
+    const result = db.prepare('UPDATE projects SET name = COALESCE(?, name), description = COALESCE(?, description), domain = COALESCE(?, domain) WHERE id = ?')
+      .run(cleanName, description !== undefined ? description : null, domain !== undefined ? domain : null, pid);
     if (result.changes === 0) return res.status(404).json({ error: 'Project not found' });
     const updated = db.prepare('SELECT * FROM projects WHERE id = ?').get(pid);
     res.json(updated);

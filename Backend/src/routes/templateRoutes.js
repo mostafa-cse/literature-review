@@ -36,7 +36,7 @@ router.post('/projects/clone-template', (req, res) => {
     db.exec('BEGIN TRANSACTION;');
     try {
       const ownerId = req.user ? req.user.id : 1;
-      const projRes = db.prepare("INSERT INTO projects (name, description, owner_id) VALUES (?, ?, ?)").run(name, desc, ownerId);
+      const projRes = db.prepare("INSERT INTO projects (name, description, domain, owner_id) VALUES (?, ?, ?, ?)").run(name, desc, template.category || 'Computer Science', ownerId);
       const projectId = Number(projRes.lastInsertRowid);
 
       db.prepare(`

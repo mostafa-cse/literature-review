@@ -336,10 +336,10 @@ function renderSurveysGrid(surveys, searchVal) {
           </div>
           <div class="survey-action-group" onclick="event.stopPropagation()">
             ${canModify ? `
-              <button class="mini-btn" onclick="openEditSurveyModal(${p.id}, '${escapeHtml(p.name)}', '${escapeHtml(p.description || '')}')" title="Edit Survey Metadata"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>Edit</button>
+              <button class="mini-btn" onclick="openEditSurveyModal(${p.id}, decodeURIComponent('${encodeURIComponent(p.name)}'), decodeURIComponent('${encodeURIComponent(p.description || '')}'), decodeURIComponent('${encodeURIComponent(p.domain || '')}'))" title="Edit Survey Metadata"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>Edit</button>
             ` : ''}
             <button class="mini-btn" onclick="exportSurveyExcel(${p.id})" title="Export Master Matrix (.xlsx)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Export</button>
-            ${isOwner ? `<button class="mini-btn danger" onclick="deleteSurvey(${p.id}, '${escapeHtml(p.name)}')" title="Delete Survey"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>` : ''}
+            ${isOwner ? `<button class="mini-btn danger" onclick="deleteSurvey(${p.id}, decodeURIComponent('${encodeURIComponent(p.name)}'))" title="Delete Survey"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>` : ''}
             ${!canModify ? `
               <span class="shared-view-tag" style="font-size:0.75rem; color:var(--text-tertiary); font-family:'JetBrains Mono',monospace; padding:0.2rem 0.5rem; background:var(--bg-surface-raised); border-radius:4px; border:1px solid var(--border-base);">Read-Only</span>
             ` : ''}
@@ -644,20 +644,19 @@ window.handleEditSurveyNameInput = function(val) {
 };
 
 window.openCreateSurveyModal = function() {
-  const modal = document.getElementById('modal-create-survey');
-  const nameInput = document.getElementById('new-survey-name');
-  const descInput = document.getElementById('new-survey-desc');
-  const feedbackEl = document.getElementById('survey-name-feedback');
+  const nameEl = document.getElementById('new-survey-name');
+  if (nameEl) nameEl.value = '';
+  const descEl = document.getElementById('new-survey-desc');
+  if (descEl) descEl.value = '';
+  const domainEl = document.getElementById('new-survey-domain');
+  if (domainEl) domainEl.value = '';
   const countEl = document.getElementById('survey-name-count');
-  const btn = document.getElementById('btn-submit-new-survey');
-
-  if (nameInput) nameInput.value = '';
-  if (descInput) descInput.value = '';
-  if (feedbackEl) { feedbackEl.style.display = 'none'; feedbackEl.textContent = ''; }
   if (countEl) countEl.textContent = '0/120';
-  if (btn) btn.disabled = false;
+  document.getElementById('survey-name-feedback').style.display = 'none';
 
+  const modal = document.getElementById('modal-create-survey');
   if (modal) modal.classList.add('open');
+  setTimeout(() => { if (nameEl) nameEl.focus(); }, 100);
 };
 
 window.closeCreateSurveyModal = function() {
@@ -665,7 +664,7 @@ window.closeCreateSurveyModal = function() {
   if (modal) modal.classList.remove('open');
 };
 
-window.openEditSurveyModal = function(id, name, desc) {
+window.openEditSurveyModal = function(id, name, desc, domain) {
   const survey = allSurveys.find(s => Number(s.id) === Number(id));
   const role = survey ? (survey.current_user_role || '').toLowerCase() : '';
   if (survey && role !== 'owner' && role !== 'editor') {
@@ -674,10 +673,10 @@ window.openEditSurveyModal = function(id, name, desc) {
   }
 
   document.getElementById('edit-survey-id').value = id;
-  const nameInput = document.getElementById('edit-survey-name');
-  if (nameInput) nameInput.value = name;
-  const descInput = document.getElementById('edit-survey-desc');
-  if (descInput) descInput.value = desc || '';
+  document.getElementById('edit-survey-name').value = name || '';
+  document.getElementById('edit-survey-desc').value = desc || '';
+  const domainEl = document.getElementById('edit-survey-domain');
+  if (domainEl) domainEl.value = domain || '';
 
   const feedbackEl = document.getElementById('edit-survey-name-feedback');
   if (feedbackEl) { feedbackEl.style.display = 'none'; feedbackEl.textContent = ''; }
@@ -694,10 +693,12 @@ window.closeEditSurveyModal = function() {
 window.submitNewSurvey = async function() {
   const nameInput = document.getElementById('new-survey-name');
   const descInput = document.getElementById('new-survey-desc');
+  const domainInput = document.getElementById('new-survey-domain');
   const btn = document.getElementById('btn-submit-new-survey');
 
   const name = nameInput ? nameInput.value.trim() : '';
   const description = descInput ? descInput.value.trim() : '';
+  const domain = domainInput ? domainInput.value.trim() : '';
 
   if (!name) {
     showToast('Please enter a survey name', 'warning');
@@ -720,7 +721,7 @@ window.submitNewSurvey = async function() {
     const res = await fetch('/api/projects', {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ name, description })
+      body: JSON.stringify({ name, description, domain })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -746,11 +747,13 @@ window.submitEditSurvey = async function() {
   const idInput = document.getElementById('edit-survey-id');
   const nameInput = document.getElementById('edit-survey-name');
   const descInput = document.getElementById('edit-survey-desc');
+  const domainInput = document.getElementById('edit-survey-domain');
   const btn = document.getElementById('btn-submit-edit-survey');
 
   const id = idInput ? idInput.value : '';
   const name = nameInput ? nameInput.value.trim() : '';
   const description = descInput ? descInput.value.trim() : '';
+  const domain = domainInput ? domainInput.value.trim() : '';
 
   if (!name) {
     showToast('Survey name cannot be empty', 'warning');
@@ -771,7 +774,7 @@ window.submitEditSurvey = async function() {
     const res = await fetch(`/api/projects/${id}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ name, description })
+      body: JSON.stringify({ name, description, domain })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to update survey');

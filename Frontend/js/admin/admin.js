@@ -497,7 +497,7 @@ window.loadAdminProjectsList = async function() {
           <div style="font-weight:700; color:var(--text-primary); font-size:0.92rem;">${escapeHtml(p.name)}</div>
           <div style="font-size:0.78rem; color:var(--text-secondary); max-width:340px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(p.description || 'No description')}</div>
         </td>
-        <td><span class="badge badge-purple">${escapeHtml(p.domain || 'Computer Science')}</span></td>
+        <td><span class="badge badge-purple">${escapeHtml(p.domain || 'Uncategorized')}</span></td>
         <td>
           <div style="font-weight:600; color:var(--text-primary); font-size:0.85rem;">${escapeHtml(p.owner_name || 'Anonymous')}</div>
           <div style="font-size:0.76rem; font-family:var(--font-mono); color:var(--text-tertiary);">${escapeHtml(p.owner_email || '-')}</div>
@@ -512,7 +512,7 @@ window.loadAdminProjectsList = async function() {
             <a href="/workspace?project=${p.id}" target="_blank" class="admin-btn-action" style="text-decoration:none;" title="Open Workspace">
               👁️ View
             </a>
-            <button type="button" class="admin-btn-action danger" onclick="openDeleteProjectModal(${p.id}, '${escapeHtml(p.name)}')" title="Purge Survey Project">
+            <button type="button" class="admin-btn-action danger" onclick="openDeleteProjectModal(${p.id}, decodeURIComponent('${encodeURIComponent(p.name)}'))" title="Purge Survey Project">
               🗑️ Purge
             </button>
           </div>

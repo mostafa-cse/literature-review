@@ -422,7 +422,7 @@ router.get('/projects', (req, res) => {
 
   try {
     let query = `
-      SELECT p.id, p.name, p.description, p.is_public, p.share_token, p.owner_id, p.created_at,
+      SELECT p.id, p.name, p.description, p.domain, p.is_public, p.share_token, p.owner_id, p.created_at,
              u.name as owner_name, u.email as owner_email,
              (SELECT count(*) FROM papers WHERE papers.project_id = p.id) as paper_count,
              (SELECT count(*) FROM clusters WHERE clusters.project_id = p.id) as cluster_count
@@ -432,8 +432,8 @@ router.get('/projects', (req, res) => {
     const params = [];
 
     if (search && search.trim()) {
-      query += ` WHERE (p.name LIKE ? OR p.description LIKE ? OR u.name LIKE ? OR u.email LIKE ?) `;
-      params.push(`%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`);
+      query += ` WHERE (p.name LIKE ? OR p.description LIKE ? OR p.domain LIKE ? OR u.name LIKE ? OR u.email LIKE ?) `;
+      params.push(`%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`);
     }
 
     query += ` ORDER BY p.id DESC LIMIT 100`;
