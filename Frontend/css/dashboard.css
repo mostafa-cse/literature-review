@@ -944,6 +944,18 @@ body.light-mode .survey-card:hover .survey-title {
   min-height: 2.7em;
 }
 
+.survey-desc strong,
+.survey-table-desc strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.survey-desc em,
+.survey-table-desc em {
+  font-style: italic;
+  color: var(--text-primary);
+}
+
 .survey-metrics-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

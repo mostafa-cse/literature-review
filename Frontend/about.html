@@ -3,1055 +3,789 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="LitSphere Architecture &amp; Feature Specification — Comprehensive walkthrough of systematic literature review tools, taxonomy hierarchies, dynamic extraction matrices, PRISMA 2020 workflows, and LaTeX synthesis.">
-  <title>About LitSphere | Architecture &amp; Systematic Review Features</title>
+  <meta name="description" content="LitSphere Architectural Specification &amp; Comparison — Comprehensive comparison against Google Sheets, Microsoft Excel, Google Docs, and Reference Managers with deep breakdowns of LitSphere's 8 core academic subsystems.">
+  <title>About LitSphere | Architecture &amp; Multi-Tool Comparison</title>
 
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20'/%3E%3Cpath d='M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'/%3E%3C/svg%3E">
   
-  <!-- Unified Academic Typography: Inter, Outfit, JetBrains Mono, Cinzel & Playfair Display -->
+  <!-- Academic Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
   <!-- Core Modular Stylesheets -->
   <link rel="stylesheet" href="/css/navbar.css">
   <link rel="stylesheet" href="/css/footer.css">
+  <link rel="stylesheet" href="/css/about.css?v=2.2">
 
-  <!-- KaTeX for live mathematical notation and Big-O complexity rendering -->
+  <!-- KaTeX for live mathematical rendering -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+
+  <!-- Early Theme Preloader -->
   <script>
     (function() {
       const savedTheme = localStorage.getItem('litsphere_theme') || 
                          localStorage.getItem('lr_platform_theme') || 
-                         localStorage.getItem('fs_theme') || 
                          (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
       document.documentElement.setAttribute('data-theme', savedTheme);
-      localStorage.setItem('litsphere_theme', savedTheme);
     })();
   </script>
-
-  <style>
-    :root, [data-theme="dark"] {
-      --bg-canvas: #070b14;
-      --bg-surface: #0e1526;
-      --bg-surface-raised: #141d33;
-      --bg-surface-hover: #1b2742;
-      --border-base: #1e2b48;
-      --border-gold: rgba(212, 175, 55, 0.35);
-      --border-subtle: rgba(255, 255, 255, 0.08);
-      --text-primary: #f8fafc;
-      --text-secondary: #94a3b8;
-      --text-tertiary: #64748b;
-      
-      --accent-gold: #d4af37;
-      --accent-gold-light: #e5c07b;
-      --accent-gold-muted: rgba(212, 175, 55, 0.12);
-      
-      --accent-primary: #38bdf8;
-      --accent-primary-muted: rgba(56, 189, 248, 0.12);
-      --accent-indigo: #818cf8;
-      --accent-emerald: #10b981;
-      --accent-emerald-muted: rgba(16, 185, 129, 0.15);
-      --accent-amber: #f59e0b;
-      --accent-rose: #f43f5e;
-      --accent-purple: #c084fc;
-
-      --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
-      --shadow-md: 0 6px 20px rgba(0,0,0,0.5);
-      --shadow-lg: 0 12px 36px rgba(0,0,0,0.65);
-      --nav-bg: rgba(8, 13, 24, 0.95);
-    }
-
-    [data-theme="light"] {
-      --bg-canvas: #faf8f4;
-      --bg-surface: #ffffff;
-      --bg-surface-raised: #f4f0e6;
-      --bg-surface-hover: #ebe5d8;
-      --border-base: #e2dcce;
-      --border-gold: rgba(180, 83, 9, 0.28);
-      --border-subtle: rgba(0, 0, 0, 0.06);
-      --text-primary: #1c1917;
-      --text-secondary: #44403c;
-      --text-tertiary: #78716c;
-      
-      --accent-gold: #b45309;
-      --accent-gold-light: #92400e;
-      --accent-gold-muted: rgba(180, 83, 9, 0.1);
-      
-      --accent-primary: #0284c7;
-      --accent-primary-muted: rgba(2, 132, 199, 0.08);
-      --accent-indigo: #4f46e5;
-      --accent-emerald: #059669;
-      --accent-emerald-muted: rgba(5, 150, 105, 0.1);
-      --accent-amber: #d97706;
-      --accent-rose: #e11d48;
-      --accent-purple: #9333ea;
-
-      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
-      --shadow-md: 0 6px 18px rgba(0,0,0,0.08);
-      --shadow-lg: 0 14px 32px rgba(0,0,0,0.1);
-      --nav-bg: rgba(252, 250, 246, 0.96);
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; transition: background-color 0.2s ease, border-color 0.2s ease; }
-    
-    body {
-      background-color: var(--bg-canvas);
-      color: var(--text-primary);
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 1rem;
-      line-height: 1.65;
-      min-height: 100vh;
-      -webkit-font-smoothing: antialiased;
-      overflow-x: hidden;
-    }
-
-    /* Container */
-    .page-container {
-      max-width: 1380px;
-      margin: 0 auto;
-      padding: 3rem 2rem 6rem;
-    }
-
-    /* Hero Section */
-    .about-hero {
-      text-align: center;
-      padding: 3.5rem 1rem 4rem;
-      position: relative;
-      border-bottom: 1px solid var(--border-gold);
-      margin-bottom: 4rem;
-    }
-    .classical-eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.65rem;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.82rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      color: var(--accent-gold);
-      text-transform: uppercase;
-      margin-bottom: 1.25rem;
-      background: var(--accent-gold-muted);
-      border: 1px solid var(--border-gold);
-      padding: 0.35rem 1.15rem;
-      border-radius: 9999px;
-    }
-    .about-hero-title {
-      font-family: 'Outfit', 'Inter', sans-serif;
-      font-size: 3.4rem;
-      font-weight: 800;
-      letter-spacing: -0.03em;
-      line-height: 1.18;
-      color: var(--text-primary);
-      margin-bottom: 1.5rem;
-      max-width: 1080px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-    .about-hero-lead {
-      font-family: 'Inter', sans-serif;
-      font-size: 1.25rem;
-      color: var(--text-secondary);
-      max-width: 900px;
-      margin: 0 auto 2.5rem;
-      line-height: 1.7;
-    }
-    
-    /* Quick Index Grid */
-    .feature-index-strip {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 0.65rem;
-      max-width: 1100px;
-      margin: 0 auto;
-    }
-    .index-pill {
-      font-size: 0.86rem;
-      font-weight: 600;
-      font-family: 'Inter', sans-serif;
-      color: var(--text-secondary);
-      background: var(--bg-surface);
-      border: 1px solid var(--border-base);
-      padding: 0.4rem 0.95rem;
-      border-radius: 8px;
-      text-decoration: none;
-      transition: all 0.2s ease;
-    }
-    .index-pill:hover {
-      color: var(--accent-gold);
-      border-color: var(--accent-gold);
-      background: var(--accent-gold-muted);
-      transform: translateY(-2px);
-    }
-
-    /* Feature Deep-Dive Section Layout */
-    .feature-section {
-      display: grid;
-      grid-template-columns: 1fr 1.1fr;
-      gap: 3.5rem;
-      align-items: center;
-      padding: 4rem 0;
-      border-bottom: 1px dashed var(--border-base);
-      position: relative;
-    }
-    .feature-section.reverse {
-      grid-template-columns: 1.1fr 1fr;
-    }
-    .feature-section.reverse .feature-visual-col {
-      order: 1;
-    }
-    .feature-section.reverse .feature-text-col {
-      order: 2;
-    }
-    @media (max-width: 1024px) {
-      .feature-section, .feature-section.reverse {
-        grid-template-columns: 1fr;
-        gap: 2.5rem;
-      }
-      .feature-section.reverse .feature-visual-col { order: 2; }
-      .feature-section.reverse .feature-text-col { order: 1; }
-      .about-hero-title { font-size: 2.4rem; }
-    }
-
-    .feature-numeral {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.88rem;
-      font-weight: 800;
-      letter-spacing: 0.1em;
-      color: var(--accent-gold);
-      margin-bottom: 0.75rem;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .feature-numeral::after {
-      content: '';
-      display: inline-block;
-      width: 32px;
-      height: 1px;
-      background: var(--accent-gold);
-      opacity: 0.6;
-    }
-    .feature-heading {
-      font-family: 'Outfit', 'Inter', sans-serif;
-      font-size: 2.3rem;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      line-height: 1.25;
-      color: var(--text-primary);
-      margin-bottom: 1.25rem;
-    }
-    .feature-desc {
-      color: var(--text-secondary);
-      font-size: 1.05rem;
-      line-height: 1.75;
-      margin-bottom: 1.5rem;
-    }
-    .feature-bullet-list {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 0.85rem;
-      margin-bottom: 1.75rem;
-    }
-    .feature-bullet-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.75rem;
-      font-size: 0.95rem;
-      color: var(--text-primary);
-    }
-    .bullet-icon {
-      color: var(--accent-gold);
-      font-size: 1.05rem;
-      line-height: 1.3;
-      flex-shrink: 0;
-    }
-
-    /* Classical Interactive Visual Canvas Containers */
-    .feature-visual-card {
-      background: var(--bg-surface);
-      border: 1.5px solid var(--border-gold);
-      border-radius: 12px;
-      padding: 1.75rem;
-      box-shadow: var(--shadow-lg), 0 0 24px rgba(212, 175, 55, 0.05);
-      position: relative;
-      overflow: hidden;
-    }
-    .visual-card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid var(--border-base);
-      padding-bottom: 0.85rem;
-      margin-bottom: 1.25rem;
-    }
-    .visual-card-title {
-      font-family: 'Outfit', 'Inter', sans-serif;
-      font-size: 0.96rem;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-      color: var(--accent-gold-light);
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .live-badge {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.74rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      padding: 0.2rem 0.55rem;
-      border-radius: 4px;
-      background: rgba(16, 185, 129, 0.15);
-      border: 1px solid var(--accent-emerald);
-      color: var(--accent-emerald);
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-    }
-    .live-badge::before {
-      content: '';
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--accent-emerald);
-      box-shadow: 0 0 6px var(--accent-emerald);
-      animation: pulseAnim 1.8s infinite;
-    }
-    @keyframes pulseAnim { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.85); } }
-
-    /* Visual 1: Taxonomy Network Animation */
-    .tree-node-canvas {
-      width: 100%;
-      height: 280px;
-      background: var(--bg-surface-raised);
-      border-radius: 8px;
-      border: 1px solid var(--border-base);
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: space-around;
-      padding: 1rem;
-    }
-    .tree-col { display: flex; flex-direction: column; gap: 1.1rem; z-index: 2; }
-    .tree-node-box {
-      background: var(--bg-surface);
-      border: 1.5px solid var(--border-base);
-      padding: 0.55rem 0.95rem;
-      border-radius: 6px;
-      font-size: 0.84rem;
-      font-weight: 600;
-      font-family: 'JetBrains Mono', monospace;
-      color: var(--text-primary);
-      cursor: pointer;
-      transition: all 0.25s ease;
-      box-shadow: var(--shadow-sm);
-      display: flex;
-      align-items: center;
-      gap: 0.45rem;
-    }
-    .tree-node-box:hover, .tree-node-box.active {
-      border-color: var(--accent-gold);
-      background: var(--accent-gold-muted);
-      color: var(--accent-gold);
-      transform: scale(1.04);
-      box-shadow: 0 4px 14px rgba(212, 175, 55, 0.25);
-    }
-    .tree-svg-overlay {
-      position: absolute;
-      top: 0; left: 0; width: 100%; height: 100%;
-      pointer-events: none;
-      z-index: 1;
-    }
-    .tree-line {
-      stroke: var(--accent-gold);
-      stroke-width: 1.5;
-      stroke-dasharray: 4 4;
-      animation: dashFlow 20s linear infinite;
-      opacity: 0.6;
-    }
-    @keyframes dashFlow { from { stroke-dashoffset: 200; } to { stroke-dashoffset: 0; } }
-
-    /* Visual 2: Matrix Comparison Table */
-    .mini-matrix-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.86rem;
-      border: 1px solid var(--border-base);
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    .mini-matrix-table th {
-      background: var(--bg-surface-raised);
-      border-bottom: 1.5px solid var(--border-gold);
-      padding: 0.65rem 0.75rem;
-      font-family: 'Outfit', 'Inter', sans-serif;
-      font-size: 0.82rem;
-      font-weight: 700;
-      color: var(--accent-gold-light);
-      text-align: left;
-    }
-    .mini-matrix-table td {
-      padding: 0.65rem 0.75rem;
-      border-bottom: 1px solid var(--border-base);
-      color: var(--text-primary);
-    }
-    .mini-matrix-table tr:hover td {
-      background: var(--bg-surface-raised);
-    }
-    .tag-bigo {
-      background: rgba(56, 189, 248, 0.12);
-      color: var(--accent-primary);
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      padding: 0.15rem 0.45rem;
-      border-radius: 4px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.82rem;
-    }
-
-    /* Visual 3: Split-Screen Citation Extractor */
-    .split-reader-sim {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-      background: var(--bg-surface-raised);
-      padding: 1rem;
-      border-radius: 8px;
-      border: 1px solid var(--border-base);
-      position: relative;
-    }
-    .pdf-mock-page {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-base);
-      border-radius: 6px;
-      padding: 1rem;
-      font-size: 0.8rem;
-      line-height: 1.5;
-      color: var(--text-secondary);
-      position: relative;
-    }
-    .highlight-quote {
-      background: rgba(212, 175, 55, 0.28);
-      border-bottom: 2px solid var(--accent-gold);
-      color: var(--text-primary);
-      cursor: pointer;
-      font-weight: 600;
-      padding: 0 2px;
-      border-radius: 2px;
-      transition: all 0.2s ease;
-    }
-    .highlight-quote:hover {
-      background: var(--accent-gold);
-      color: #0b1120;
-    }
-    .matrix-extracted-target {
-      background: var(--bg-surface);
-      border: 1.5px solid var(--accent-gold);
-      border-radius: 6px;
-      padding: 1rem;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 0.45rem;
-    }
-
-    /* Visual 4: PRISMA 2020 Flow & Cohen Kappa */
-    .prisma-flow-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 0.5rem;
-      margin-bottom: 1.25rem;
-    }
-    .prisma-step-box {
-      background: var(--bg-surface-raised);
-      border: 1px solid var(--border-base);
-      padding: 0.75rem 0.5rem;
-      border-radius: 6px;
-      text-align: center;
-      position: relative;
-    }
-    .prisma-step-box.highlight {
-      border-color: var(--accent-gold);
-      background: var(--accent-gold-muted);
-    }
-    .prisma-count {
-      font-size: 1.35rem;
-      font-weight: 800;
-      color: var(--accent-gold);
-      font-family: 'JetBrains Mono', monospace;
-    }
-    .prisma-label {
-      font-size: 0.72rem;
-      text-transform: uppercase;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      color: var(--text-tertiary);
-    }
-    .kappa-meter-bar {
-      background: var(--bg-surface-raised);
-      border: 1px solid var(--border-base);
-      border-radius: 6px;
-      padding: 0.85rem 1rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    /* Visual 5: Live LaTeX Synthesizer */
-    .code-synthesizer-box {
-      background: #050811;
-      border: 1px solid var(--border-base);
-      border-radius: 8px;
-      padding: 1rem;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.82rem;
-      color: #93c5fd;
-      line-height: 1.6;
-      max-height: 220px;
-      overflow-y: auto;
-    }
-    .btn-copy-code {
-      background: var(--accent-gold-muted);
-      border: 1px solid var(--border-gold);
-      color: var(--accent-gold-light);
-      padding: 0.35rem 0.75rem;
-      border-radius: 4px;
-      font-size: 0.8rem;
-      cursor: pointer;
-      font-weight: 600;
-      transition: all 0.2s ease;
-    }
-    .btn-copy-code:hover {
-      background: var(--accent-gold);
-      color: #0b1120;
-    }
-
-    /* Visual 6: Multi-User Collaboration Presence */
-    .collab-sim-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-    .collab-user-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: var(--bg-surface-raised);
-      border: 1px solid var(--border-base);
-      padding: 0.65rem 0.95rem;
-      border-radius: 6px;
-    }
-    .collab-avatar {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 0.8rem;
-      color: #fff;
-    }
-    .role-badge-pill {
-      font-size: 0.72rem;
-      font-weight: 700;
-      font-family: 'JetBrains Mono', monospace;
-      padding: 0.2rem 0.55rem;
-      border-radius: 4px;
-      text-transform: uppercase;
-    }
-    .role-owner { background: rgba(212, 175, 55, 0.15); color: var(--accent-gold); border: 1px solid var(--accent-gold); }
-    .role-editor { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); border: 1px solid var(--accent-emerald); }
-    .role-reviewer { background: rgba(129, 140, 248, 0.15); color: var(--accent-indigo); border: 1px solid var(--accent-indigo); }
-
-  </style>
 </head>
 <body>
 
-  <!-- Choice 2: Oxford / Overleaf Prestige Academic Header (Auto-rendered by /js/core/navbar.js) -->
+  <!-- Universal Academic Navbar -->
   <header class="site-header" id="site-header"></header>
 
-  <!-- Page Content Container -->
-  <main class="page-container">
+  <main class="about-page-container">
 
-    <!-- Grand Hero Section -->
+    <!-- ========================================================================
+         1. HERO SECTION
+         ======================================================================== -->
     <section class="about-hero">
-      <div class="classical-eyebrow">Comprehensive Architectural Specification</div>
-      <h1 class="about-hero-title">Engineering the Next Generation of Systematic Literature Reviews</h1>
+      <div class="about-eyebrow">
+        <span>✦</span>
+        <span>ACADEMIC ARCHITECTURE &amp; FEATURE SPECIFICATION</span>
+      </div>
+
+      <h1 class="about-hero-title">
+        The Research Literature Engine That <span>Spreadsheets &amp; Docs</span> Were Never Built to Be.
+      </h1>
+
       <p class="about-hero-lead">
-        An exhaustive, feature-by-feature architectural breakdown of LitSphere — built for Master & PhD thesis researchers, PRISMA 2020 systematic surveys, and multi-dimensional academic benchmarking.
+        Graduate thesis authors, survey paper teams, and university research labs frequently force complex systematic literature reviews into generic spreadsheets, unstructured text documents, or citation-only managers. LitSphere is purpose-built from the ground up to solve the architectural breakdown of traditional tools.
       </p>
 
-      <!-- Quick Jump Index -->
-      <div class="feature-index-strip">
-        <a href="#feature-taxonomy" class="index-pill">I. Taxonomy Hierarchy</a>
-        <a href="#feature-matrix" class="index-pill">II. Extraction Matrix</a>
-        <a href="#feature-citation" class="index-pill">III. Grounded Citation</a>
-        <a href="#feature-prisma" class="index-pill">IV. PRISMA Screening</a>
-        <a href="#feature-latex" class="index-pill">V. LaTeX Synthesis</a>
-        <a href="#feature-collab" class="index-pill">VI. Collaboration RBAC</a>
-        <a href="#feature-search" class="index-pill">VII. Scholar Metasearch</a>
-        <a href="#feature-privacy" class="index-pill">VIII. Local-First Engine</a>
-      </div>
-    </section>
+      <!-- KPI Highlights Grid -->
+      <div class="about-kpi-grid">
+        <div class="about-kpi-card">
+          <div class="about-kpi-num">77%</div>
+          <div class="about-kpi-label">Average Time Saved</div>
+          <div class="about-kpi-desc">Vs. manual spreadsheets &amp; PDF juggling</div>
+        </div>
 
-    <!-- ========================================================
-         FEATURE I: MULTI-LEVEL RESEARCH TAXONOMY
-         ======================================================== -->
-    <section class="feature-section" id="feature-taxonomy">
-      <div class="feature-text-col">
-        <div class="feature-numeral">SECTION I</div>
-        <h2 class="feature-heading">Hierarchical Taxonomy & Dynamic Cluster Matrix</h2>
-        <p class="feature-desc">
-          Conventional survey workflows collapse under flat spreadsheets when cataloging hundreds of papers across multifaceted domains. LitSphere introduces a recursive <strong>Hierarchical Taxonomy Engine</strong> that clusters research paradigms into structured semantic trees.
-        </p>
-        <ul class="feature-bullet-list">
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>Multi-Tiered Sub-Clusters:</strong> Categorize papers under parent paradigms (e.g. <em>Generative AI</em> &rarr; <em>Latent Diffusion</em> &rarr; <em>Consistency Models</em>).</span>
-          </li>
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>Independent Cluster Matrices:</strong> Each cluster maintains its own customizable dynamic benchmarking columns and paper queues.</span>
-          </li>
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>Real-time Aggregation:</strong> Taxonomy statistics automatically aggregate read status, dynamic metrics, and keyword distributions.</span>
-          </li>
-        </ul>
-      </div>
+        <div class="about-kpi-card">
+          <div class="about-kpi-num">100%</div>
+          <div class="about-kpi-label">Mathematical Fidelity</div>
+          <div class="about-kpi-desc">Native KaTeX LaTeX formula rendering</div>
+        </div>
 
-      <div class="feature-visual-col">
-        <div class="feature-visual-card">
-          <div class="visual-card-header">
-            <div class="visual-card-title">Interactive Taxonomy Tree Visualizer</div>
-            <div class="live-badge">Live Node Network</div>
-          </div>
-          <div class="tree-node-canvas" id="taxonomy-canvas">
-            <svg class="tree-svg-overlay">
-              <path d="M 90 140 C 140 140, 140 60, 190 60" class="tree-line" />
-              <path d="M 90 140 C 140 140, 140 140, 190 140" class="tree-line" />
-              <path d="M 90 140 C 140 140, 140 220, 190 220" class="tree-line" />
-            </svg>
-            <div class="tree-col">
-              <div class="tree-node-box active" onclick="highlightTaxonomyBranch('root')">
-                <span>Domain Root</span>
-              </div>
-            </div>
-            <div class="tree-col">
-              <div class="tree-node-box" id="node-cluster-1" onclick="highlightTaxonomyBranch(1)">
-                <span>Efficient Attention</span>
-              </div>
-              <div class="tree-node-box active" id="node-cluster-2" onclick="highlightTaxonomyBranch(2)">
-                <span>Chain-of-Thought</span>
-              </div>
-              <div class="tree-node-box" id="node-cluster-3" onclick="highlightTaxonomyBranch(3)">
-                <span>RAG & Grounding</span>
-              </div>
-            </div>
-          </div>
-          <div style="margin-top: 0.85rem; font-size: 0.84rem; color: var(--text-secondary); text-align: center;">
-            <em>Click nodes to inspect semantic branching and dynamic cluster scoping.</em>
-          </div>
+        <div class="about-kpi-card">
+          <div class="about-kpi-num">PRISMA</div>
+          <div class="about-kpi-label">2020 Compliant</div>
+          <div class="about-kpi-desc">Built-in double-blind screening appraisal</div>
+        </div>
+
+        <div class="about-kpi-card">
+          <div class="about-kpi-num">&lt; 1ms</div>
+          <div class="about-kpi-label">SQLite WAL Mode</div>
+          <div class="about-kpi-desc">Zero cloud lock-in with offline local safety</div>
         </div>
       </div>
+
+      <!-- Quick Navigation Strip -->
+      <div class="quick-nav-strip">
+        <a href="#comparison" class="quick-nav-pill">📊 Multi-Tool Comparison Matrix</a>
+        <a href="#roi-calculator" class="quick-nav-pill">⚡ Time-Saved ROI Simulator</a>
+        <a href="#lifecycle" class="quick-nav-pill">🔄 5-Stage Methodology Pipeline</a>
+        <a href="#subsystems" class="quick-nav-pill">🏛️ 8 Core Platform Subsystems</a>
+      </div>
     </section>
 
-    <!-- ========================================================
-         FEATURE II: MULTI-LEVEL EXTRACTION MATRIX
-         ======================================================== -->
-    <section class="feature-section reverse" id="feature-matrix">
-      <div class="feature-text-col">
-        <div class="feature-numeral">SECTION II</div>
-        <h2 class="feature-heading">Dynamic Multi-Dimensional Extraction Matrix</h2>
-        <p class="feature-desc">
-          Compare algorithmic complexities, datasets, parameters, and architectural strengths across dozens of papers simultaneously. Define custom column schemas on the fly with native mathematical formulation support.
+    <!-- ========================================================================
+         2. INTERACTIVE MULTI-TOOL COMPARISON MATRIX
+         ======================================================================== -->
+    <section class="comparison-section" id="comparison">
+      <div class="text-center">
+        <span class="about-eyebrow">Direct Tool Benchmark</span>
+        <h2 class="about-headline">LitSphere vs. Google Sheets, Excel &amp; Reference Managers</h2>
+        <p class="about-subtext center-block">
+          See why research teams struggle with generic tools. Click any filter to isolate specific research workflows, or click the <strong style="color: var(--about-gold);">[+]</strong> icon on any row to read the exact technical failure mode of traditional tools.
         </p>
-        <ul class="feature-bullet-list">
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>KaTeX Mathematical Formatting:</strong> Render formal Big-O notations such as $\mathcal{O}(N^2)$ vs $\mathcal{O}(N \log N)$ directly inside matrix cells.</span>
-          </li>
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>Dynamic Custom Column Schemas:</strong> Add Big-O, Text, Status, Numeric, and Citation columns tailored to specific sub-fields.</span>
-          </li>
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>Inline Real-time Auto-Save:</strong> Instant debounced persistent synchronization with local SQLite engine.</span>
-          </li>
-        </ul>
       </div>
 
-      <div class="feature-visual-col">
-        <div class="feature-visual-card">
-          <div class="visual-card-header">
-            <div class="visual-card-title">Live Matrix Benchmarking Simulation</div>
-            <div class="live-badge">KaTeX Enabled</div>
-          </div>
-          <table class="mini-matrix-table">
+      <!-- Interactive Category Filter Pills -->
+      <div class="matrix-filter-pills">
+        <button type="button" class="matrix-filter-pill active" onclick="filterComparisonCategory('all', this)">All Criteria (10)</button>
+        <button type="button" class="matrix-filter-pill" onclick="filterComparisonCategory('math', this)">Math &amp; LaTeX Notation</button>
+        <button type="button" class="matrix-filter-pill" onclick="filterComparisonCategory('pdf', this)">PDF Reading &amp; Highlighting</button>
+        <button type="button" class="matrix-filter-pill" onclick="filterComparisonCategory('prisma', this)">PRISMA 2020 Screening</button>
+        <button type="button" class="matrix-filter-pill" onclick="filterComparisonCategory('columns', this)">Hierarchical Taxonomy &amp; Columns</button>
+        <button type="button" class="matrix-filter-pill" onclick="filterComparisonCategory('data', this)">Data Rigor &amp; WAL Performance</button>
+        <button type="button" class="matrix-filter-pill" onclick="filterComparisonCategory('team', this)">4-Tier RBAC Collaboration</button>
+        <button type="button" class="matrix-filter-pill" onclick="filterComparisonCategory('export', this)">Thesis Export (SheetJS/Overleaf)</button>
+      </div>
+
+      <div style="text-align: right; margin-bottom: 0.65rem; font-size: 0.82rem; font-family: 'JetBrains Mono', monospace; color: var(--about-text-muted);" id="comparison-visible-count">
+        Showing 10 academic criteria
+      </div>
+
+      <div class="comparison-table-card">
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
             <thead>
               <tr>
-                <th>Paper / Model</th>
-                <th>Complexity</th>
-                <th>Parameters</th>
-                <th>Benchmark Status</th>
+                <th style="width: 32px;"></th>
+                <th style="min-width: 240px;">Academic Research Dimension</th>
+                <th class="litsphere-col" style="min-width: 210px;">⭐ LitSphere (Academic Engine)</th>
+                <th style="min-width: 170px;">Google Sheets</th>
+                <th style="min-width: 170px;">Microsoft Excel</th>
+                <th style="min-width: 170px;">Google Docs / Word</th>
+                <th style="min-width: 170px;">Mendeley / Zotero</th>
               </tr>
             </thead>
-            <tbody>
-              <tr>
-                <td><strong>Transformer (Vaswani)</strong></td>
-                <td><span class="tag-bigo">$\mathcal{O}(N^2)$</span></td>
-                <td>65M</td>
-                <td><span style="color: var(--accent-emerald); font-weight: 700;">● Baseline</span></td>
+            <tbody id="comparison-matrix-tbody">
+              
+              <!-- Row 1: Native KaTeX Math -->
+              <tr data-category="math">
+                <td><button type="button" class="btn-row-expand" id="btn-expand-math" onclick="toggleRowDetails('math')">+</button></td>
+                <td><strong>Native LaTeX Math &amp; Big-O Formulas</strong></td>
+                <td class="litsphere-col"><span class="status-badge-yes">✓ Native KaTeX Engine</span></td>
+                <td><span class="status-badge-no">✕ Plain Text Only</span></td>
+                <td><span class="status-badge-no">✕ Clunky Equation Object</span></td>
+                <td><span class="status-badge-partial">⚠️ Basic Math Type</span></td>
+                <td><span class="status-badge-no">✕ Unsupported</span></td>
               </tr>
-              <tr>
-                <td><strong>FlashAttention (Dao)</strong></td>
-                <td><span class="tag-bigo">$\mathcal{O}(N)$ IO</span></td>
-                <td>N/A (Kernel)</td>
-                <td><span style="color: var(--accent-gold); font-weight: 700;">● 3.4x Faster</span></td>
+              <tr class="comparison-detail-row" id="details-math">
+                <td colspan="7">
+                  <div class="comparison-detail-box">
+                    <strong>Why Spreadsheets &amp; Docs Fail on Math:</strong>
+                    Spreadsheets treat mathematical expressions like $\mathcal{O}(N \cdot D \log K)$ or $\mathcal{L}_{\text{total}}$ as raw strings, causing broken characters and unreadable formatting during thesis defense preparation. LitSphere integrates native KaTeX parsing directly inside table cells and split-screen readers so Big-O bounds and loss functions render with journal quality.
+                  </div>
+                </td>
               </tr>
-              <tr>
-                <td><strong>Linear Transformer (Katharopoulos)</strong></td>
-                <td><span class="tag-bigo">$\mathcal{O}(N)$</span></td>
-                <td>125M</td>
-                <td><span style="color: var(--accent-primary); font-weight: 700;">● Linear</span></td>
+
+              <!-- Row 2: Split-Screen PDF Reading -->
+              <tr data-category="pdf">
+                <td><button type="button" class="btn-row-expand" id="btn-expand-pdf" onclick="toggleRowDetails('pdf')">+</button></td>
+                <td><strong>Split-Screen PDF Reader &amp; Highlighting</strong></td>
+                <td class="litsphere-col"><span class="status-badge-yes">✓ Built-In Dual Viewer</span></td>
+                <td><span class="status-badge-no">✕ External App Needed</span></td>
+                <td><span class="status-badge-no">✕ External App Needed</span></td>
+                <td><span class="status-badge-no">✕ Manual Copy-Paste</span></td>
+                <td><span class="status-badge-partial">⚠️ PDF Only (No Matrix)</span></td>
               </tr>
+              <tr class="comparison-detail-row" id="details-pdf">
+                <td colspan="7">
+                  <div class="comparison-detail-box">
+                    <strong>The Context-Switching Tax:</strong>
+                    In Google Sheets or Excel, researchers must constantly switch between Acrobat Reader, browser tabs, and spreadsheet cells. LitSphere anchors an embedded PDF.js reader directly beside the extraction workspace with 4 persistent highlighter colors (Yellow, Emerald, Cyan, Pink).
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Row 3: CrossRef DOI Ingestion -->
+              <tr data-category="pdf">
+                <td><button type="button" class="btn-row-expand" id="btn-expand-doi" onclick="toggleRowDetails('doi')">+</button></td>
+                <td><strong>CrossRef REST API &amp; DOI Auto-Fetch</strong></td>
+                <td class="litsphere-col"><span class="status-badge-yes">✓ 1-Click DOI Resolver</span></td>
+                <td><span class="status-badge-no">✕ Manual Typing</span></td>
+                <td><span class="status-badge-no">✕ Manual Typing</span></td>
+                <td><span class="status-badge-no">✕ Manual Typing</span></td>
+                <td><span class="status-badge-yes">✓ Supported</span></td>
+              </tr>
+              <tr class="comparison-detail-row" id="details-doi">
+                <td colspan="7">
+                  <div class="comparison-detail-box">
+                    <strong>Eliminating Human Typing Errors:</strong>
+                    Instead of copying authors, venues, years, and abstracts manually into cells, LitSphere uses 1st-page PDF regex heuristics and directly queries the official CrossRef REST API to resolve clean publication metadata automatically.
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Row 4: PRISMA 2020 Screening -->
+              <tr data-category="prisma">
+                <td><button type="button" class="btn-row-expand" id="btn-expand-prisma" onclick="toggleRowDetails('prisma')">+</button></td>
+                <td><strong>PRISMA 2020 Blind Systematic Screening</strong></td>
+                <td class="litsphere-col"><span class="status-badge-yes">✓ Automated Flow Telemetry</span></td>
+                <td><span class="status-badge-no">✕ No Blind Voting</span></td>
+                <td><span class="status-badge-no">✕ No Audit Trail</span></td>
+                <td><span class="status-badge-no">✕ Unstructured Notes</span></td>
+                <td><span class="status-badge-no">✕ No Screening Mode</span></td>
+              </tr>
+              <tr class="comparison-detail-row" id="details-prisma">
+                <td colspan="7">
+                  <div class="comparison-detail-box">
+                    <strong>Systematic Review Standards:</strong>
+                    Conducting PRISMA-compliant reviews in Excel or Google Sheets leads to accidental overwrites and bias, as co-authors can see each other's tentative decisions. LitSphere implements a dedicated double-blind appraisal workflow where reviewers independently record reasons before resolving disputes.
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Row 5: Column Splitting -->
+              <tr data-category="columns">
+                <td><button type="button" class="btn-row-expand" id="btn-expand-columns" onclick="toggleRowDetails('columns')">+</button></td>
+                <td><strong>Multi-Level Column Splitting &amp; Grouping</strong></td>
+                <td class="litsphere-col"><span class="status-badge-yes">✓ Dynamic Sub-Headers</span></td>
+                <td><span class="status-badge-partial">⚠️ Breaks Sheet Formulas</span></td>
+                <td><span class="status-badge-partial">⚠️ Rigid Merged Cells</span></td>
+                <td><span class="status-badge-no">✕ Broken Table Layout</span></td>
+                <td><span class="status-badge-no">✕ Fixed Metadata Fields</span></td>
+              </tr>
+              <tr class="comparison-detail-row" id="details-columns">
+                <td colspan="7">
+                  <div class="comparison-detail-box">
+                    <strong>Nested Scientific Variables:</strong>
+                    Merging cells in Excel or Sheets frequently destroys sorting, filtering, and formulas. LitSphere supports true relational column splitting, letting you subdivide parent categories (e.g. "Computational Complexity $\to$ Time / Space") with native SheetJS `colspan` support.
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Row 6: Inline Editing & WAL Autosave -->
+              <tr data-category="data">
+                <td><button type="button" class="btn-row-expand" id="btn-expand-wal" onclick="toggleRowDetails('wal')">+</button></td>
+                <td><strong>Excel-Like Inline Editing with WAL Autosave</strong></td>
+                <td class="litsphere-col"><span class="status-badge-yes">✓ Sub-Millisecond WAL</span></td>
+                <td><span class="status-badge-partial">⚠️ Cloud Latency Lag</span></td>
+                <td><span class="status-badge-yes">✓ Desktop Native</span></td>
+                <td><span class="status-badge-no">✕ Unstructured Free-Text</span></td>
+                <td><span class="status-badge-no">✕ Modal-Only Editing</span></td>
+              </tr>
+              <tr class="comparison-detail-row" id="details-wal">
+                <td colspan="7">
+                  <div class="comparison-detail-box">
+                    <strong>Instant Response with SQLite:</strong>
+                    Double-click any extraction cell in LitSphere to edit in place. Commits trigger instant Write-Ahead Logging (WAL) background saves without freezing the browser or incurring cloud roundtrip delays.
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Row 7: Relational Integrity -->
+              <tr data-category="data">
+                <td><button type="button" class="btn-row-expand" id="btn-expand-integrity" onclick="toggleRowDetails('integrity')">+</button></td>
+                <td><strong>Relational Foreign Keys &amp; Cascading Cleanup</strong></td>
+                <td class="litsphere-col"><span class="status-badge-yes">✓ Strict ACID Foreign Keys</span></td>
+                <td><span class="status-badge-no">✕ Orphan Rows &amp; Mismatches</span></td>
+                <td><span class="status-badge-no">✕ Accidental Row Deletions</span></td>
+                <td><span class="status-badge-no">✕ Zero Data Validation</span></td>
+                <td><span class="status-badge-partial">⚠️ Proprietary Database</span></td>
+              </tr>
+              <tr class="comparison-detail-row" id="details-integrity">
+                <td colspan="7">
+                  <div class="comparison-detail-box">
+                    <strong>Guaranteed Consistency:</strong>
+                    Deleting a paper or taxonomy cluster in LitSphere triggers SQLite cascading foreign-key deletion that automatically purges child comments, file BLOBs, and extracted values. Spreadsheets leave ghost data and broken lookups.
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Row 8: 4-Tier RBAC -->
+              <tr data-category="team">
+                <td><button type="button" class="btn-row-expand" id="btn-expand-rbac" onclick="toggleRowDetails('rbac')">+</button></td>
+                <td><strong>4-Tier Role-Based Academic Governance</strong></td>
+                <td class="litsphere-col"><span class="status-badge-yes">✓ Owner / Editor / Reviewer / Viewer</span></td>
+                <td><span class="status-badge-partial">⚠️ Blanket Edit/View Only</span></td>
+                <td><span class="status-badge-no">✕ Local File Sharing</span></td>
+                <td><span class="status-badge-partial">⚠️ Generic Permissions</span></td>
+                <td><span class="status-badge-partial">⚠️ Shared Folder Library</span></td>
+              </tr>
+              <tr class="comparison-detail-row" id="details-rbac">
+                <td colspan="7">
+                  <div class="comparison-detail-box">
+                    <strong>Granular Research Roles:</strong>
+                    Google Sheets only offers binary "Can Edit" or "Can View". LitSphere separates Lead PIs (Owner), Co-Authors (Editor), Academic Supervisors (Reviewer with blind voting), and Junior Students (Viewer read-only).
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Row 9: Supervisor Share Links -->
+              <tr data-category="team">
+                <td><button type="button" class="btn-row-expand" id="btn-expand-share" onclick="toggleRowDetails('share')">+</button></td>
+                <td><strong>Tokenized Passwordless Supervisor Share Links</strong></td>
+                <td class="litsphere-col"><span class="status-badge-yes">✓ 1-Click Revocable Token</span></td>
+                <td><span class="status-badge-partial">⚠️ Requires Google Account</span></td>
+                <td><span class="status-badge-no">✕ Emailing Attachments</span></td>
+                <td><span class="status-badge-partial">⚠️ Generic Share Link</span></td>
+                <td><span class="status-badge-no">✕ Account Required</span></td>
+              </tr>
+              <tr class="comparison-detail-row" id="details-share">
+                <td colspan="7">
+                  <div class="comparison-detail-box">
+                    <strong>Frictionless Faculty Inspection:</strong>
+                    Faculty advisors rarely want to register for yet another portal. LitSphere generates cryptographically signed read-only share URLs allowing professors to inspect student matrix progress instantly.
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Row 10: Multi-Format Thesis Export -->
+              <tr data-category="export">
+                <td><button type="button" class="btn-row-expand" id="btn-expand-export" onclick="toggleRowDetails('export')">+</button></td>
+                <td><strong>Overleaf LaTeX BibTeX, RIS &amp; SheetJS XLSX Export</strong></td>
+                <td class="litsphere-col"><span class="status-badge-yes">✓ Comprehensive Thesis Bundle</span></td>
+                <td><span class="status-badge-partial">⚠️ CSV Only (No BibTeX/RIS)</span></td>
+                <td><span class="status-badge-partial">⚠️ XLSX Only (No LaTeX)</span></td>
+                <td><span class="status-badge-no">✕ Manual Reformatting</span></td>
+                <td><span class="status-badge-partial">⚠️ BibTeX Only (No Matrix)</span></td>
+              </tr>
+              <tr class="comparison-detail-row" id="details-export">
+                <td colspan="7">
+                  <div class="comparison-detail-box">
+                    <strong>Ready for Thesis Defense:</strong>
+                    LitSphere exports both the tabular data (multi-level Excel `.xlsx`, `.csv`, JSON) and the bibliographic records (Overleaf `.bib`, `.ris`, APA 7, IEEE, Markdown synthesis report) in a single synchronized bundle.
+                  </div>
+                </td>
+              </tr>
+
             </tbody>
           </table>
-          <div style="margin-top: 0.85rem; font-size: 0.84rem; color: var(--text-secondary); text-align: center;">
-            <em>Live Big-O notation dynamically evaluated with KaTeX mathematical typography.</em>
-          </div>
         </div>
       </div>
     </section>
 
-    <!-- ========================================================
-         FEATURE III: SPLIT-SCREEN PDF CITATION EXTRACTOR
-         ======================================================== -->
-    <section class="feature-section" id="feature-citation">
-      <div class="feature-text-col">
-        <div class="feature-numeral">SECTION III</div>
-        <h2 class="feature-heading">Split-Screen PDF Reader & Verifiable Grounding</h2>
-        <p class="feature-desc">
-          Eliminate hallucinations and unsubstantiated claims. LitSphere integrates a high-performance in-browser PDF reader that connects matrix entries directly to exact highlighted page coordinates and source quotations.
+    <!-- ========================================================================
+         3. INTERACTIVE RESEARCH ROI & TIME-SAVED CALCULATOR
+         ======================================================================== -->
+    <section class="roi-calculator-section" id="roi-calculator">
+      <div class="text-center">
+        <span class="about-eyebrow">Efficiency Telemetry</span>
+        <h2 class="about-headline">Interactive Research ROI &amp; Time-Saved Simulator</h2>
+        <p class="about-subtext center-block">
+          Estimate the tangible research hours and citation error rates saved by moving your literature review from disconnected spreadsheets into LitSphere's structured workbench.
         </p>
-        <ul class="feature-bullet-list">
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>Direct Source Grounding:</strong> Highlight any text excerpt in a PDF to immediately generate an immutable citation link to a matrix cell.</span>
-          </li>
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>Bidirectional Audit Trail:</strong> Clicking any matrix cell automatically jumps to and highlights the corresponding paragraph in the PDF.</span>
-          </li>
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>Thesis Defense Ready:</strong> Instantly verify where every claimed benchmark number or metric was discovered in the original manuscript.</span>
-          </li>
-        </ul>
       </div>
 
-      <div class="feature-visual-col">
-        <div class="feature-visual-card">
-          <div class="visual-card-header">
-            <div class="visual-card-title">Interactive Split-Screen Citation Extractor</div>
-            <div class="live-badge">Grounded Link</div>
-          </div>
-          <div class="split-reader-sim">
-            <div class="pdf-mock-page">
-              <div style="font-weight: 700; font-size: 0.78rem; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 0.4rem;">Source PDF (Page 4, Section 3.2)</div>
-              <p>...We observe that by computing softmax tiled in SRAM, <span class="highlight-quote" id="interactive-quote-highlight" onclick="triggerCitationPulse()">"our method achieves a 3.4x speedup over standard multi-head attention without any approximation error"</span> across BERT and GPT...</p>
-            </div>
-            <div class="matrix-extracted-target" id="matrix-target-box">
-              <div style="font-size: 0.74rem; font-weight: 700; color: var(--accent-gold); text-transform: uppercase; letter-spacing: 0.05em;">Linked Matrix Cell</div>
-              <strong style="font-size: 0.88rem; color: var(--text-primary);">Speedup Metric</strong>
-              <div style="font-size: 0.82rem; color: var(--accent-emerald); font-weight: 600;">3.4x Wall-Clock Speedup (Exact)</div>
-              <div style="font-size: 0.74rem; color: var(--text-tertiary); font-style: italic;">Verified from Page 4 § 3.2 ↗</div>
-            </div>
-          </div>
-          <div style="margin-top: 0.85rem; font-size: 0.84rem; color: var(--text-secondary); text-align: center;">
-            <em>Click the golden highlighted quote to trigger the visual citation link pulse.</em>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ========================================================
-         FEATURE IV: PRISMA 2020 SYSTEMATIC SCREENING
-         ======================================================== -->
-    <section class="feature-section reverse" id="feature-prisma">
-      <div class="feature-text-col">
-        <div class="feature-numeral">SECTION IV</div>
-        <h2 class="feature-heading">PRISMA 2020 Protocol & Blind Dual-Review Consensus</h2>
-        <p class="feature-desc">
-          Systematic Literature Reviews (SLRs) require rigorous compliance with the international <strong>PRISMA 2020</strong> methodology. LitSphere automates multi-stage screening, inclusion/exclusion criteria logging, and inter-rater reliability calculations.
-        </p>
-        <ul class="feature-bullet-list">
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>Multi-Stage Screening Funnel:</strong> Real-time tracking through Identification, Screening, Eligibility, and Final Included stages.</span>
-          </li>
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>Blind Independent Screening:</strong> Multiple researchers evaluate papers independently without seeing peer decisions until unblinding.</span>
-          </li>
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>Cohen's Kappa ($\kappa$) Metric:</strong> Live computation of statistical inter-rater agreement for publication-ready methodology sections.</span>
-          </li>
-        </ul>
-      </div>
-
-      <div class="feature-visual-col">
-        <div class="feature-visual-card">
-          <div class="visual-card-header">
-            <div class="visual-card-title">PRISMA 2020 Flow & Consensus Meter</div>
-            <div class="live-badge">$\kappa = 0.88$ Agreement</div>
-          </div>
-          <div class="prisma-flow-grid">
-            <div class="prisma-step-box">
-              <div class="prisma-count">1,420</div>
-              <div class="prisma-label">Identified</div>
-            </div>
-            <div class="prisma-step-box">
-              <div class="prisma-count">840</div>
-              <div class="prisma-label">Screened</div>
-            </div>
-            <div class="prisma-step-box">
-              <div class="prisma-count">195</div>
-              <div class="prisma-label">Eligible</div>
-            </div>
-            <div class="prisma-step-box highlight">
-              <div class="prisma-count">42</div>
-              <div class="prisma-label">Included</div>
-            </div>
-          </div>
-          <div class="kappa-meter-bar">
-            <div>
-              <div style="font-size: 0.82rem; font-weight: 700; color: var(--text-primary);">Inter-Rater Reliability (Cohen's $\kappa$)</div>
-              <div style="font-size: 0.76rem; color: var(--text-tertiary);">Reviewer A (Lead) vs Reviewer B (Advisor)</div>
-            </div>
-            <div style="text-align: right;">
-              <span style="font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; font-weight: 800; color: var(--accent-emerald);">0.88</span>
-              <span style="font-size: 0.76rem; color: var(--accent-emerald); display: block; font-weight: 600;">Strong Consensus</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ========================================================
-         FEATURE V: AUTOMATED LATEX & BIBTEX SYNTHESIS
-         ======================================================== -->
-    <section class="feature-section" id="feature-latex">
-      <div class="feature-text-col">
-        <div class="feature-numeral">SECTION V</div>
-        <h2 class="feature-heading">Automated Camera-Ready LaTeX & BibTeX Synthesis</h2>
-        <p class="feature-desc">
-          Stop manually retyping comparison tables into LaTeX tabular syntax. LitSphere automatically exports matrix comparisons into clean, compilable, publication-ready LaTeX tables for IEEE, ACM, Springer, and Elsevier journal submissions.
-        </p>
-        <ul class="feature-bullet-list">
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>Automated LaTeX Generation:</strong> Instant conversion of dynamic columns, Big-O notations, and checkmarks into standard booktabs format.</span>
-          </li>
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>Unified BibTeX Citation Management:</strong> Clean, sanitized bibliography entries ready to drop into your `.bib` thesis file.</span>
-          </li>
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>Multi-Format Export:</strong> Supports LaTeX, BibTeX, Markdown, CSV, and High-Resolution SVG.</span>
-          </li>
-        </ul>
-      </div>
-
-      <div class="feature-visual-col">
-        <div class="feature-visual-card">
-          <div class="visual-card-header">
-            <div class="visual-card-title">Live LaTeX Synthesis Output</div>
-            <button class="btn-copy-code" onclick="copyLatexSynthesis()">Copy LaTeX</button>
-          </div>
-          <div class="code-synthesizer-box" id="latex-synthesis-code">
-\begin{table*}[t]
-\centering
-\caption{Systematic Benchmark of Efficient Attention Mechanisms}
-\label{tab:attention_survey}
-\begin{tabular}{lcccc}
-\toprule
-\textbf{Paper / Model} & \textbf{Complexity} & \textbf{Memory IO} & \textbf{Exact Softmax} \\
-\midrule
-Transformer \cite{vaswani2017} & $\mathcal{O}(N^2)$ & High & \checkmark \\
-FlashAttention \cite{dao2022} & $\mathcal{O}(N)$ & Sub-quadratic & \checkmark \\
-Linear Trans. \cite{katharopoulos2020} & $\mathcal{O}(N)$ & Linear & $\times$ \\
-\bottomrule
-\end{tabular}
-\end{table*}
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ========================================================
-         FEATURE VI: GRANULAR MULTI-USER COLLABORATION
-         ======================================================== -->
-    <section class="feature-section reverse" id="feature-collab">
-      <div class="feature-text-col">
-        <div class="feature-numeral">SECTION VI</div>
-        <h2 class="feature-heading">Role-Based Research Collaboration (RBAC)</h2>
-        <p class="feature-desc">
-          Collaborate seamlessly across research laboratories and advisory committees with four specialized academic sub-roles designed to preserve editorial integrity and prevent accidental data overwrites.
-        </p>
-        <ul class="feature-bullet-list">
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>Owner (Lead Author):</strong> Full administrative control, team invitations, column definitions, and survey deletion.</span>
-          </li>
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>Editor (Co-Author):</strong> Can edit matrix values, add new papers, and attach PDF source highlights.</span>
-          </li>
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>Reviewer (Advisor / Supervisor):</strong> Can submit blind PRISMA screening votes and add peer comments without altering raw cells.</span>
-          </li>
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>Viewer (Public Guest):</strong> Read-only access for replication packages and paper appendices.</span>
-          </li>
-        </ul>
-      </div>
-
-      <div class="feature-visual-col">
-        <div class="feature-visual-card">
-          <div class="visual-card-header">
-            <div class="visual-card-title">Multi-Author Collaboration Presence</div>
-            <div class="live-badge">3 Connected</div>
-          </div>
-          <div class="collab-sim-grid">
-            <div class="collab-user-row">
-              <div style="display: flex; align-items: center; gap: 0.65rem;">
-                <div class="collab-avatar" style="background: linear-gradient(135deg, #d97706, #b45309);">M</div>
-                <div>
-                  <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-primary);">Mostafa Kamal</div>
-                  <div style="font-size: 0.76rem; color: var(--text-tertiary);">mostafa@litsphere.ac</div>
-                </div>
+      <div class="roi-calculator-card">
+        <div class="roi-calculator-grid">
+          
+          <!-- Sliders Left Column -->
+          <div>
+            <div class="roi-slider-group">
+              <div class="roi-slider-header">
+                <span class="roi-slider-title">1. Candidate Research Papers in Survey:</span>
+                <span class="roi-slider-badge" id="roi-val-papers">60 papers</span>
               </div>
-              <span class="role-badge-pill role-owner">OWNER</span>
-            </div>
-            <div class="collab-user-row">
-              <div style="display: flex; align-items: center; gap: 0.65rem;">
-                <div class="collab-avatar" style="background: linear-gradient(135deg, #10b981, #059669);">C</div>
-                <div>
-                  <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-primary);">Co-Author (Editor)</div>
-                  <div style="font-size: 0.76rem; color: var(--text-tertiary);">coauthor@litsphere.ac</div>
-                </div>
+              <input type="range" class="roi-range-input" id="roi-slider-papers" min="10" max="250" step="5" value="60" aria-label="Number of papers in survey">
+              <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--about-text-muted); margin-top: 4px;">
+                <span>10 papers (Small seminar)</span>
+                <span>250 papers (Large systematic review)</span>
               </div>
-              <span class="role-badge-pill role-editor">EDITOR</span>
             </div>
-            <div class="collab-user-row">
-              <div style="display: flex; align-items: center; gap: 0.65rem;">
-                <div class="collab-avatar" style="background: linear-gradient(135deg, #6366f1, #4f46e5);">A</div>
-                <div>
-                  <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-primary);">Academic Advisor</div>
-                  <div style="font-size: 0.76rem; color: var(--text-tertiary);">advisor@litsphere.ac</div>
-                </div>
+
+            <div class="roi-slider-group">
+              <div class="roi-slider-header">
+                <span class="roi-slider-title">2. Research Team / Collaborators:</span>
+                <span class="roi-slider-badge" id="roi-val-team">2 researchers</span>
               </div>
-              <span class="role-badge-pill role-reviewer">REVIEWER</span>
+              <input type="range" class="roi-range-input" id="roi-slider-team" min="1" max="6" step="1" value="2" aria-label="Research team size">
+              <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--about-text-muted); margin-top: 4px;">
+                <span>Solo Master Thesis (1)</span>
+                <span>Multi-Author Lab Group (6)</span>
+              </div>
+            </div>
+
+            <p style="font-size: 0.88rem; color: var(--about-text-sub); line-height: 1.6; border-left: 3px solid var(--about-gold); padding-left: 12px;">
+              Calculation model accounts for: DOI metadata auto-ingestion, elimination of manual copy-paste context switching, PRISMA voting arbitration, and instant LaTeX/SheetJS export compilation.
+            </p>
+          </div>
+
+          <!-- Live Output Right Column -->
+          <div class="roi-results-box">
+            <div class="roi-metric-highlight">
+              <div class="roi-highlight-num" id="roi-stat-hours-saved">116 hrs</div>
+              <div class="roi-highlight-label">Graduate &amp; Faculty Research Time Saved</div>
+            </div>
+
+            <div class="roi-metric-row">
+              <div class="roi-submetric-card">
+                <div class="roi-submetric-num" id="roi-stat-percent">73%</div>
+                <div class="roi-submetric-label">Efficiency Gain vs Spreadsheets</div>
+              </div>
+
+              <div class="roi-submetric-card">
+                <div class="roi-submetric-num" id="roi-stat-error">95%</div>
+                <div class="roi-submetric-label">Citation Error Reduction Rate</div>
+              </div>
+
+              <div class="roi-submetric-card">
+                <div class="roi-submetric-num" id="roi-stat-manual-time" style="color: var(--about-rose);">158 hrs</div>
+                <div class="roi-submetric-label">Manual Sheets/Docs Burden</div>
+              </div>
+
+              <div class="roi-submetric-card">
+                <div class="roi-submetric-num" id="roi-stat-litsphere-time" style="color: var(--about-emerald);">41 hrs</div>
+                <div class="roi-submetric-label">LitSphere Streamlined Time</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================
+         4. 5-STAGE SYSTEMATIC REVIEW LIFECYCLE FLOW
+         ======================================================================== -->
+    <section class="lifecycle-section" id="lifecycle">
+      <div class="text-center">
+        <span class="about-eyebrow">Methodological Standard</span>
+        <h2 class="about-headline">The 5-Stage Systematic Review Lifecycle</h2>
+        <p class="about-subtext center-block">
+          LitSphere structures literature surveys into a rigorous 5-stage pipeline, ensuring complete methodological transparency from intake to final thesis defense. Click each stage to inspect its deliverables.
+        </p>
+      </div>
+
+      <div class="lifecycle-stepper-bar">
+        <button type="button" class="lifecycle-step-btn active" onclick="selectLifecycleStage(1, this)">
+          01. Ingestion &amp; DOI
+        </button>
+        <button type="button" class="lifecycle-step-btn" onclick="selectLifecycleStage(2, this)">
+          02. PRISMA Screening
+        </button>
+        <button type="button" class="lifecycle-step-btn" onclick="selectLifecycleStage(3, this)">
+          03. KaTeX Extraction
+        </button>
+        <button type="button" class="lifecycle-step-btn" onclick="selectLifecycleStage(4, this)">
+          04. Matrix Benchmark
+        </button>
+        <button type="button" class="lifecycle-step-btn" onclick="selectLifecycleStage(5, this)">
+          05. Thesis Synthesis
+        </button>
+      </div>
+
+      <div class="lifecycle-display-card" id="lifecycle-display-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px;">
+          <h3 style="font-size: 1.45rem; font-weight: 800; font-family: 'Outfit', sans-serif; color: var(--about-text-main);" id="lifecycle-stage-title">
+            Stage 1: Ingestion &amp; DOI Resolution
+          </h3>
+          <span class="about-eyebrow" style="margin-bottom: 0;" id="lifecycle-stage-tag">AUTOMATED INTAKE</span>
+        </div>
+
+        <p style="font-size: 1.05rem; color: var(--about-text-sub); line-height: 1.75; margin-bottom: 1.5rem;" id="lifecycle-stage-desc">
+          Drag and drop bulk PDF files or paste lists of DOIs. LitSphere executes 1st-page title/author regex heuristics and queries the CrossRef REST API to pull peer-reviewed metadata in seconds.
+        </p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+          <div style="background: var(--about-surface-raised); padding: 1.25rem; border-radius: 10px; border: 1px solid var(--about-border);">
+            <div style="font-size: 0.82rem; font-weight: 700; color: var(--about-gold); text-transform: uppercase; margin-bottom: 4px;">Primary Metric / KPI:</div>
+            <div style="font-size: 0.94rem; color: var(--about-text-main); font-weight: 600;" id="lifecycle-stage-kpi">
+              Sub-second metadata ingestion with zero manual copying.
+            </div>
+          </div>
+
+          <div style="background: var(--about-surface-raised); padding: 1.25rem; border-radius: 10px; border: 1px solid var(--about-border);">
+            <div style="font-size: 0.82rem; font-weight: 700; color: var(--about-primary); text-transform: uppercase; margin-bottom: 4px;">Audited Deliverable:</div>
+            <div style="font-size: 0.94rem; color: var(--about-text-main); font-weight: 600;" id="lifecycle-stage-deliv">
+              Unassigned candidate paper corpus organized into staging trays.
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ========================================================
-         FEATURE VII: SCHOLAR & ARXIV METASEARCH
-         ======================================================== -->
-    <section class="feature-section" id="feature-search">
-      <div class="feature-text-col">
-        <div class="feature-numeral">SECTION VII</div>
-        <h2 class="feature-heading">Direct Scholar, arXiv & CrossRef DOI Metasearch</h2>
-        <p class="feature-desc">
-          Accelerate your paper intake. Search arXiv preprints, CrossRef metadata, and OpenAlex scholarly graphs directly from your workspace and inject verified paper titles, authors, publication years, abstracts, and DOIs into your matrix with a single click.
+    <!-- ========================================================================
+         5. 8 DEEP SUBSYSTEM ARCHITECTURAL CARDS
+         ======================================================================== -->
+    <section class="subsystems-section" id="subsystems">
+      <div class="text-center">
+        <span class="about-eyebrow">Platform Engineering</span>
+        <h2 class="about-headline">Deep Breakdown of All 8 Core Platform Subsystems</h2>
+        <p class="about-subtext center-block">
+          Examine the technical foundations powering LitSphere: relational storage redundancy, KaTeX parsing pipelines, cascading schema protection, and role-based access control.
         </p>
-        <ul class="feature-bullet-list">
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>DOI & arXiv Resolver:</strong> Enter an identifier (e.g. `10.48550/arXiv.1706.03762`) to autofill paper metadata.</span>
-          </li>
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>Direct Open-Access PDF Fetch:</strong> Automatically retrieves and downloads available open-access research PDFs.</span>
-          </li>
-        </ul>
       </div>
 
-      <div class="feature-visual-col">
-        <div class="feature-visual-card">
-          <div class="visual-card-header">
-            <div class="visual-card-title">Scholar & arXiv Metasearch Resolution</div>
-            <div class="live-badge">Instant Lookup</div>
-          </div>
-          <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
-            <input type="text" id="academic-search-input" value="Attention Is All You Need" style="flex: 1; background: var(--bg-surface-raised); border: 1px solid var(--border-base); padding: 0.6rem 0.85rem; border-radius: 6px; color: var(--text-primary); font-size: 0.88rem; outline: none;" readonly>
-            <button class="btn-copy-code" onclick="executeAcademicSearch()">Search</button>
-          </div>
-          <div id="academic-search-result" style="background: var(--bg-surface-raised); border: 1px solid var(--accent-gold); border-radius: 6px; padding: 0.85rem; font-size: 0.85rem;">
-            <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 0.25rem;">Attention Is All You Need</div>
-            <div style="font-size: 0.78rem; color: var(--accent-gold-light); margin-bottom: 0.4rem;">Vaswani, Shazeer, Parmar, Uszkoreit, Jones, Gomez, Kaiser, Polosukhin (2017)</div>
-            <div style="font-size: 0.78rem; color: var(--text-secondary); line-height: 1.4;">The dominant sequence transduction models are based on complex recurrent or convolutional neural networks in an encoder-decoder configuration...</div>
-            <div style="margin-top: 0.6rem; display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.74rem; color: var(--accent-primary);">arXiv:1706.03762</span>
-              <span style="color: var(--accent-emerald); font-weight: 700; font-size: 0.78rem;">Ready to Import</span>
+      <!-- Subsystem 1: SQLite WAL & Dual Storage -->
+      <div class="subsystem-row">
+        <div class="subsystem-text-col">
+          <div class="subsystem-tag">SUBSYSTEM I • DATA ENGINE</div>
+          <h3 class="subsystem-title">Relational SQLite WAL Engine &amp; Dual-Storage Manuscript Redundancy</h3>
+          <p class="subsystem-desc">
+            Unlike cloud-dependent web tools that lock your research behind proprietary servers, LitSphere operates locally with SQLite running in Write-Ahead Logging (WAL) mode. Every query executes sub-millisecond without network latency, and uploaded PDFs are preserved through dual-layer redundancy.
+          </p>
+          <ul class="subsystem-bullets">
+            <li>✓ <strong>Dual-Layer Storage:</strong> PDFs are stored both in SQLite `paper_files` BLOB tables and on disk in `/uploads/` for offline safety.</li>
+            <li>✓ <strong>Cascading Foreign Keys:</strong> `PRAGMA foreign_keys = ON;` guarantees that deleting a survey or paper cleanly purges child comments, file chunks, and metrics.</li>
+            <li>✓ <strong>Zero Vendor Lock-In:</strong> Your entire survey database is a single atomic `.db` file that can be backed up or cloned anytime.</li>
+          </ul>
+        </div>
+        <div class="subsystem-visual-col">
+          <div class="subsystem-visual-card">
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.84rem; color: var(--about-gold); font-weight: 700; margin-bottom: 0.75rem;">
+              DATABASE PIPELINE ARCHITECTURE
+            </div>
+            <div style="background: var(--about-surface-raised); border: 1px solid var(--about-border); border-radius: 8px; padding: 1.25rem; font-family: 'JetBrains Mono', monospace; font-size: 0.84rem; line-height: 1.8;">
+              <span style="color: var(--about-primary);">[Express REST API]</span> &rarr; <span style="color: #10b981;">[node:sqlite DatabaseSync]</span><br>
+              &darr; <em>PRAGMA journal_mode = WAL;</em><br>
+              <span style="color: var(--about-gold);">&bull; papers (id, title, doi, year, cluster_id)</span><br>
+              <span style="color: var(--about-gold);">&bull; paper_files (paper_id, data BLOB) [CASCADE]</span><br>
+              <span style="color: var(--about-gold);">&bull; paper_column_values (paper_id, column_id, val)</span>
             </div>
           </div>
         </div>
       </div>
+
+      <!-- Subsystem 2: Smart Ingestion & CrossRef -->
+      <div class="subsystem-row reverse">
+        <div class="subsystem-text-col">
+          <div class="subsystem-tag">SUBSYSTEM II • INGESTION</div>
+          <h3 class="subsystem-title">1st-Page PDF Regex Parser &amp; CrossRef REST API Resolver</h3>
+          <p class="subsystem-desc">
+            Manual data entry is the primary source of citation errors in academic theses. LitSphere combines local heuristics with official scholarly indexing APIs to automate metadata intake.
+          </p>
+          <ul class="subsystem-bullets">
+            <li>✓ <strong>Heuristic 1st-Page Extraction:</strong> Scans the first page of uploaded PDFs to detect paper titles, authors, and DOIs.</li>
+            <li>✓ <strong>Official CrossRef Integration:</strong> Resolves verified conference venues, publication years, volume/issue numbers, and abstracts directly from CrossRef.</li>
+            <li>✓ <strong>Unassigned Staging Trays:</strong> Newly added papers sit in a temporary tray ready to be assigned to taxonomy clusters via HTML5 drag-and-drop.</li>
+          </ul>
+        </div>
+        <div class="subsystem-visual-col">
+          <div class="subsystem-visual-card">
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.84rem; color: var(--about-primary); font-weight: 700; margin-bottom: 0.75rem;">
+              METADATA INTAKE RESOLVER
+            </div>
+            <div style="background: var(--about-surface-raised); border: 1px solid var(--about-border); border-radius: 8px; padding: 1.25rem;">
+              <div style="font-size: 0.88rem; font-weight: 700; color: var(--about-text-main); margin-bottom: 4px;">Input: 10.1109/TASLP.2026.3108842</div>
+              <div style="font-size: 0.82rem; color: #10b981; font-family: 'JetBrains Mono', monospace; margin-bottom: 0.75rem;">✓ CrossRef 200 OK Resolved</div>
+              <div style="font-size: 0.86rem; color: var(--about-text-sub); line-height: 1.5;">
+                Title: A Low-Latency Multilingual Speech-to-Bangla Speech Translation Framework...<br>
+                Authors: Mostafa Kamal, Sarah Chen, Robert Vance (2026)
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Subsystem 3: Split-Screen Reader & Highlighting -->
+      <div class="subsystem-row">
+        <div class="subsystem-text-col">
+          <div class="subsystem-tag">SUBSYSTEM III • READER WORKBENCH</div>
+          <h3 class="subsystem-title">Split-Screen PDF Reader with In-Browser Color Highlighting</h3>
+          <p class="subsystem-desc">
+            Eliminate the cognitive friction of alt-tabbing between PDF readers and data tables. LitSphere's dedicated split-screen review mode places the manuscript alongside extraction fields.
+          </p>
+          <ul class="subsystem-bullets">
+            <li>✓ <strong>PDF.js Embedded Engine:</strong> Features zoom, fit-page, jump-to-page, and fast document rendering.</li>
+            <li>✓ <strong>Multi-Color Highlighter:</strong> Annotate key methodologies, datasets, and equations in Yellow, Emerald, Cyan, or Pink.</li>
+            <li>✓ <strong>Zero Lost Context:</strong> Extracted notes, keywords, and equations are edited directly alongside the source evidence.</li>
+          </ul>
+        </div>
+        <div class="subsystem-visual-col">
+          <div class="subsystem-visual-card">
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.84rem; color: var(--about-emerald); font-weight: 700; margin-bottom: 0.75rem;">
+              DUAL-PANE READING INTERFACE
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div style="background: var(--about-surface-raised); border: 1px solid var(--about-border); border-radius: 6px; padding: 1rem; font-size: 0.82rem; line-height: 1.6;">
+                <span style="background: #fef08a; color: #854d0e; font-weight: 700; padding: 2px 4px;">PDF Viewer:</span><br>
+                "We propose a low-latency chunked attention..."
+              </div>
+              <div style="background: var(--about-surface-raised); border: 1px solid var(--about-border); border-radius: 6px; padding: 1rem; font-size: 0.82rem; line-height: 1.6;">
+                <span style="color: var(--about-primary); font-weight: 700;">Extraction Panel:</span><br>
+                Latency: 180 ms<br>
+                BLEU: +4.2 vs baseline
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Subsystem 4: KaTeX Math Engine -->
+      <div class="subsystem-row reverse">
+        <div class="subsystem-text-col">
+          <div class="subsystem-tag">SUBSYSTEM IV • MATHEMATICAL FIDELITY</div>
+          <h3 class="subsystem-title">KaTeX LaTeX Formula Parsing &amp; Complexity Bounds</h3>
+          <p class="subsystem-desc">
+            Scientific surveys in Computer Science, Machine Learning, and Engineering require exact mathematical formulation. LitSphere renders equations natively in tables and review panes.
+          </p>
+          <ul class="subsystem-bullets">
+            <li>✓ <strong>Instant Rendering:</strong> Supports inline ($...$) and display ($$...$$) math notation parsed via KaTeX.</li>
+            <li>✓ <strong>Computational Complexity:</strong> Write Big-O asymptotic notations like $\mathcal{O}(N \cdot D \log K)$ without character corruption.</li>
+            <li>✓ <strong>Direct LaTeX Export:</strong> Formulas export directly into LaTeX tabular syntax for Overleaf compilation.</li>
+          </ul>
+        </div>
+        <div class="subsystem-visual-col">
+          <div class="subsystem-visual-card">
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.84rem; color: var(--about-indigo); font-weight: 700; margin-bottom: 0.75rem;">
+              LIVE KATEX MATH TESTER
+            </div>
+            <div style="display: flex; gap: 6px; margin-bottom: 0.75rem;">
+              <button type="button" class="matrix-filter-pill active" onclick="testInteractiveLatex('\\mathcal{O}(N \\cdot D \\log K)')">Big-O</button>
+              <button type="button" class="matrix-filter-pill" onclick="testInteractiveLatex('\\min_{\\theta} \\frac{1}{N}\\sum_{i=1}^N \\mathcal{L}(f_\\theta(x_i), y_i) + \\lambda \\|\\theta\\|_1')">Loss</button>
+              <button type="button" class="matrix-filter-pill" onclick="testInteractiveLatex('S(x, n) = 2^{-\\frac{\\mathbb{E}(h(x))}{c(n)}}')">Score</button>
+            </div>
+            <div id="demo-latex-render-box" style="background: var(--about-surface-raised); border: 1px solid var(--about-border); border-radius: 8px; padding: 1.25rem; min-height: 70px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: var(--about-primary);">
+              $$\mathcal{O}(N \cdot D \log K)$$
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Subsystem 5: Dynamic Taxonomy & Column Splitting -->
+      <div class="subsystem-row">
+        <div class="subsystem-text-col">
+          <div class="subsystem-tag">SUBSYSTEM V • TAXONOMY HIERARCHY</div>
+          <h3 class="subsystem-title">Hierarchical Taxonomy Clustering &amp; Dynamic Column Splitting</h3>
+          <p class="subsystem-desc">
+            Research literature cannot be flattened into uniform columns. Different algorithmic families require distinct benchmark variables without breaking the global survey matrix.
+          </p>
+          <ul class="subsystem-bullets">
+            <li>✓ <strong>Multi-Level Column Splitting:</strong> Subdivide any parent column into nested sub-headers (e.g. Architecture $\to$ Encoder / Decoder).</li>
+            <li>✓ <strong>Domain Taxonomy Clusters:</strong> Group papers by algorithmic approaches with customizable color themes.</li>
+            <li>✓ <strong>SheetJS Multi-Span Compatibility:</strong> Sub-columns export cleanly to Excel spreadsheets with merged `colspan` headers.</li>
+          </ul>
+        </div>
+        <div class="subsystem-visual-col">
+          <div class="subsystem-visual-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.84rem; color: var(--about-gold); font-weight: 700;">
+                COLUMN SPLITTER DEMO
+              </span>
+              <button type="button" class="matrix-filter-pill active" id="btn-demo-split-col" onclick="simulateColumnSplit()">
+                Split into Time &amp; Space Sub-Columns
+              </button>
+            </div>
+            <div style="overflow-x: auto;">
+              <table style="width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; text-align: center;">
+                <thead>
+                  <tr style="background: var(--about-surface-raised); border: 1px solid var(--about-border);">
+                    <th style="padding: 8px; border: 1px solid var(--about-border);">Paper</th>
+                    <th id="demo-parent-col" style="padding: 8px; border: 1px solid var(--about-border); color: var(--about-primary);">
+                      Computational Complexity
+                    </th>
+                  </tr>
+                  <tr id="demo-sub-col-row" style="display: none; background: rgba(56, 189, 248, 0.1); color: var(--about-primary); border: 1px solid var(--about-border);">
+                    <th style="padding: 6px; border: 1px solid var(--about-border); font-size: 0.75rem;">—</th>
+                    <th style="padding: 6px; border: 1px solid var(--about-border); font-size: 0.75rem;">Time Complexity</th>
+                    <th style="padding: 6px; border: 1px solid var(--about-border); font-size: 0.75rem;">Space Complexity</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style="padding: 8px; border: 1px solid var(--about-border);">Paper #1</td>
+                    <td style="padding: 8px; border: 1px solid var(--about-border);">$\mathcal{O}(N \log K)$</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Subsystem 6: PRISMA 2020 Blind Screening -->
+      <div class="subsystem-row reverse">
+        <div class="subsystem-text-col">
+          <div class="subsystem-tag">SUBSYSTEM VI • METHODOLOGY</div>
+          <h3 class="subsystem-title">PRISMA 2020 Double-Blind Screening &amp; Quality Appraisal</h3>
+          <p class="subsystem-desc">
+            Systematic reviews and Cochrane meta-analyses require audited eligibility decisions. LitSphere implements a native screening engine that tracks every inclusion and exclusion decision.
+          </p>
+          <ul class="subsystem-bullets">
+            <li>✓ <strong>Double-Blind Appraisal:</strong> Reviewers record independent votes without seeing co-author decisions until arbitration.</li>
+            <li>✓ <strong>Structured Justifications:</strong> Tag exclusion reasons (High Risk of Bias, Small Sample Size, Duplicate).</li>
+            <li>✓ <strong>Automated Flow Diagrams:</strong> Real-time counts for Identification, Screening, Eligibility, and Included studies.</li>
+          </ul>
+        </div>
+        <div class="subsystem-visual-col">
+          <div class="subsystem-visual-card">
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.84rem; color: var(--about-emerald); font-weight: 700; margin-bottom: 0.75rem;">
+              PRISMA AUDIT TELEMETRY
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="background: var(--about-surface-raised); padding: 10px 14px; border-radius: 6px; display: flex; justify-content: space-between; font-size: 0.85rem;">
+                <span>Total Identified Studies</span>
+                <span style="font-weight: 800; color: var(--about-primary);">142</span>
+              </div>
+              <div style="background: var(--about-surface-raised); padding: 10px 14px; border-radius: 6px; display: flex; justify-content: space-between; font-size: 0.85rem;">
+                <span>Screened by Title/Abstract</span>
+                <span style="font-weight: 800; color: var(--about-amber);">68</span>
+              </div>
+              <div style="background: var(--about-surface-raised); padding: 10px 14px; border-radius: 6px; display: flex; justify-content: space-between; font-size: 0.85rem; border-left: 3px solid #10b981;">
+                <span style="color: #10b981; font-weight: 700;">Included for Synthesis</span>
+                <span style="font-weight: 800; color: #10b981;">24</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Subsystem 7: Academic RBAC & Share Links -->
+      <div class="subsystem-row">
+        <div class="subsystem-text-col">
+          <div class="subsystem-tag">SUBSYSTEM VII • GOVERNANCE</div>
+          <h3 class="subsystem-title">4-Tier Academic RBAC &amp; Tokenized Supervisor Share Links</h3>
+          <p class="subsystem-desc">
+            Academic projects involve distinct personas: principal investigators, student research assistants, co-authors, and external thesis supervisors. LitSphere enforces rigorous role-based guardrails.
+          </p>
+          <ul class="subsystem-bullets">
+            <li>✓ <strong>Owner (Lead PI):</strong> Full survey sovereignty, team invitations, ownership transfer, and cascading purge.</li>
+            <li>✓ <strong>Editor (Co-Author):</strong> Ingests papers, edits extraction cells, splits columns, and updates metadata.</li>
+            <li>✓ <strong>Reviewer (Supervisor):</strong> Conducts blind PRISMA screening, leaves quote annotations, and audits findings.</li>
+            <li>✓ <strong>Viewer &amp; Public Tokens:</strong> Read-only access for external committee members and public readers without login.</li>
+          </ul>
+        </div>
+        <div class="subsystem-visual-col">
+          <div class="subsystem-visual-card">
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.84rem; color: var(--about-gold); font-weight: 700; margin-bottom: 0.75rem;">
+              GOVERNANCE PERMISSIONS
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.82rem;">
+              <div style="background: var(--about-surface-raised); padding: 8px 12px; border-radius: 6px;">
+                <span style="color: var(--about-primary); font-weight: 700;">Owner:</span> All Powers
+              </div>
+              <div style="background: var(--about-surface-raised); padding: 8px 12px; border-radius: 6px;">
+                <span style="color: #10b981; font-weight: 700;">Editor:</span> Edit Cells &amp; Papers
+              </div>
+              <div style="background: var(--about-surface-raised); padding: 8px 12px; border-radius: 6px;">
+                <span style="color: #f59e0b; font-weight: 700;">Reviewer:</span> Blind Screen Only
+              </div>
+              <div style="background: var(--about-surface-raised); padding: 8px 12px; border-radius: 6px;">
+                <span style="color: var(--about-text-muted); font-weight: 700;">Viewer:</span> Read &amp; Export
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Subsystem 8: Synthesis & Multi-Format Exports -->
+      <div class="subsystem-row reverse">
+        <div class="subsystem-text-col">
+          <div class="subsystem-tag">SUBSYSTEM VIII • DISSEMINATION</div>
+          <h3 class="subsystem-title">Thesis Synthesis Engine &amp; Multi-Format Export Bundles</h3>
+          <p class="subsystem-desc">
+            A literature review is only complete when formatted for thesis submission and journal peer review. LitSphere compiles extraction data directly into standard academic exchange formats.
+          </p>
+          <ul class="subsystem-bullets">
+            <li>✓ <strong>Multi-Level SheetJS Excel (.xlsx):</strong> Generates formatted spreadsheets with merged grouped sub-headers.</li>
+            <li>✓ <strong>Overleaf LaTeX BibTeX (.bib):</strong> Clean citation keys ready to drop into thesis LaTeX documents.</li>
+            <li>✓ <strong>Standard Formats:</strong> Export in RIS (Zotero/EndNote), APA 7th, IEEE, CSV, JSON, and Markdown summaries.</li>
+          </ul>
+        </div>
+        <div class="subsystem-visual-col">
+          <div class="subsystem-visual-card">
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.84rem; color: var(--about-primary); font-weight: 700; margin-bottom: 0.75rem;">
+              EXPORT BUNDLE GENERATOR
+            </div>
+            <div style="background: var(--about-surface-raised); border: 1px solid var(--about-border); border-radius: 8px; padding: 1.25rem; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7;">
+              <span style="color: #10b981;">✓ survey_benchmark_matrix.xlsx</span> (SheetJS Multi-Level)<br>
+              <span style="color: var(--about-primary);">✓ thesis_citations.bib</span> (Overleaf LaTeX Ready)<br>
+              <span style="color: var(--about-gold);">✓ library_references.ris</span> (Zotero / Mendeley)<br>
+              <span style="color: var(--about-text-sub);">✓ chapter2_synthesis.md</span> (Markdown Summary)
+            </div>
+          </div>
+        </div>
+      </div>
+
     </section>
 
-    <!-- ========================================================
-         FEATURE VIII: LOCAL-FIRST PRIVACY & SQLITE ENGINE
-         ======================================================== -->
-    <section class="feature-section reverse" id="feature-privacy">
-      <div class="feature-text-col">
-        <div class="feature-numeral">SECTION VIII</div>
-        <h2 class="feature-heading">Local-First Privacy & Zero-Latency SQLite Engine</h2>
-        <p class="feature-desc">
-          Your unpublished thesis hypotheses and confidential literature syntheses remain entirely yours. Powered by a high-speed local SQLite database (`literature.db`) running with Write-Ahead Logging (WAL) for sub-millisecond querying and zero vendor lock-in.
-        </p>
-        <ul class="feature-bullet-list">
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>Zero Cloud Lock-In:</strong> Your research database is an atomic, transportable single file that you can back up, clone, or export anytime.</span>
-          </li>
-          <li class="feature-bullet-item">
-            <span class="bullet-icon">•</span>
-            <span><strong>Offline Capable:</strong> Full matrix editing and PDF reading continue seamlessly even without active internet connections.</span>
-          </li>
-        </ul>
-      </div>
-
-      <div class="feature-visual-col">
-        <div class="feature-visual-card">
-          <div class="visual-card-header">
-            <div class="visual-card-title">Local-First Architecture Pipeline</div>
-            <div class="live-badge">WAL Mode Active</div>
-          </div>
-          <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-base); border-radius: 8px; padding: 1.25rem; text-align: center;">
-            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; font-weight: 700; color: var(--accent-gold); margin-bottom: 0.5rem;">
-              Frontend UI &rarr; Express REST APIs &rarr; better-sqlite3 (literature.db)
-            </div>
-            <div style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.6;">
-              Atomic Transactions • Zero Telemetry • Sub-Millisecond Indexed Querying
-            </div>
-          </div>
-        </div>
+    <!-- ========================================================================
+         6. CALL TO ACTION
+         ======================================================================== -->
+    <section style="text-align: center; padding: 5rem 1rem; border-top: 1px solid var(--about-border-subtle);">
+      <h2 style="font-family: 'Outfit', sans-serif; font-size: clamp(2.2rem, 4vw, 3rem); font-weight: 800; color: var(--about-text-main); margin-bottom: 1rem;">
+        Ready to Build Your Structured Literature Review?
+      </h2>
+      <p style="font-size: 1.15rem; color: var(--about-text-sub); max-width: 720px; margin: 0 auto 2.5rem; line-height: 1.7;">
+        Stop fighting spreadsheet formulas, lost PDFs, and broken citations. Launch LitSphere to start your systematic review with speed, rigor, and precision.
+      </p>
+      <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+        <a href="/dashboard?action=new" class="btn-primary-hero" style="font-size: 1.15rem; padding: 14px 36px; background: linear-gradient(135deg, var(--about-gold), #b45309); color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 10px 25px rgba(212, 175, 55, 0.3);">
+          <span>Start with New Survey</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </a>
       </div>
     </section>
 
@@ -1060,203 +794,9 @@ Linear Trans. \cite{katharopoulos2020} & $\mathcal{O}(N)$ & Linear & $\times$ \\
   <!-- Commercial Enterprise & Academic Platform Footer (Auto-rendered by /js/core/footer.js) -->
   <footer id="site-footer"></footer>
 
-  <script>
-    // Universal Theme Management
-    function applyTheme(theme) {
-      const targetTheme = theme === 'light' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', targetTheme);
-      localStorage.setItem('litsphere_theme', targetTheme);
-      localStorage.setItem('lr_platform_theme', targetTheme);
-      localStorage.setItem('fs_theme', targetTheme);
-
-      const sunSvg = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
-      const moonSvg = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
-      const iconSvg = targetTheme === 'light' ? sunSvg : moonSvg;
-      const text = targetTheme === 'light' ? 'Light' : 'Dark';
-
-      document.querySelectorAll('#theme-icon, .theme-icon-indicator, .theme-toggle-pill span, .theme-toggle-btn span:first-child').forEach(el => {
-        if (el && (el.id === 'theme-icon' || el.classList.contains('theme-icon-indicator') || el.parentElement.classList.contains('theme-toggle-pill'))) {
-          el.innerHTML = iconSvg;
-        }
-      });
-      document.querySelectorAll('#theme-text').forEach(el => {
-        if (el) el.textContent = text;
-      });
-
-      window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: targetTheme } }));
-    }
-
-    function toggleTheme() {
-      const currentTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
-      const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
-      applyTheme(nextTheme);
-    }
-
-    // Sync across browser tabs
-    window.addEventListener('storage', (e) => {
-      if (e.key === 'litsphere_theme' || e.key === 'lr_platform_theme' || e.key === 'fs_theme') {
-        if (e.newValue) applyTheme(e.newValue);
-      }
-    });
-
-    // Initialize theme state & active link on DOM load
-    document.addEventListener('DOMContentLoaded', () => {
-      const saved = localStorage.getItem('litsphere_theme') || document.documentElement.getAttribute('data-theme') || 'dark';
-      applyTheme(saved);
-
-      // Auto highlight active nav link
-      const path = window.location.pathname;
-      document.querySelectorAll('.nav-link-academic').forEach(link => {
-        const href = link.getAttribute('href');
-        if (href === path || (path === '/about' && href === '/about')) {
-          link.classList.add('active');
-        } else {
-          link.classList.remove('active');
-        }
-      });
-    });
-
-    // Navigation Protected Access Handler
-    function handleNavProtectedClick(targetPath) {
-      const token = localStorage.getItem('litsphere_auth_token');
-      if (!token) {
-        window.location.href = '/login?redirect=' + encodeURIComponent(targetPath);
-      } else {
-        window.location.href = targetPath;
-      }
-    }
-
-    // Check Current Auth Session
-    async function checkCurrentSession() {
-      const token = localStorage.getItem('litsphere_auth_token');
-      const guestGroup = document.getElementById('nav-guest-group');
-      const authGroup = document.getElementById('nav-auth-group');
-      const userNameEl = document.getElementById('nav-user-name');
-      const adminLink = document.getElementById('nav-admin-link');
-
-      if (!token) {
-        if (guestGroup) guestGroup.style.display = 'flex';
-        if (authGroup) authGroup.style.display = 'none';
-        return;
-      }
-
-      try {
-        const res = await fetch('/api/auth/me', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (guestGroup) guestGroup.style.display = 'none';
-          if (authGroup) authGroup.style.display = 'flex';
-          if (userNameEl && data.user) {
-            const displayUsername = data.user.username || (data.user.name ? data.user.name.split(' ')[0] : 'User');
-            userNameEl.textContent = displayUsername;
-            if (document.getElementById('dropdown-user-name-txt')) document.getElementById('dropdown-user-name-txt').textContent = data.user.name || displayUsername;
-            if (document.getElementById('dropdown-user-email-txt')) document.getElementById('dropdown-user-email-txt').textContent = data.user.email;
-            if (document.getElementById('nav-user-role-badge')) document.getElementById('nav-user-role-badge').textContent = (data.user.role || 'USER').toUpperCase();
-            if (document.getElementById('dropdown-admin-link') && data.user.role === 'admin') document.getElementById('dropdown-admin-link').style.display = 'flex';
-          }
-          if (adminLink && data.user && data.user.role === 'admin') {
-            adminLink.style.display = 'inline-flex';
-          }
-        } else {
-          localStorage.removeItem('litsphere_auth_token');
-          if (guestGroup) guestGroup.style.display = 'flex';
-          if (authGroup) authGroup.style.display = 'none';
-        }
-      } catch (e) {
-        if (guestGroup) guestGroup.style.display = 'flex';
-        if (authGroup) authGroup.style.display = 'none';
-      }
-    }
-
-    function toggleAccountDropdown(e) {
-      if (e) { e.preventDefault(); e.stopPropagation(); }
-      const menu = document.getElementById('account-dropdown-menu');
-      const btn = document.getElementById('account-dropdown-toggle');
-      if (!menu) return;
-      const isShown = menu.classList.contains('show');
-      if (isShown) {
-        menu.classList.remove('show');
-        if (btn) btn.classList.remove('open');
-      } else {
-        menu.classList.add('show');
-        if (btn) btn.classList.add('open');
-      }
-    }
-
-    document.addEventListener('click', (e) => {
-      const wrap = document.getElementById('account-dropdown-wrap');
-      if (wrap && !wrap.contains(e.target)) {
-        const menu = document.getElementById('account-dropdown-menu');
-        const btn = document.getElementById('account-dropdown-toggle');
-        if (menu) menu.classList.remove('show');
-        if (btn) btn.classList.remove('open');
-      }
-    });
-
-    function handleAboutLogout() {
-      localStorage.removeItem('litsphere_auth_token');
-      localStorage.removeItem('litsphere_user');
-      window.location.reload();
-    }
-
-    // Interactive Architecture Visualizer Handlers
-    function highlightTaxonomyBranch(id) {
-      document.querySelectorAll('.tree-node-box').forEach(b => b.classList.remove('active'));
-      if (id === 'root') {
-        document.querySelector('.tree-node-box').classList.add('active');
-      } else {
-        const node = document.getElementById(`node-cluster-${id}`);
-        if (node) node.classList.add('active');
-      }
-    }
-
-    function triggerCitationPulse() {
-      const target = document.getElementById('matrix-target-box');
-      if (target) {
-        target.style.boxShadow = '0 0 24px rgba(212, 175, 55, 0.6)';
-        target.style.transform = 'scale(1.03)';
-        setTimeout(() => {
-          target.style.boxShadow = 'none';
-          target.style.transform = 'none';
-        }, 1200);
-      }
-    }
-
-    function copyLatexSynthesis() {
-      const code = document.getElementById('latex-synthesis-code').innerText;
-      navigator.clipboard.writeText(code).then(() => {
-        alert('LaTeX table copied to clipboard! Ready to paste into your thesis.');
-      });
-    }
-
-    function executeAcademicSearch() {
-      const result = document.getElementById('academic-search-result');
-      result.style.opacity = '0.3';
-      setTimeout(() => {
-        result.style.opacity = '1';
-        result.style.boxShadow = '0 0 16px rgba(56, 189, 248, 0.4)';
-        setTimeout(() => { result.style.boxShadow = 'none'; }, 1000);
-      }, 350);
-    }
-
-    // Initialize KaTeX Math Rendering
-    window.addEventListener('DOMContentLoaded', async () => {
-      await checkCurrentSession();
-      if (window.renderMathInElement) {
-        renderMathInElement(document.body, {
-          delimiters: [
-            { left: '$$', right: '$$', display: true },
-            { left: '$', right: '$', display: false }
-          ]
-        });
-      }
-    });
-  </script>
-
-  <!-- Modular Core Scripts -->
+  <!-- Core Scripts -->
   <script src="/js/core/navbar.js"></script>
   <script src="/js/core/footer.js"></script>
+  <script src="/js/core/aboutInteractive.js?v=2.2"></script>
 </body>
 </html>

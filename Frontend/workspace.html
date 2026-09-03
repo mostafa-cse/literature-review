@@ -49,9 +49,7 @@
     <h1 class="hero-title" id="project-title">Literature Survey on <span style="color: var(--accent-gold);">Literature
         Survey</span></h1>
     <div class="hero-desc-wrapper">
-      <p class="hero-desc" id="project-description">
-        Comprehensive systematic literature review, multi-level taxonomy benchmarking, and master matrix synthesis.
-      </p>
+      <p class="hero-desc" id="project-description">Comprehensive systematic literature review, multi-level taxonomy benchmarking, and master matrix synthesis.</p>
       <button type="button" class="hero-desc-toggle" id="desc-read-more-btn" onclick="window.toggleHeroDesc()"
         aria-expanded="false" style="display:none;">
         Read more
@@ -821,8 +819,7 @@
       </div>
 
       <!-- Navigation Tabs -->
-      <div class="settings-tab-bar"
-        style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-base); padding-bottom: 0.75rem; overflow-x: auto;">
+      <div class="settings-tab-bar">
         <button type="button" class="settings-tab-btn active" data-tab="general" onclick="switchSettingsTab('general')">
           ⚙️ General
         </button>
@@ -862,11 +859,10 @@
             <label class="form-label" for="setting-survey-desc" style="font-weight: 700;">
               <span>Survey Description</span>
             </label>
-            <textarea class="form-textarea" id="setting-survey-desc" rows="3"
-              placeholder="Two-line summary of analytical literature review objectives, scope, and benchmark parameters."
-              style="resize: vertical;"></textarea>
-            <span style="font-size: 0.78rem; color: var(--text-tertiary); margin-top: 0.25rem; display: block;">Displays
-              as a 2-line summary in your Workspace header and Surveys dashboard.</span>
+            <textarea class="form-textarea" id="setting-survey-desc" rows="4"
+              placeholder="Detailed summary of literature review objectives, scope, methodology, and benchmark parameters. Supports markdown (**bold**, *italic*, bullets) and multiple paragraphs."
+              style="resize: vertical; min-height: 95px; line-height: 1.5; font-family: inherit;"></textarea>
+            <span style="font-size: 0.78rem; color: var(--text-tertiary); margin-top: 0.25rem; display: block;">Supports markdown (**bold**, *italic*, bullets) and multi-line paragraphs. Displays with line breaks and expandable "Read more".</span>
           </div>
 
           <div
@@ -1158,8 +1154,7 @@
       </div>
 
       <!-- Navigation Tabs -->
-      <div class="settings-tab-bar"
-        style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-base); padding-bottom: 0.75rem; overflow-x: auto;">
+      <div class="settings-tab-bar">
         <button type="button" class="settings-tab-btn csettings-tab-btn active" data-ctab="edit"
           onclick="switchClusterSettingsTab('edit')">
           ✏️ Edit Cluster

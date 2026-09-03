@@ -38,6 +38,16 @@ window.initDashboard = async function() {
   // Load Data
   await loadDashboardStats();
   await loadSurveys();
+
+  // Auto-open create survey modal if action=new query parameter is present
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('action') === 'new' || urlParams.get('new') === 'true' || urlParams.get('create') === '1') {
+    setTimeout(() => {
+      if (typeof openCreateSurveyModal === 'function') {
+        openCreateSurveyModal();
+      }
+    }, 250);
+  }
 };
 
 function updateViewModeToggleUI() {
@@ -347,7 +357,7 @@ function renderSurveysGrid(surveys, searchVal) {
         </div>
 
         <h3 class="survey-title" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</h3>
-        <p class="survey-desc">${escapeHtml(p.description || 'Comprehensive systematic literature review, multi-level taxonomy benchmarking, and master matrix synthesis.')}</p>
+        <p class="survey-desc">${formatSurveyDescInline(p.description)}</p>
 
         <div class="survey-metrics-row">
           <div class="survey-metric-col">
@@ -459,7 +469,7 @@ function renderSurveysTable(surveys, searchVal) {
                 ${escapeHtml(p.name)}
               </a>
             </div>
-            <p class="survey-table-desc">${escapeHtml(p.description || 'Systematic literature review & multi-level matrix benchmark.')}</p>
+            <p class="survey-table-desc">${formatSurveyDescInline(p.description || 'Systematic literature review & multi-level matrix benchmark.')}</p>
           </div>
         </td>
         <td>
@@ -1004,6 +1014,16 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+function formatSurveyDescInline(rawText) {
+  if (!rawText) return 'Comprehensive systematic literature review, multi-level taxonomy benchmarking, and master matrix synthesis.';
+  let text = escapeHtml(rawText);
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/__(.+?)__/g, '<strong>$1</strong>');
+  text = text.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+  text = text.replace(/_([^_\n]+)_/g, '<em>$1</em>');
+  return text;
 }
 
 document.addEventListener('DOMContentLoaded', () => {

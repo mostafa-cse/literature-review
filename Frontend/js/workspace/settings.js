@@ -142,7 +142,11 @@ window.saveGeneralSettings = async function(e) {
       surveyTitleEl.innerHTML = `Literature Survey on <span style="color: var(--accent-gold);">${escapeHtml(updated.name)}</span>`;
     }
     if (surveyDescEl) {
-      surveyDescEl.textContent = updated.description || 'Comprehensive systematic literature review, multi-level taxonomy benchmarking, and master matrix synthesis.';
+      if (typeof window.renderSurveyDescription === 'function') {
+        window.renderSurveyDescription(surveyDescEl, updated.description);
+      } else {
+        surveyDescEl.textContent = updated.description || 'Comprehensive systematic literature review, multi-level taxonomy benchmarking, and master matrix synthesis.';
+      }
     }
     if (activeSurveyPillName) activeSurveyPillName.textContent = updated.name;
     if (activeSelect) {
@@ -150,6 +154,19 @@ window.saveGeneralSettings = async function(e) {
       if (curOpt) curOpt.textContent = updated.name;
     }
     document.title = `Literature Survey on ${updated.name} | LitSphere`;
+
+    // Update in-memory project list cache if available
+    if (window.allProjects && Array.isArray(window.allProjects)) {
+      const pIndex = window.allProjects.findIndex(p => String(p.id) === String(pid));
+      if (pIndex !== -1) {
+        window.allProjects[pIndex] = { ...window.allProjects[pIndex], ...updated };
+      }
+    }
+
+    // Re-evaluate read more button for the updated description
+    if (typeof window.initDescReadMore === 'function') {
+      window.initDescReadMore();
+    }
 
     showToast('Survey details saved successfully.', 'success');
     closeModal('settings-modal-overlay');

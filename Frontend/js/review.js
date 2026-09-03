@@ -1612,4 +1612,121 @@
       .replace(/'/g, '&#039;');
   }
 
+  /* ────────────────────────────────────────────────────────────────
+     13. DELETE / REMOVE ACTIVE PAPER FROM SURVEY (MODAL ENGINE)
+  ──────────────────────────────────────────────────────────────── */
+  window.openDeleteModal = function () {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paperIdFromUrl = parseInt(urlParams.get('paper') || urlParams.get('paperId') || '0', 10);
+    const paperIdToDelete = currentPaperId || paperIdFromUrl || (activePaper && activePaper.id);
+
+    const modal = document.getElementById('delete-paper-modal');
+    if (!modal) {
+      // Fallback if modal DOM element is missing
+      return window.executePaperDelete();
+    }
+
+    const targetBox = document.getElementById('delete-paper-target-box');
+    const titleText = (activePaper && activePaper.title) ? activePaper.title : `Paper #${paperIdToDelete || ''}`;
+    const serialText = (activePaper && activePaper.serial_no) ? `[#${activePaper.serial_no}] ` : '';
+    if (targetBox) {
+      targetBox.textContent = `📄 ${serialText}${titleText}`;
+    }
+
+    const confirmBtn = document.getElementById('btn-confirm-delete-paper');
+    const confirmText = document.getElementById('confirm-delete-text');
+    if (confirmBtn) confirmBtn.disabled = false;
+    if (confirmText) confirmText.textContent = 'Yes, Delete Paper';
+
+    modal.style.display = 'flex';
+  };
+
+  window.closeDeleteModal = function () {
+    const modal = document.getElementById('delete-paper-modal');
+    if (modal) modal.style.display = 'none';
+  };
+
+  window.handleDeletePaper = function () {
+    window.openDeleteModal();
+  };
+
+  window.executePaperDelete = async function () {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paperIdFromUrl = parseInt(urlParams.get('paper') || urlParams.get('paperId') || '0', 10);
+    const projectIdFromUrl = parseInt(urlParams.get('project') || urlParams.get('projectId') || '1', 10);
+    const paperIdToDelete = currentPaperId || paperIdFromUrl || (activePaper && activePaper.id);
+    const targetProjectId = currentProjectId || projectIdFromUrl || (activePaper && activePaper.project_id) || 1;
+
+    if (!paperIdToDelete) {
+      showToast('No active paper found to delete.');
+      window.closeDeleteModal();
+      return;
+    }
+
+    const confirmBtn = document.getElementById('btn-confirm-delete-paper');
+    const confirmText = document.getElementById('confirm-delete-text');
+    const headerBtn = document.getElementById('btn-delete-paper-header');
+    const paneBtn = document.getElementById('btn-remove-paper-pane');
+
+    if (confirmBtn) confirmBtn.disabled = true;
+    if (confirmText) confirmText.textContent = 'Deleting Paper...';
+    if (headerBtn) headerBtn.disabled = true;
+    if (paneBtn) paneBtn.disabled = true;
+
+    setHeaderSaveStatus('saving');
+    showToast('Deleting paper from survey...');
+
+    try {
+      const res = await fetch(`/api/papers/${paperIdToDelete}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+
+      if (res.ok) {
+        setHeaderSaveStatus('saved');
+        showToast('Paper deleted successfully! Returning to workspace...');
+        window.closeDeleteModal();
+        setTimeout(() => {
+          window.location.href = `/workspace?project=${targetProjectId}`;
+        }, 600);
+      } else {
+        setHeaderSaveStatus('error');
+        let errMessage = 'Failed to delete paper.';
+        try {
+          const errData = await res.json();
+          if (errData.error) errMessage = errData.error;
+        } catch (_) {
+          errMessage = await res.text();
+        }
+        showToast(`Deletion failed: ${errMessage}`);
+        if (confirmBtn) confirmBtn.disabled = false;
+        if (confirmText) confirmText.textContent = 'Yes, Delete Paper';
+        if (headerBtn) headerBtn.disabled = false;
+        if (paneBtn) paneBtn.disabled = false;
+      }
+    } catch (err) {
+      setHeaderSaveStatus('error');
+      showToast(`Network error: ${err.message}`);
+      if (confirmBtn) confirmBtn.disabled = false;
+      if (confirmText) confirmText.textContent = 'Yes, Delete Paper';
+      if (headerBtn) headerBtn.disabled = false;
+      if (paneBtn) paneBtn.disabled = false;
+    }
+  };
+
+  // Close modal on escape key or backdrop click
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      window.closeDeleteModal();
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    const modal = document.getElementById('delete-paper-modal');
+    if (modal && e.target === modal) {
+      window.closeDeleteModal();
+    }
+  });
+
 })();
+

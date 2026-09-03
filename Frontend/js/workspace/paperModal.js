@@ -454,8 +454,9 @@ window.submitAddPaperForm = async function(e) {
 };
 
 window.submitBulkPdfUpload = async function() {
-  if (['reviewer', 'viewer'].includes(currentProjectRole)) {
-    showToast(`[Read-Only] Role '${(currentProjectRole || 'viewer').toUpperCase()}' cannot batch upload papers.`, 'warning');
+  const userRole = (typeof currentProjectRole !== 'undefined' && currentProjectRole) ? currentProjectRole : (window.currentProjectRole || 'owner');
+  if (['reviewer', 'viewer'].includes(userRole.toLowerCase())) {
+    showToast(`[Read-Only] Role '${userRole.toUpperCase()}' cannot batch upload papers.`, 'warning');
     return;
   }
 
@@ -464,6 +465,26 @@ window.submitBulkPdfUpload = async function() {
   if (!files || files.length === 0) {
     showToast('Please select one or more PDF files to upload', 'warning');
     return;
+  }
+
+  // Target cluster (if selector exists)
+  const clusterSel = document.getElementById('upload-target-cluster');
+  let clusterId = clusterSel ? clusterSel.value : '';
+  let newClusterName = '';
+  if (clusterId === '__new__') {
+    const newClusterInput = document.getElementById('bulk-paper-new-cluster-name');
+    newClusterName = (newClusterInput && newClusterInput.value.trim()) ? newClusterInput.value.trim() : '';
+  }
+  const targetClusterNum = (clusterId && clusterId !== 'unassigned' && clusterId !== '__new__') ? parseInt(clusterId, 10) : null;
+
+  // Target Domain (if selector exists)
+  const domainSel = document.getElementById('bulk-paper-domain-select');
+  let domain = domainSel ? domainSel.value : 'General';
+  let newDomainName = '';
+  if (domain === '__new__') {
+    const newDomainInput = document.getElementById('bulk-paper-new-domain-name');
+    newDomainName = (newDomainInput && newDomainInput.value.trim()) ? newDomainInput.value.trim() : '';
+    domain = newDomainName || 'General';
   }
 
   const btnSubmit = document.getElementById('btn-submit-upload');
@@ -479,7 +500,8 @@ window.submitBulkPdfUpload = async function() {
 
   try {
     const formData = new FormData();
-    formData.append('project_id', activeProjectId);
+    const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
+    formData.append('project_id', pid);
     if (targetClusterNum) formData.append('cluster_id', targetClusterNum);
     if (newClusterName) formData.append('new_cluster_name', newClusterName);
     formData.append('domain', domain || 'General');

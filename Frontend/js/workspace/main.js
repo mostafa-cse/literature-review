@@ -84,7 +84,7 @@ window.loadSharedProject = async function (token) {
       surveyTitleEl.innerHTML = p.name ? `Literature Survey on <span style="color: var(--accent-gold);">${escapeHtml(p.name)}</span>` : 'Literature Survey';
     }
     if (surveyDescEl) {
-      surveyDescEl.textContent = p.description || 'Comprehensive systematic literature review, multi-level taxonomy benchmarking, and master matrix synthesis.';
+      window.renderSurveyDescription(surveyDescEl, p.description);
     }
     if (activeSurveyPillName) activeSurveyPillName.textContent = p.name;
     document.title = p.name ? `Literature Survey on ${p.name} | LitSphere` : 'Literature Review Workspace | LitSphere';
@@ -220,7 +220,7 @@ window.loadProjects = async function () {
         surveyTitleEl.innerHTML = curProj.name ? `Literature Survey on <span style="color: var(--accent-gold);">${escapeHtml(curProj.name)}</span>` : 'Literature Survey';
       }
       if (surveyDescEl) {
-        surveyDescEl.textContent = curProj.description || 'Comprehensive systematic literature review, multi-level taxonomy benchmarking, and master matrix synthesis.';
+        window.renderSurveyDescription(surveyDescEl, curProj.description);
       }
       if (activeSurveyPillName) activeSurveyPillName.textContent = curProj.name;
       document.title = curProj.name ? `Literature Survey on ${curProj.name} | LitSphere` : 'Literature Review Workspace | LitSphere';
@@ -1665,8 +1665,61 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* ─────────────────────────────────────────────────────────
-   HERO DESCRIPTION — READ MORE / READ LESS TOGGLE
+   HERO DESCRIPTION — FORMATTING & READ MORE / READ LESS TOGGLE
 ───────────────────────────────────────────────────────── */
+
+/**
+ * Formats survey description text:
+ * - Safely escapes raw HTML characters to prevent XSS.
+ * - Parses inline Markdown formatting: **bold**, *italic*, `code`, ~~strike~~, and links.
+ * - Preserves line breaks, indentation, and spaces for white-space: pre-wrap rendering.
+ */
+window.formatSurveyDescription = function (rawText) {
+  if (!rawText) {
+    return 'Comprehensive systematic literature review, multi-level taxonomy benchmarking, and master matrix synthesis.';
+  }
+
+  // Normalize newlines and collapse excess blank lines (>2)
+  let text = String(rawText).replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n');
+
+  // Sanitize HTML entities to prevent XSS
+  text = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+  // Markdown inline code: `code`
+  text = text.replace(/`([^`\n]+)`/g, '<code class="desc-inline-code">$1</code>');
+
+  // Markdown bold: **bold** or __bold__
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/__(.+?)__/g, '<strong>$1</strong>');
+
+  // Markdown italic: *italic* or _italic_
+  text = text.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+  text = text.replace(/_([^_\n]+)_/g, '<em>$1</em>');
+
+  // Markdown strikethrough: ~~del~~
+  text = text.replace(/~~(.+?)~~/g, '<del>$1</del>');
+
+  // Markdown links: [text](https://...)
+  text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="desc-link">$1</a>');
+
+  // Standalone web URLs: https://... or http://...
+  text = text.replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a href="$2" target="_blank" rel="noopener noreferrer" class="desc-link">$2</a>');
+
+  return text;
+};
+
+/**
+ * Injects formatted survey description HTML into target element.
+ */
+window.renderSurveyDescription = function (targetEl, rawText) {
+  if (!targetEl) return;
+  targetEl.innerHTML = window.formatSurveyDescription(rawText);
+};
 
 /**
  * Call this whenever the description text is updated (e.g., after loadProjects()).
@@ -1677,13 +1730,13 @@ window.initDescReadMore = function () {
   const btn = document.getElementById('desc-read-more-btn');
   if (!desc || !btn) return;
 
-  // Reset to clamped state first so we can measure overflow
+  // Reset to clamped state first so we can measure overflow accurately
   desc.classList.remove('expanded');
   btn.classList.remove('expanded');
   btn.innerHTML = 'Read more <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
   btn.setAttribute('aria-expanded', 'false');
 
-  // Use a tiny rAF to let the browser paint the clamped layout before measuring
+  // Use a rAF to let the browser compute clamped layout before measuring
   requestAnimationFrame(() => {
     const isOverflowing = desc.scrollHeight > desc.clientHeight + 2;
     btn.style.display = isOverflowing ? 'inline-flex' : 'none';
@@ -1702,3 +1755,15 @@ window.toggleHeroDesc = function () {
     ? 'Read less <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>'
     : 'Read more <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
 };
+
+// Re-evaluate description overflow if window resizes
+let heroDescResizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(heroDescResizeTimer);
+  heroDescResizeTimer = setTimeout(() => {
+    const desc = document.getElementById('project-description');
+    if (desc && !desc.classList.contains('expanded') && typeof window.initDescReadMore === 'function') {
+      window.initDescReadMore();
+    }
+  }, 150);
+});

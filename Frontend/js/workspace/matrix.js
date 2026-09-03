@@ -1632,7 +1632,46 @@ function formatCellContent(val, fieldType, paperId = null) {
   
   const isTitle = fieldType === 'title';
   const titleClass = isTitle ? 'paper-title-link' : '';
-  const clickHandler = (isTitle && paperId) ? `onclick="window.handlePaperTitleClick(${paperId}, event)" title="Click to open paper in browser"` : '';
+  const clickHandler = (isTitle && paperId) ? `onclick="window.handlePaperTitleClick(${paperId}, event)" title="Click to open paper in split-screen review"` : '';
+  
+  if (isTitle && paperId) {
+    const isRestrictedRole = (typeof currentProjectRole !== 'undefined' && ['reviewer', 'viewer'].includes(currentProjectRole));
+    const delBtnHtml = !isRestrictedRole ? `
+      <button
+        type="button"
+        class="matrix-row-del-btn"
+        onclick="window.deletePaper(${paperId}, event)"
+        title="Delete paper from survey"
+        aria-label="Delete paper"
+      >
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          <line x1="10" y1="11" x2="10" y2="17"></line>
+          <line x1="14" y1="11" x2="14" y2="17"></line>
+        </svg>
+      </button>
+    ` : '';
+
+    if (text !== '-' && (text.length > 35 || text.includes('\n'))) {
+      return `
+        <div class="cell-wrapper title-cell-wrapper">
+          <div class="cell-clamp-2 ${titleClass}" ${clickHandler}>${escaped}</div>
+          ${delBtnHtml}
+          <div class="cell-hover-popover">
+            <div class="popover-text">${escaped}</div>
+          </div>
+        </div>
+      `;
+    }
+    
+    return `
+      <div class="cell-wrapper title-cell-wrapper">
+        <div class="cell-clamp-2 ${titleClass}" ${clickHandler}>${escaped}</div>
+        ${delBtnHtml}
+      </div>
+    `;
+  }
   
   if (text !== '-' && (text.length > 35 || text.includes('\n'))) {
     return `
@@ -1650,7 +1689,7 @@ function formatCellContent(val, fieldType, paperId = null) {
 
 window.handlePaperTitleClick = function(paperId, event) {
   if (event) {
-    if (event.target && (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT' || event.target.tagName === 'TEXTAREA')) return;
+    if (event.target && (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT' || event.target.tagName === 'TEXTAREA' || event.target.closest('.matrix-row-del-btn'))) return;
   }
   const pid = (typeof activeProjectId !== 'undefined' && activeProjectId)
     ? activeProjectId
@@ -1658,6 +1697,43 @@ window.handlePaperTitleClick = function(paperId, event) {
   
   // Directly open the split-screen Review Page for this paper
   window.open(`/review?project=${pid}&paper=${paperId}`, '_blank');
+};
+
+window.deletePaper = async function(paperId, event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  if (typeof currentProjectRole !== 'undefined' && ['reviewer', 'viewer'].includes(currentProjectRole)) {
+    showToast(`[Read-Only] Role '${currentProjectRole.toUpperCase()}' cannot delete papers.`, 'info');
+    return;
+  }
+
+  if (!confirm('⚠️ Are you sure you want to permanently delete this research paper from the survey?')) return;
+
+  try {
+    const res = await fetch(`/api/papers/${paperId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    if (res.ok) {
+      showToast('Paper deleted successfully', 'success');
+      if (typeof loadPapers === 'function') await loadPapers();
+      if (typeof loadStats === 'function') await loadStats();
+      if (typeof loadSynthesisInsights === 'function') await loadSynthesisInsights();
+    } else {
+      let errText = 'Failed to delete paper';
+      try {
+        const json = await res.json();
+        if (json.error) errText = json.error;
+      } catch (_) {
+        errText = await res.text();
+      }
+      throw new Error(errText);
+    }
+  } catch (err) {
+    showToast('Failed to delete paper: ' + err.message, 'error');
+  }
 };
 
 function restoreCellDisplay(cell, fieldType, val) {

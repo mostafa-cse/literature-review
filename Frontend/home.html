@@ -3,1085 +3,613 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="LitSphere — Intelligent Literature Review &amp; Research Discovery Platform. Built for Thesis, Surveys, and Academic Research.">
-  <title>LitSphere - Intelligent Literature Review &amp; Research Discovery Platform</title>
+  <meta name="description" content="LitSphere — Intelligent Literature Review &amp; Systematic Survey Workbench. Built for Master Thesis, PRISMA 2020 Reviews, and Academic Lab Benchmarking.">
+  <title>LitSphere — Intelligent Literature Review &amp; Research Discovery Platform</title>
 
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20'/%3E%3Cpath d='M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'/%3E%3C/svg%3E">
-  <!-- Unified Academic Typography: Inter, Outfit, JetBrains Mono, Cinzel & Playfair Display -->
+  
+  <!-- Academic Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
   <!-- Core Modular Stylesheets -->
   <link rel="stylesheet" href="/css/navbar.css">
   <link rel="stylesheet" href="/css/footer.css">
+  <link rel="stylesheet" href="/css/home.css?v=2.2">
 
-  <!-- KaTeX for live LaTeX rendering -->
+  <!-- KaTeX for live LaTeX math rendering -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+
+  <!-- Early Theme Preloader -->
   <script>
     (function() {
       const savedTheme = localStorage.getItem('litsphere_theme') || 
                          localStorage.getItem('lr_platform_theme') || 
-                         localStorage.getItem('fs_theme') || 
                          (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
       document.documentElement.setAttribute('data-theme', savedTheme);
-      localStorage.setItem('litsphere_theme', savedTheme);
     })();
   </script>
-
-  <style>
-    :root, [data-theme="dark"] {
-      --bg-canvas: #050811;
-      --bg-surface: #0c1222;
-      --bg-surface-raised: #121b30;
-      --bg-surface-hover: #18243e;
-      --border-base: #1a2742;
-      --border-focus: #38bdf8;
-      --border-subtle: rgba(255, 255, 255, 0.08);
-      --text-primary: #f8fafc;
-      --text-secondary: #94a3b8;
-      --text-tertiary: #64748b;
-      --accent-primary: #38bdf8;
-      --accent-muted: rgba(56, 189, 248, 0.12);
-      --accent-teal: #14b8a6;
-      --accent-teal-muted: rgba(20, 184, 166, 0.12);
-      --accent-emerald: #10b981;
-      --accent-rose: #f43f5e;
-      --accent-amber: #f59e0b;
-      --accent-indigo: #6366f1;
-      --accent-purple: #a855f7;
-      --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
-      --shadow-md: 0 8px 24px -4px rgba(0, 0, 0, 0.45), 0 2px 6px -1px rgba(0, 0, 0, 0.2);
-      --shadow-lg: 0 24px 56px -12px rgba(0, 0, 0, 0.75);
-      --nav-bg: rgba(5, 8, 17, 0.88);
-      --grid-dot: rgba(255, 255, 255, 0.06);
-    }
-
-    [data-theme="light"] {
-      --bg-canvas: #f8fafc;
-      --bg-surface: #ffffff;
-      --bg-surface-raised: #f1f5f9;
-      --bg-surface-hover: #e2e8f0;
-      --border-base: #e2e8f0;
-      --border-focus: #0284c7;
-      --border-subtle: rgba(0, 0, 0, 0.06);
-      --text-primary: #0f172a;
-      --text-secondary: #475569;
-      --text-tertiary: #94a3b8;
-      --accent-primary: #0284c7;
-      --accent-muted: rgba(2, 132, 199, 0.08);
-      --accent-teal: #0d9488;
-      --accent-teal-muted: rgba(13, 148, 136, 0.08);
-      --accent-emerald: #059669;
-      --accent-rose: #e11d48;
-      --accent-amber: #d97706;
-      --accent-indigo: #4f46e5;
-      --accent-purple: #9333ea;
-      --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
-      --shadow-md: 0 6px 18px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-      --shadow-lg: 0 18px 40px -6px rgba(0, 0, 0, 0.09);
-      --nav-bg: rgba(255, 255, 255, 0.95);
-      --grid-dot: rgba(0, 0, 0, 0.05);
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
-    body {
-      background-color: var(--bg-canvas);
-      color: var(--text-primary);
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      line-height: 1.6;
-      min-height: 100vh;
-      -webkit-font-smoothing: antialiased;
-      overflow-x: hidden;
-      position: relative;
-    }
-
-    /* Scroll Progress Indicator */
-    #scroll-progress {
-      position: fixed;
-      top: 0; left: 0;
-      height: 3px;
-      width: 0%;
-      background: linear-gradient(90deg, var(--accent-primary), var(--accent-teal), var(--accent-indigo));
-      z-index: 1000;
-      transition: width 0.05s ease-out;
-    }
-
-    /* Ambient Hero Particle Canvas */
-    #hero-canvas {
-      position: absolute;
-      top: 0; left: 0; width: 100%; height: 750px;
-      pointer-events: none;
-      z-index: 1;
-      opacity: 0.65;
-    }
-
-    .font-display { font-family: 'Outfit', sans-serif; }
-    .font-mono { font-family: 'JetBrains Mono', monospace; }
-
-    /* Keyframes */
-    @keyframes maskReveal {
-      0% { transform: translateY(115%); opacity: 0; }
-      100% { transform: translateY(0); opacity: 1; }
-    }
-
-    @keyframes radarPing {
-      0% { transform: scale(1); opacity: 0.9; }
-      100% { transform: scale(2.6); opacity: 0; }
-    }
-
-    @keyframes floatSin1 {
-      0%, 100% { transform: translateY(0px) rotate(0deg); }
-      50% { transform: translateY(-16px) rotate(1.8deg); }
-    }
-
-    @keyframes floatSin2 {
-      0%, 100% { transform: translateY(0px) rotate(0deg); }
-      50% { transform: translateY(16px) rotate(-1.8deg); }
-    }
-
-    @keyframes shimmerBeam {
-      0% { transform: translateX(-120%); }
-      100% { transform: translateX(250%); }
-    }
-
-    @keyframes haloGlow {
-      0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.5; }
-      50% { transform: scale(1.12) rotate(180deg); opacity: 0.8; }
-    }
-
-    .mask-wrap {
-      overflow: hidden;
-      display: inline-block;
-      vertical-align: bottom;
-      padding-bottom: 6px;
-    }
-    .mask-inner {
-      display: inline-block;
-      transform: translateY(115%);
-      animation: maskReveal 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-    .delay-1 { animation-delay: 0.1s; }
-    .delay-2 { animation-delay: 0.22s; }
-    .delay-3 { animation-delay: 0.34s; }
-
-    .word-flipper {
-      display: inline-block;
-      color: var(--accent-primary);
-      position: relative;
-      background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      transition: opacity 0.3s ease, transform 0.3s ease;
-    }
-
-    .reveal-card {
-      opacity: 0;
-      transform: translateY(35px);
-      transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1), transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
-      will-change: opacity, transform;
-    }
-    .reveal-card.active {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    .glow-card {
-      position: relative;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: 18px;
-      overflow: hidden;
-      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s, box-shadow 0.3s;
-    }
-    .glow-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      border-radius: inherit;
-      padding: 1.5px;
-      background: radial-gradient(450px circle at var(--mouse-x, -999px) var(--mouse-y, -999px), rgba(56, 189, 248, 0.45), transparent 40%);
-      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.35s ease;
-    }
-    .glow-card:hover::before { opacity: 1; }
-    .glow-card:hover {
-      transform: translateY(-5px);
-      box-shadow: var(--shadow-lg);
-      border-color: rgba(56, 189, 248, 0.3);
-    }
-
-    /* Hero Section */
-    .hero-section {
-      position: relative;
-      padding: 5.5rem 2rem 6.5rem;
-      text-align: center;
-      overflow: visible;
-      z-index: 2;
-    }
-    .hero-container { max-width: 1240px; margin: 0 auto; position: relative; }
-    
-    .pill-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.65rem;
-      background: var(--accent-muted);
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      color: var(--accent-primary);
-      padding: 0.55rem 1.25rem;
-      border-radius: 9999px;
-      font-size: 0.9rem;
-      font-weight: 700;
-      font-family: 'JetBrains Mono', monospace;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-bottom: 1.85rem;
-      box-shadow: 0 2px 14px rgba(56, 189, 248, 0.2);
-    }
-    .pill-dot-wrap { position: relative; width: 8px; height: 8px; display: flex; align-items: center; justify-content: center; }
-    .pill-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-primary); box-shadow: 0 0 8px var(--accent-primary); }
-    .pill-radar { position: absolute; width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--accent-primary); animation: radarPing 2s infinite ease-out; }
-
-    .hero-heading {
-      font-family: 'Outfit', sans-serif;
-      font-size: 4.1rem;
-      font-weight: 900;
-      letter-spacing: -0.035em;
-      line-height: 1.15;
-      margin-bottom: 1.6rem;
-      color: var(--text-primary);
-    }
-    @media (max-width: 768px) { .hero-heading { font-size: 2.8rem; } }
-    .hero-subtitle {
-      font-size: 1.3rem;
-      color: var(--text-secondary);
-      max-width: 920px;
-      margin: 0 auto 2.75rem;
-      line-height: 1.7;
-      font-weight: 400;
-    }
-
-    .hero-cta-group {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 1.15rem;
-      flex-wrap: wrap;
-      margin-bottom: 4.85rem;
-    }
-    .btn-hero-primary {
-      background: linear-gradient(135deg, var(--accent-primary), var(--accent-indigo));
-      color: #ffffff;
-      padding: 1.1rem 2.5rem;
-      border-radius: 14px;
-      font-size: 1.15rem;
-      font-weight: 700;
-      font-family: 'Outfit', sans-serif;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.65rem;
-      box-shadow: 0 10px 32px -4px rgba(56, 189, 248, 0.55);
-      position: relative;
-      overflow: hidden;
-      transition: transform 0.25s, box-shadow 0.25s;
-    }
-    .btn-hero-primary::after {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; width: 40%; height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
-      animation: shimmerBeam 3.5s infinite;
-    }
-    .btn-hero-primary:hover {
-      transform: translateY(-3px) scale(1.02);
-      box-shadow: 0 18px 42px -4px rgba(56, 189, 248, 0.75);
-    }
-    .btn-hero-secondary {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-base);
-      color: var(--text-primary);
-      padding: 1.1rem 2.2rem;
-      border-radius: 14px;
-      font-size: 1.15rem;
-      font-weight: 600;
-      font-family: 'Outfit', sans-serif;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.55rem;
-      transition: all 0.25s ease;
-    }
-    .btn-hero-secondary:hover {
-      background: var(--bg-surface-raised);
-      border-color: var(--border-focus);
-      transform: translateY(-3px);
-      box-shadow: var(--shadow-md);
-    }
-
-    /* Hero Film Window */
-    .hero-film-container {
-      max-width: 1180px;
-      margin: 0 auto;
-      position: relative;
-      perspective: 1400px;
-    }
-    .hero-film-glow-halo {
-      position: absolute;
-      top: -40px; left: 8%; right: 8%; bottom: -40px;
-      background: linear-gradient(135deg, rgba(56, 189, 248, 0.3), rgba(99, 102, 241, 0.22), rgba(20, 184, 166, 0.25));
-      filter: blur(60px);
-      border-radius: 35px;
-      z-index: 0;
-      pointer-events: none;
-      animation: haloGlow 10s infinite ease-in-out;
-    }
-    .hero-film-window {
-      position: relative;
-      z-index: 2;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: 20px;
-      box-shadow: var(--shadow-lg), 0 0 60px rgba(56, 189, 248, 0.18);
-      overflow: hidden;
-      text-align: left;
-      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease;
-      transform-style: preserve-3d;
-      transform: rotateX(4deg);
-    }
-    .hero-film-window:hover { transform: rotateX(0deg) scale3d(1.01, 1.01, 1.01); }
-    .hero-film-header {
-      background: var(--bg-surface-raised);
-      border-bottom: 1px solid var(--border-base);
-      padding: 0.95rem 1.5rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-    }
-    .film-dots { display: flex; gap: 0.45rem; }
-    .film-dot { width: 12px; height: 12px; border-radius: 50%; }
-
-    .film-tab-bar {
-      display: flex;
-      gap: 0.5rem;
-      border-bottom: 1px solid var(--border-base);
-      background: var(--bg-surface);
-      padding: 0.65rem 1.25rem 0;
-      position: relative;
-    }
-    .film-tab-btn {
-      position: relative;
-      padding: 0.75rem 1.35rem;
-      font-size: 0.96rem;
-      font-weight: 600;
-      color: var(--text-tertiary);
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      border-radius: 8px 8px 0 0;
-      transition: color 0.2s ease;
-    }
-    .film-tab-btn.active {
-      color: var(--accent-primary);
-      background: var(--bg-surface-raised);
-    }
-    .film-tab-btn .tab-progress {
-      position: absolute;
-      bottom: 0; left: 0; height: 2.5px;
-      background: var(--accent-primary);
-      width: 0%;
-      transition: width 0.1s linear;
-    }
-    .film-tab-btn.active .tab-progress {
-      width: 100%;
-      transition: width 4.5s linear;
-    }
-
-    .film-screen { padding: 1.85rem; display: none; min-height: 320px; }
-    .film-screen.active { display: block; animation: screenFade 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
-    @keyframes screenFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-
-    .drift-chip {
-      position: absolute;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      padding: 0.85rem 1.35rem;
-      border-radius: 16px;
-      box-shadow: var(--shadow-md);
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      font-size: 0.95rem;
-      font-weight: 700;
-      z-index: 10;
-      backdrop-filter: blur(16px);
-    }
-    .drift-chip.top-chip { top: -26px; right: -24px; border-color: rgba(56, 189, 248, 0.4); animation: floatSin1 6s infinite ease-in-out; }
-    .drift-chip.bottom-chip { bottom: 26px; left: -24px; border-color: rgba(99, 102, 241, 0.4); animation: floatSin2 7s infinite ease-in-out; }
-    @media (max-width: 1024px) { .drift-chip { display: none; } }
-
-    /* Stats Grid */
-    .stats-section { max-width: 1280px; margin: -2rem auto 6.5rem; padding: 0 2rem; position: relative; z-index: 20; }
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.35rem; }
-    .stat-card {
-      padding: 2rem 1.75rem;
-      box-shadow: var(--shadow-md);
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      gap: 0.45rem;
-    }
-    .stat-card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--card-accent, var(--accent-primary)); }
-    .stat-number { font-size: 2.8rem; font-weight: 800; font-family: 'Outfit', 'JetBrains Mono', sans-serif; letter-spacing: -0.03em; color: var(--text-primary); }
-    .stat-label { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); font-family: 'Outfit', sans-serif; }
-    .stat-desc { font-size: 0.92rem; color: var(--text-tertiary); line-height: 1.55; }
-
-    /* Content Sections */
-    .content-section { max-width: 1280px; margin: 0 auto 7rem; padding: 0 2rem; position: relative; z-index: 5; }
-    .section-eyebrow { font-size: 0.88rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; color: var(--accent-primary); letter-spacing: 0.08em; margin-bottom: 0.5rem; }
-    .section-headline { font-family: 'Outfit', sans-serif; font-size: 2.65rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.85rem; color: var(--text-primary); }
-    .section-subtext { font-size: 1.18rem; color: var(--text-secondary); max-width: 820px; line-height: 1.7; margin-bottom: 3.75rem; }
-
-
-
-    /* Comparison Table Panel */
-    .comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.75rem; }
-    @media (max-width: 800px) { .comparison-grid { grid-template-columns: 1fr; } }
-    .compare-card { padding: 2.4rem; }
-    .compare-card.highlight { border-color: var(--accent-teal); box-shadow: 0 0 32px rgba(20, 184, 166, 0.16); }
-
-    /* Alternating Feature Rows */
-    .feature-row { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; margin-bottom: 6rem; }
-    @media (max-width: 900px) { .feature-row { grid-template-columns: 1fr; gap: 2.5rem; } .feature-row.reverse { direction: ltr; } }
-    .feature-row.reverse { direction: rtl; }
-    .feature-row.reverse > * { direction: ltr; }
-    .feature-img-card { padding: 2rem; box-shadow: var(--shadow-md); position: relative; }
-
-    /* Capability Grid */
-    .capability-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.5rem; }
-    .capability-card { padding: 2.25rem 2rem; display: flex; flex-direction: column; gap: 1rem; }
-    .capability-icon {
-      width: 54px; height: 54px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
-      font-size: 1.6rem; background: var(--accent-muted); border: 1px solid rgba(56, 189, 248, 0.25); color: var(--accent-primary);
-      transition: transform 0.3s ease;
-    }
-    .capability-card:hover .capability-icon { transform: scale(1.12) rotate(6deg); }
-
-    /* Persona Grid */
-    .persona-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.35rem; }
-    .persona-card { padding: 2rem 1.75rem; display: flex; flex-direction: column; gap: 0.65rem; }
-    .persona-tag { font-size: 0.84rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; color: var(--accent-primary); }
-
-    /* Workflow Timeline */
-    .workflow-timeline { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1.35rem; }
-    .step-card { padding: 1.85rem 1.6rem; display: flex; flex-direction: column; gap: 0.65rem; }
-    .step-number { font-size: 2.2rem; font-weight: 900; font-family: 'Outfit', sans-serif; color: var(--accent-primary); }
-
-    /* CTA Banner */
-    .cta-banner { max-width: 1280px; margin: 0 auto 7rem; padding: 0 2rem; position: relative; z-index: 10; }
-    .cta-inner {
-      background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(99, 102, 241, 0.15));
-      border: 1px solid rgba(56, 189, 248, 0.35);
-      border-radius: 26px;
-      padding: 4.5rem 2.5rem;
-      text-align: center;
-      box-shadow: var(--shadow-lg);
-      position: relative;
-      overflow: hidden;
-    }
-    .cta-title { font-family: 'Outfit', sans-serif; font-size: 3rem; font-weight: 800; letter-spacing: -0.025em; margin-bottom: 1rem; color: var(--text-primary); }
-    .cta-subtext { font-size: 1.25rem; color: var(--text-secondary); max-width: 760px; margin: 0 auto 2.5rem; line-height: 1.7; }
-
-  </style>
 </head>
 <body>
 
-  <!-- Top Scroll Progress Bar -->
-  <div id="scroll-progress"></div>
 
-  <!-- Ambient Interactive Particle Network Canvas -->
+  <!-- Ambient Hero Constellation Particles Canvas -->
   <canvas id="hero-canvas"></canvas>
 
-  <!-- Choice 2: Oxford / Overleaf Prestige Academic Header (Auto-rendered by /js/core/navbar.js) -->
+  <!-- Universal Academic Navbar -->
   <header class="site-header" id="site-header"></header>
 
-  <!-- Hero Section with Masked Line Animations & Live Word Flipper -->
+  <!-- ========================================================================
+       1. HERO SECTION
+       ======================================================================== -->
   <section class="hero-section" id="overview">
-    <div class="hero-container">
+    <div class="container">
       
-      <!-- Masked Line Reveals -->
+      <div class="hero-pill-badge">
+        <span>✦</span>
+        <span>ACADEMIC INTELLIGENCE PLATFORM</span>
+        <span>•</span>
+        <span>SYSTEMATIC BENCHMARKING ENGINE</span>
+      </div>
+
       <h1 class="hero-heading">
-        <span class="mask-wrap">
-          <span class="mask-inner delay-1">Software that finally understands</span>
-        </span>
-        <br>
-        <span class="mask-wrap">
-          <span class="mask-inner delay-2">
-            how research is <span class="word-flipper" id="flipper-word">benchmarked.</span>
-          </span>
-        </span>
+        Software purpose-built for how research literature is 
+        <span class="gold-gradient" id="flipper-word">benchmarked.</span>
       </h1>
 
-      <div class="mask-wrap">
-        <p class="hero-subtitle mask-inner delay-3">
-          LitSphere replaces disjointed spreadsheets, lost PDFs, and manual notes with an intelligent research synthesis engine. Bulk ingest papers via PDF & CrossRef DOI, review with split-screen LaTeX math viewers, edit inline with instant SQLite WAL auto-save, and export multi-level Excel benchmarks for your thesis.
+      <p class="hero-subtitle">
+        LitSphere replaces fragmented spreadsheets and lost PDFs with an integrated systematic review workbench. Ingest papers via PDF & CrossRef DOI, synthesize math in split-screen KaTeX viewers, manage blind PRISMA 2020 appraisal, and generate multi-level thesis benchmark tables in seconds.
+      </p>
+
+      <div class="hero-actions-bar">
+        <a href="/dashboard?action=new" class="btn-primary-hero" id="btn-hero-new-survey">
+          <span>Start with New Survey</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </a>
+        <a href="#interactive-suite" class="btn-secondary-hero">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span>Test-Drive Interactive Suite</span>
+        </a>
+      </div>
+
+      <div class="telemetry-strip">
+        <div class="telemetry-strip-item">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span>SQLite WAL Sub-Millisecond Speed</span>
+        </div>
+        <div class="telemetry-strip-item">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span>PRISMA 2020 Blind Screening</span>
+        </div>
+        <div class="telemetry-strip-item">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span>4-Tier Academic RBAC</span>
+        </div>
+        <div class="telemetry-strip-item">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span>SheetJS Multi-Level Excel Exports</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       2. INTERACTIVE SUITE: LIVE BENCHMARK MATRIX WORKBENCH
+       ======================================================================== -->
+  <section class="interactive-section" id="interactive-suite">
+    <div class="container">
+      
+      <div class="text-center">
+        <span class="section-eyebrow">Interactive View 01 • Test Drive</span>
+        <h2 class="section-headline">High-Density Benchmark Matrix Playground</h2>
+        <p class="section-subtext center-block">
+          Experience LitSphere's live matrix: click any cell below to edit in-place, observe instant SQLite WAL commit pulses, switch between academic domains, and filter by taxonomy clusters.
         </p>
       </div>
 
-      <!-- Overleaf-Style Quick Registration Banner (only shown when not logged in) -->
-      <div id="hero-overleaf-auth" style="max-width: 620px; margin: 2.25rem auto 3.5rem; text-align: center; position: relative; z-index: 20;">
-        <script>
-          if (localStorage.getItem('litsphere_auth_token')) {
-            document.getElementById('hero-overleaf-auth').style.display = 'none';
-          }
-        </script>
+      <div class="matrix-playground-card glow-card">
+        <div class="matrix-playground-header">
+          <div class="matrix-dataset-tabs" id="matrix-dataset-tabs">
+            <!-- Dynamic dataset tabs rendered via homeInteractive.js -->
+          </div>
+          <div style="font-size: 0.84rem; font-family: var(--font-mono); color: var(--accent-emerald); display: flex; align-items: center; gap: 6px;">
+            <span style="width: 8px; height: 8px; background: var(--accent-emerald); border-radius: 50%; display: inline-block; box-shadow: 0 0 8px var(--accent-emerald);"></span>
+            <span>Click any cell to edit inline</span>
+          </div>
+        </div>
+
+        <div class="matrix-cluster-pills-bar" id="matrix-cluster-pills">
+          <!-- Dynamic cluster filter pills rendered via homeInteractive.js -->
+        </div>
+
+        <div class="matrix-table-wrap">
+          <table class="matrix-table-playground">
+            <thead>
+              <tr>
+                <th style="width: 50px; text-align: center;">#</th>
+                <th style="min-width: 260px;">Research Paper Title</th>
+                <th style="min-width: 170px;">Taxonomy Cluster</th>
+                <th style="width: 80px; text-align: center;">Year</th>
+                <th style="min-width: 190px;">Computational Complexity</th>
+                <th style="min-width: 180px;">Benchmark Datasets</th>
+                <th style="width: 110px; text-align: center;">PRISMA Status</th>
+              </tr>
+            </thead>
+            <tbody id="matrix-playground-tbody">
+              <!-- Dynamically rendered rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       3. INTERACTIVE SUITE: SPLIT-SCREEN READER & LATEX MATH SANDBOX
+       ======================================================================== -->
+  <section class="interactive-section">
+    <div class="container">
+      
+      <div class="text-center">
+        <span class="section-eyebrow">Interactive View 02 • Split-Screen Reader</span>
+        <h2 class="section-headline">Interactive Manuscript Highlighter &amp; LaTeX Sandbox</h2>
+        <p class="section-subtext center-block">
+          Experience how LitSphere bridges deep reading with mathematical extraction. Select highlighters to annotate manuscript passages, and type LaTeX formulas to watch KaTeX render equations instantly.
+        </p>
+      </div>
+
+      <div class="sandbox-split-grid">
         
-        <!-- LaTeX Tag -->
-        <div style="display: inline-flex; align-items: center; gap: 0.35rem; font-family: 'JetBrains Mono', monospace; font-size: 1.55rem; font-weight: 800; margin-bottom: 0.75rem;">
-          <span style="color: #818cf8;">\begin</span><span style="color: #34d399;">{research}</span>
-        </div>
-
-        <p style="font-size: 1.05rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
-          Synthesize literature like a lead scientist with LitSphere — Intelligent Literature Review & Research Discovery Platform.
-        </p>
-
-
-
-        <!-- Overleaf Inline Registration Bar -->
-        <div style="display: flex; gap: 0.65rem; flex-wrap: wrap; justify-content: center;">
-          <a href="/register" class="btn-hero-primary" style="width: 100%; max-width: 320px; padding: 0.95rem 1.75rem; background: linear-gradient(135deg, #10b981, #059669); border: 1px solid #34d399; color: #ffffff; border-radius: 10px; font-size: 1.05rem; font-weight: 800; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 0.5rem; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);">
-            <span>Sign up for free</span>
-          </a>
-        </div>
-
-        <p style="font-size: 0.8rem; color: var(--text-tertiary); margin-top: 0.85rem;">
-          By registering, you agree to our <a href="/about" style="color: var(--accent-gold); text-decoration: underline;">Terms of Service</a> and <a href="/about" style="color: var(--accent-gold); text-decoration: underline;">Privacy Policy</a>.
-        </p>
-      </div>
-
-      <!-- Self-Playing Hero Film Loop Mockup with 3D Tilt -->
-      <div class="hero-film-container" id="hero-film-container">
-        <div class="hero-film-glow-halo"></div>
-
-        <!-- Floating Drift Chips -->
-        <div class="drift-chip top-chip">
-          <span>Instant SQLite WAL Auto-Save</span>
-        </div>
-        <div class="drift-chip bottom-chip">
-          <span>KaTeX LaTeX Math Rendering</span>
-        </div>
-
-        <div class="hero-film-window" id="hero-film-window">
-          <div class="hero-film-header">
-            <div class="film-dots">
-              <div class="film-dot" style="background: #ef4444;"></div>
-              <div class="film-dot" style="background: #f59e0b;"></div>
-              <div class="film-dot" style="background: #10b981;"></div>
-            </div>
-            <div style="font-size: 0.88rem; font-family: 'JetBrains Mono', monospace; color: var(--text-tertiary);">
-              litsphere.local/workspace · High-Dimensional Feature Selection
-            </div>
-            <div style="font-size: 0.84rem; color: var(--accent-emerald); font-weight: 700; display: flex; align-items: center; gap: 0.4rem;">
-              <span class="pill-dot" style="background: var(--accent-emerald); box-shadow: 0 0 8px var(--accent-emerald);"></span>
-              LIVE SYSTEM RUNNING
-            </div>
+        <!-- Left: Manuscript Viewer Simulator -->
+        <div class="manuscript-viewer-card glow-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <span style="font-size: 0.88rem; font-weight: 700; font-family: var(--font-mono); color: var(--accent-primary);">
+              PDF MANUSCRIPT VIEWER
+            </span>
+            <span style="font-size: 0.8rem; color: var(--text-tertiary);">Click text to highlight</span>
           </div>
 
-          <!-- Film Tab Bar with Progress Bar -->
-          <div class="film-tab-bar">
-            <button class="film-tab-btn active" id="tab-btn-matrix" onclick="switchFilmTab('matrix')">
-              Master Matrix
-              <div class="tab-progress"></div>
-            </button>
-            <button class="film-tab-btn" id="tab-btn-splitscreen" onclick="switchFilmTab('splitscreen')">
-              Split-Screen Reader
-              <div class="tab-progress"></div>
-            </button>
-            <button class="film-tab-btn" id="tab-btn-synthesis" onclick="switchFilmTab('synthesis')">
-              Thesis Synthesis
-              <div class="tab-progress"></div>
-            </button>
+          <div class="highlighter-toolbar">
+            <span style="font-size: 0.82rem; color: var(--text-tertiary); font-weight: 600;">Highlighter:</span>
+            <button type="button" class="highlighter-tool-btn yellow active" onclick="setHighlightColor('yellow', this)">Yellow</button>
+            <button type="button" class="highlighter-tool-btn emerald" onclick="setHighlightColor('emerald', this)">Emerald</button>
+            <button type="button" class="highlighter-tool-btn cyan" onclick="setHighlightColor('cyan', this)">Cyan</button>
+            <button type="button" class="highlighter-tool-btn pink" onclick="setHighlightColor('pink', this)">Pink</button>
           </div>
 
-          <!-- Screen 1: Master Matrix Preview -->
-          <div class="film-screen active" id="screen-matrix">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.95rem;">
-              <span style="font-size: 0.98rem; font-weight: 700;">High-Density Benchmark Matrix</span>
-              <span style="font-size: 0.84rem; font-family: 'JetBrains Mono', monospace; background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 0.25rem 0.65rem; border-radius: 5px;">
-                Double-Click Inline Editing Active
+          <div class="manuscript-sample-doc">
+            <p>
+              <span class="interactive-selectable highlight-yellow" onclick="highlightSampleText(this)">
+                "We propose a low-latency multilingual speech translation framework engineered specifically for resource-constrained Indic and South Asian languages."
               </span>
-            </div>
-            <table style="width: 100%; border-collapse: collapse; font-size: 0.92rem; font-family: 'JetBrains Mono', monospace;">
-              <thead>
-                <tr style="background: #121b2f; color: var(--accent-primary);">
-                  <th style="padding: 0.75rem; border: 1px solid var(--border-base); text-align: left;">Paper Title</th>
-                  <th style="padding: 0.75rem; border: 1px solid var(--border-base); text-align: center;">Year</th>
-                  <th style="padding: 0.75rem; border: 1px solid var(--border-base); text-align: left;">Computational Complexity</th>
-                  <th style="padding: 0.75rem; border: 1px solid var(--border-base); text-align: center;">Datasets</th>
-                  <th style="padding: 0.75rem; border: 1px solid var(--border-base); text-align: center;">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td style="padding: 0.7rem; border: 1px solid var(--border-base); font-weight: 600; color: var(--text-primary);">
-                    Deep Isolation Forest for Anomaly Detection
-                  </td>
-                  <td style="padding: 0.7rem; border: 1px solid var(--border-base); text-align: center;">2024</td>
-                  <td style="padding: 0.7rem; border: 1px solid var(--border-base); color: var(--accent-primary);">
-                    $\mathcal{O}(N \cdot D \log K)$
-                  </td>
-                  <td style="padding: 0.7rem; border: 1px solid var(--border-base); text-align: center;">NSL-KDD, MNIST</td>
-                  <td style="padding: 0.7rem; border: 1px solid var(--border-base); text-align: center; color: var(--accent-emerald);">
-                    ● Read
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 0.7rem; border: 1px solid var(--border-base); font-weight: 600; color: var(--text-primary);">
-                    Mutual Information Feature Selection
-                  </td>
-                  <td style="padding: 0.7rem; border: 1px solid var(--border-base); text-align: center;">2023</td>
-                  <td style="padding: 0.7rem; border: 1px solid var(--border-base); color: var(--accent-primary);">
-                    $\mathcal{O}(D^2 \cdot N)$
-                  </td>
-                  <td style="padding: 0.7rem; border: 1px solid var(--border-base); text-align: center;">UNSW-NB15</td>
-                  <td style="padding: 0.7rem; border: 1px solid var(--border-base); text-align: center; color: var(--accent-amber);">
-                    ● In Progress
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 0.7rem; border: 1px solid var(--border-base); font-weight: 600; color: var(--text-primary);">
-                    Swarm Meta-Heuristic PSO Optimizer
-                  </td>
-                  <td style="padding: 0.7rem; border: 1px solid var(--border-base); text-align: center;">2024</td>
-                  <td style="padding: 0.7rem; border: 1px solid var(--border-base); color: var(--accent-primary);">
-                    $\mathcal{O}(I \cdot P \cdot D)$
-                  </td>
-                  <td style="padding: 0.7rem; border: 1px solid var(--border-base); text-align: center;">Arrhythmia, Colon</td>
-                  <td style="padding: 0.7rem; border: 1px solid var(--border-base); text-align: center; color: #94a3b8;">
-                    ● Unread
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Screen 2: Split-Screen Workspace Preview -->
-          <div class="film-screen" id="screen-splitscreen">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.35rem;">
-              <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-base); border-radius: 12px; padding: 1.35rem;">
-                <div style="font-size: 0.88rem; font-weight: 700; color: var(--accent-primary); margin-bottom: 0.65rem;">
-                  BUILT-IN PDF VIEWER & HIGHLIGHTS
-                </div>
-                <div style="font-size: 0.94rem; color: var(--text-secondary); line-height: 1.6;">
-                  "We propose Deep Isolation Forest using neural network representations to isolate outliers in non-linear manifolds..."
-                </div>
-                <div style="margin-top: 0.95rem; display: flex; gap: 0.55rem;">
-                  <span style="background: #fef08a; color: #854d0e; font-size: 0.82rem; padding: 0.22rem 0.55rem; border-radius: 5px; font-weight: 600;">Highlighted: Yellow</span>
-                  <span style="background: #a7f3d0; color: #065f46; font-size: 0.82rem; padding: 0.22rem 0.55rem; border-radius: 5px; font-weight: 600;">Highlighted: Green</span>
-                </div>
-              </div>
-              <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-base); border-radius: 12px; padding: 1.35rem;">
-                <div style="font-size: 0.88rem; font-weight: 700; color: var(--accent-emerald); margin-bottom: 0.65rem;">
-                  DYNAMIC ENTRY & LATEX MATH
-                </div>
-                <div style="font-size: 0.98rem; font-family: 'JetBrains Mono', monospace; color: var(--accent-primary);">
-                  $$S(x, n) = 2^{-\frac{E(h(x))}{c(n)}}$$
-                </div>
-                <div style="font-size: 0.86rem; color: var(--text-tertiary); margin-top: 0.65rem;">
-                  Tags: <span style="background: var(--bg-surface); padding: 0.22rem 0.55rem; border-radius: 5px; color: var(--text-primary);">#AnomalyDetection</span> <span style="background: var(--bg-surface); padding: 0.22rem 0.55rem; border-radius: 5px; color: var(--text-primary);">#Ensemble</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Screen 3: Thesis Synthesis Preview -->
-          <div class="film-screen" id="screen-synthesis">
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.35rem;">
-              <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-base); border-radius: 12px; padding: 1.35rem;">
-                <div style="font-size: 0.88rem; font-weight: 700; color: var(--accent-primary);">Benchmark Datasets</div>
-                <div style="font-size: 0.92rem; font-family: 'JetBrains Mono', monospace; margin-top: 0.65rem; line-height: 1.65;">
-                  • NSL-KDD (14 papers)<br>• UNSW-NB15 (9 papers)<br>• CIC-IDS2017 (7 papers)
-                </div>
-              </div>
-              <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-base); border-radius: 12px; padding: 1.35rem;">
-                <div style="font-size: 0.88rem; font-weight: 700; color: var(--accent-rose);">Key Research Gaps</div>
-                <div style="font-size: 0.92rem; margin-top: 0.65rem; color: var(--text-secondary); line-height: 1.65;">
-                  • High training overhead on streaming feeds<br>• Sensitivity to hyper-parameter $K$
-                </div>
-              </div>
-              <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-base); border-radius: 12px; padding: 1.35rem;">
-                <div style="font-size: 0.88rem; font-weight: 700; color: var(--accent-emerald);">Thesis Opportunities</div>
-                <div style="font-size: 0.92rem; margin-top: 0.65rem; color: var(--text-secondary); line-height: 1.65;">
-                  • Hybrid GNN + Swarm Optimization for multi-modal feature selection
-                </div>
-              </div>
-            </div>
+            </p>
+            <p>
+              <span class="interactive-selectable" onclick="highlightSampleText(this)">
+                "By integrating chunked self-attention transducers, the model isolates cross-lingual acoustic representations while maintaining a streaming execution latency below 200 milliseconds."
+              </span>
+            </p>
+            <p>
+              <span class="interactive-selectable highlight-emerald" onclick="highlightSampleText(this)">
+                "Extensive benchmarking against CoVoST-2 and BanglaVoice confirms a 4.2 BLEU score improvement with 38% reduction in memory footprint compared to full-context baselines."
+              </span>
+            </p>
           </div>
         </div>
+
+        <!-- Right: KaTeX Math Sandbox -->
+        <div class="latex-sandbox-card glow-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <span style="font-size: 0.88rem; font-weight: 700; font-family: var(--font-mono); color: var(--accent-indigo);">
+              KATEX LATEX FORMULA ENGINE
+            </span>
+            <span style="font-size: 0.8rem; color: var(--text-tertiary);">Live Renderer</span>
+          </div>
+
+          <div class="formula-presets-bar" id="sandbox-formula-presets">
+            <!-- Preset buttons rendered dynamically -->
+          </div>
+
+          <label for="sandbox-latex-input" style="font-size: 0.82rem; color: var(--text-tertiary); margin-bottom: 0.35rem; display: block;">
+            LaTeX Code Input:
+          </label>
+          <textarea id="sandbox-latex-input" class="sandbox-latex-input" aria-label="LaTeX Math Formula Input">\mathcal{L}_{\text{total}} = \mathcal{L}_{\text{ASR}} + \alpha \mathcal{L}_{\text{MT}} + \beta \mathcal{L}_{\text{latency}}</textarea>
+
+          <label style="font-size: 0.82rem; color: var(--text-tertiary); margin-bottom: 0.35rem; display: block;">
+            Instant KaTeX Render Preview:
+          </label>
+          <div class="sandbox-latex-output-box" id="sandbox-latex-output">
+            <!-- Rendered by KaTeX -->
+          </div>
+        </div>
+
       </div>
+
     </div>
   </section>
 
-  <!-- Live Stats Highlights Banner with Scroll-Triggered Counters -->
+  <!-- ========================================================================
+       4. INTERACTIVE SUITE: PRISMA 2020 SCREENING SIMULATOR
+       ======================================================================== -->
+  <section class="interactive-section">
+    <div class="container">
+      
+      <div class="text-center">
+        <span class="section-eyebrow">Interactive View 03 • Systematic Quality Appraisal</span>
+        <h2 class="section-headline">PRISMA 2020 Blind Screening Simulator</h2>
+        <p class="section-subtext center-block">
+          Systematic reviews require rigorous eligibility screening. Test LitSphere's blind screening workflow: evaluate candidate papers, log methodological justifications, and watch the PRISMA 2020 audit flow update live.
+        </p>
+      </div>
+
+      <div class="prisma-sim-grid">
+        
+        <!-- Left: PRISMA Flow Diagram Simulator -->
+        <div class="prisma-flow-box glow-card" id="prisma-flow-diagram">
+          <div style="font-size: 0.92rem; font-weight: 700; font-family: var(--font-mono); color: var(--accent-gold); margin-bottom: 0.5rem;">
+            PRISMA 2020 FLOW TELEMETRY
+          </div>
+
+          <div class="prisma-flow-node">
+            <div>
+              <div class="prisma-flow-node-title">1. Identification Phase</div>
+              <div class="prisma-flow-node-desc">Database searches & CrossRef DOI auto-fetch</div>
+            </div>
+            <div class="prisma-flow-counter" id="prisma-count-identified">142</div>
+          </div>
+
+          <div class="prisma-flow-arrow">↓</div>
+
+          <div class="prisma-flow-node">
+            <div>
+              <div class="prisma-flow-node-title">2. Screening Phase</div>
+              <div class="prisma-flow-node-desc">Title & abstract eligibility appraisal</div>
+            </div>
+            <div class="prisma-flow-counter" id="prisma-count-screened">68</div>
+          </div>
+
+          <div class="prisma-flow-arrow">↓</div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="prisma-flow-node" style="border-left: 3px solid #10b981;">
+              <div>
+                <div class="prisma-flow-node-title" style="color: #10b981;">Included Studies</div>
+                <div class="prisma-flow-node-desc">Full synthesis criteria met</div>
+              </div>
+              <div class="prisma-flow-counter" id="prisma-count-included" style="color: #10b981;">24</div>
+            </div>
+
+            <div class="prisma-flow-node" style="border-left: 3px solid #ef4444;">
+              <div>
+                <div class="prisma-flow-node-title" style="color: #ef4444;">Excluded Studies</div>
+                <div class="prisma-flow-node-desc">Criteria not satisfied</div>
+              </div>
+              <div class="prisma-flow-counter" id="prisma-count-excluded" style="color: #ef4444;">44</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Active Study Candidate Appraisal -->
+        <div class="prisma-study-appraisal-card glow-card">
+          <div id="prisma-active-paper">
+            <!-- Paper details injected by homeInteractive.js -->
+          </div>
+
+          <div class="prisma-appraisal-controls">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <label for="prisma-criteria-reason" style="font-size: 0.84rem; font-weight: 600; color: var(--text-secondary);">
+                Screening Appraisal Justification:
+              </label>
+              <button type="button" onclick="nextPrismaSample()" style="background: none; border: none; color: var(--accent-primary); font-size: 0.82rem; cursor: pointer; text-decoration: underline;">
+                Next Candidate Paper →
+              </button>
+            </div>
+
+            <select id="prisma-criteria-reason" class="prisma-criteria-select" aria-label="PRISMA Screening Appraisal Reason">
+              <option value="Meets Full Methodological Criteria">✓ Meets Full Methodological Criteria</option>
+              <option value="High Risk of Bias / Uncontrolled Baseline">✕ Excluded: High Risk of Bias / Uncontrolled Baseline</option>
+              <option value="Insufficient Empirical Sample Size">✕ Excluded: Insufficient Empirical Sample Size</option>
+              <option value="Non-Peer Reviewed Preprint Duplicate">✕ Excluded: Non-Peer Reviewed Preprint Duplicate</option>
+              <option value="Out of Scope for Survey Domain">✕ Excluded: Out of Scope for Survey Domain</option>
+            </select>
+
+            <div class="prisma-voting-btns-row">
+              <button type="button" class="btn-vote-include" onclick="handlePrismaVote('included')">
+                Include Study
+              </button>
+              <button type="button" class="btn-vote-exclude" onclick="handlePrismaVote('excluded')">
+                Exclude Study
+              </button>
+              <button type="button" class="btn-vote-maybe" onclick="handlePrismaVote('maybe')">
+                Request Advisor Review
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       5. INTERACTIVE SUITE: CITATION & MULTI-FORMAT THESIS EXPORT
+       ======================================================================== -->
+  <section class="interactive-section">
+    <div class="container">
+      
+      <div class="text-center">
+        <span class="section-eyebrow">Interactive View 04 • Thesis Synthesis</span>
+        <h2 class="section-headline">Multi-Format Academic Citation &amp; Export Engine</h2>
+        <p class="section-subtext center-block">
+          Seamlessly export literature reviews for Overleaf LaTeX theses, Mendeley/Zotero reference libraries, and Microsoft Excel multi-level benchmark matrices.
+        </p>
+      </div>
+
+      <div class="citation-builder-card glow-card" style="max-width: 900px; margin: 0 auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px;">
+          <div class="citation-format-tabs">
+            <button class="citation-format-tab active" onclick="setCitationFormat('bibtex', this)">BibTeX (.bib)</button>
+            <button class="citation-format-tab" onclick="setCitationFormat('apa', this)">APA 7th</button>
+            <button class="citation-format-tab" onclick="setCitationFormat('ieee', this)">IEEE Style</button>
+            <button class="citation-format-tab" onclick="setCitationFormat('harvard', this)">Harvard</button>
+            <button class="citation-format-tab" onclick="setCitationFormat('ris', this)">RIS (EndNote/Zotero)</button>
+            <button class="citation-format-tab" onclick="setCitationFormat('markdown', this)">Markdown Table</button>
+          </div>
+
+          <button class="btn-secondary-hero" id="btn-copy-citation" onclick="copyCitationToClipboard()" style="padding: 6px 14px; font-size: 0.86rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span>Copy Citation</span>
+          </button>
+        </div>
+
+        <pre class="citation-code-box" id="citation-code-output"></pre>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem; color: var(--text-tertiary); font-family: var(--font-mono);">
+          <span>Format Verified: Overleaf / ACM / IEEE Compliant</span>
+          <span>1-Click Copy Ready</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       6. INTERACTIVE SUITE: 4-ROLE ACADEMIC RBAC EXPLORER
+       ======================================================================== -->
+  <section class="interactive-section">
+    <div class="container">
+      
+      <div class="text-center">
+        <span class="section-eyebrow">Interactive View 05 • Team Collaboration</span>
+        <h2 class="section-headline">4-Role Academic Governance &amp; RBAC Explorer</h2>
+        <p class="section-subtext center-block">
+          Research teams demand granular permissions. Switch between the 4 native roles below to explore real-world security guardrails separating lead authors, co-authors, supervisors, and external auditors.
+        </p>
+      </div>
+
+      <div class="rbac-explorer-card glow-card" style="max-width: 960px; margin: 0 auto;">
+        
+        <div class="rbac-role-tabs">
+          <button class="rbac-role-tab active" onclick="switchRbacRole('owner', this)">
+            👑 Owner (Lead PI)
+          </button>
+          <button class="rbac-role-tab" onclick="switchRbacRole('editor', this)">
+            ✏️ Editor (Co-Author)
+          </button>
+          <button class="rbac-role-tab" onclick="switchRbacRole('reviewer', this)">
+            🔍 Reviewer (Supervisor)
+          </button>
+          <button class="rbac-role-tab" onclick="switchRbacRole('viewer', this)">
+            👁️ Viewer (Student)
+          </button>
+        </div>
+
+        <div id="rbac-role-details">
+          <!-- Populated by homeInteractive.js -->
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       7. SYSTEM ARCHITECTURE & CORE CAPABILITIES
+       ======================================================================== -->
+  <section class="interactive-section" id="capabilities">
+    <div class="container">
+      
+      <div class="text-center">
+        <span class="section-eyebrow">Enterprise &amp; Academic Rigor</span>
+        <h2 class="section-headline">Engineered for Data Integrity &amp; Speed</h2>
+        <p class="section-subtext center-block">
+          Built with relational database rigor, transactional foreign keys, sub-millisecond local reads, and dual-layer manuscript storage.
+        </p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+        
+        <div class="glow-card" style="padding: 1.75rem;">
+          <div style="color: var(--accent-primary); font-size: 1.8rem; margin-bottom: 0.75rem;">⚡</div>
+          <h4 style="font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">
+            SQLite WAL Concurrent Engine
+          </h4>
+          <p style="font-size: 0.94rem; color: var(--text-secondary); line-height: 1.6;">
+            Uses Write-Ahead Logging (WAL) for non-blocking concurrent reads and instant atomic writes. Eliminates cloud latency and database lockups.
+          </p>
+        </div>
+
+        <div class="glow-card" style="padding: 1.75rem;">
+          <div style="color: var(--accent-emerald); font-size: 1.8rem; margin-bottom: 0.75rem;">🛡️</div>
+          <h4 style="font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">
+            Cascading Relational Protection
+          </h4>
+          <p style="font-size: 0.94rem; color: var(--text-secondary); line-height: 1.6;">
+            Foreign key constraints ensure that deleting a paper, taxonomy cluster, or survey cleanly purges child comments, file BLOBs, and metrics without orphan rows.
+          </p>
+        </div>
+
+        <div class="glow-card" style="padding: 1.75rem;">
+          <div style="color: var(--accent-gold); font-size: 1.8rem; margin-bottom: 0.75rem;">📄</div>
+          <h4 style="font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">
+            Dual-Storage Manuscript Redundancy
+          </h4>
+          <p style="font-size: 0.94rem; color: var(--text-secondary); line-height: 1.6;">
+            Uploaded PDF manuscripts are persisted both as SQLite raw BLOBs and filesystem assets, ensuring zero risk of missing papers during offline thesis defense.
+          </p>
+        </div>
+
+        <div class="glow-card" style="padding: 1.75rem;">
+          <div style="color: var(--accent-indigo); font-size: 1.8rem; margin-bottom: 0.75rem;">🌐</div>
+          <h4 style="font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">
+            CrossRef REST API &amp; DOI Resolver
+          </h4>
+          <p style="font-size: 0.94rem; color: var(--text-secondary); line-height: 1.6;">
+            Type or paste any DOI to pull author lists, publication years, conference proceedings, and abstracts directly from CrossRef with one click.
+          </p>
+        </div>
+
+        <div class="glow-card" style="padding: 1.75rem;">
+          <div style="color: var(--accent-rose); font-size: 1.8rem; margin-bottom: 0.75rem;">📊</div>
+          <h4 style="font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">
+            Real-Time Storage &amp; AI Telemetry
+          </h4>
+          <p style="font-size: 0.94rem; color: var(--text-secondary); line-height: 1.6;">
+            Live telemetry tracks storage quotas (MB used / remaining), active user sessions, and AI extraction token consumption in real time.
+          </p>
+        </div>
+
+        <div class="glow-card" style="padding: 1.75rem;">
+          <div style="color: var(--accent-teal); font-size: 1.8rem; margin-bottom: 0.75rem;">🧪</div>
+          <h4 style="font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">
+            Automated RBAC Test Harness
+          </h4>
+          <p style="font-size: 0.94rem; color: var(--text-secondary); line-height: 1.6;">
+            Verified by 6 comprehensive multi-role test suites covering 100+ automated test cases with zero regressions across the entire platform.
+          </p>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ========================================================================
+       9. LIVE STATS HIGHLIGHTS BANNER
+       ======================================================================== -->
   <section class="stats-section">
-    <div class="stats-grid">
-      <div class="glow-card stat-card reveal-card" style="--card-accent: #38bdf8;">
-        <span class="stat-number" id="live-total-papers" data-target="0">0</span>
-        <span class="stat-label">Benchmarked Papers</span>
-        <span class="stat-desc">Granularly classified across customizable algorithmic taxonomy families.</span>
-      </div>
-      <div class="glow-card stat-card reveal-card" style="--card-accent: #6366f1;">
-        <span class="stat-number" id="live-total-clusters" data-target="0">0</span>
-        <span class="stat-label">Taxonomy Clusters</span>
-        <span class="stat-desc">Dynamic categorization with custom schemas and split sub-columns.</span>
-      </div>
-      <div class="glow-card stat-card reveal-card" style="--card-accent: #10b981;">
-        <span class="stat-number" id="live-unique-keywords" data-target="0">0</span>
-        <span class="stat-label">Extracted Keywords</span>
-        <span class="stat-desc">Live database autocomplete for rapid thematic cross-referencing.</span>
-      </div>
-      <div class="glow-card stat-card reveal-card" style="--card-accent: #f59e0b;">
-        <span class="stat-number">100%</span>
-        <span class="stat-label">SQLite WAL Performance</span>
-        <span class="stat-desc">Sub-millisecond local transactions with zero cloud lock-in.</span>
+    <div class="container">
+      <div class="stats-grid">
+        
+        <div class="stat-card glow-card">
+          <span class="stat-number" id="live-total-papers">8</span>
+          <span class="stat-label">Active Research Papers</span>
+          <span class="stat-desc">Ingested, parsed, and mapped into survey clusters.</span>
+        </div>
+
+        <div class="stat-card glow-card">
+          <span class="stat-number" id="live-total-clusters">6</span>
+          <span class="stat-label">Taxonomy Clusters</span>
+          <span class="stat-desc">Custom domain classifications with dynamic schemas.</span>
+        </div>
+
+        <div class="stat-card glow-card">
+          <span class="stat-number" id="live-unique-keywords">18</span>
+          <span class="stat-label">Extracted Research Tags</span>
+          <span class="stat-desc">Thematic cross-referencing and live autocomplete.</span>
+        </div>
+
+        <div class="stat-card glow-card">
+          <span class="stat-number">100%</span>
+          <span class="stat-label">SQLite WAL Reliability</span>
+          <span class="stat-desc">Zero lockups with sub-millisecond local reads.</span>
+        </div>
+
       </div>
     </div>
   </section>
 
-
-
-  <!-- Why LitSphere Section (Comparison Panel) -->
-  <section class="content-section" id="why-litsphere">
-    <div class="section-eyebrow">The Academic Reality</div>
-    <h2 class="section-headline">Why Traditional Spreadsheets Fail for Research Reviews</h2>
-    <p class="section-subtext">
-      Standard spreadsheets and folder directories weren't built for literature reviews. LitSphere was purpose-built from the ground up for researchers, thesis authors, and survey papers.
-    </p>
-
-    <div class="comparison-grid">
-      <div class="glow-card compare-card reveal-card">
-        <div style="font-size: 0.9rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--accent-rose); text-transform: uppercase; margin-bottom: 0.6rem;">
-          Manual Spreadsheets & Folders
-        </div>
-        <h3 style="font-size: 1.35rem; font-weight: 800; font-family: 'Outfit', sans-serif; margin-bottom: 1rem;">Disorganized & Broken</h3>
-        <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.9rem; font-size: 0.98rem; color: var(--text-secondary);">
-          <li><strong>No LaTeX Support:</strong> Mathematical formulas and Big-O notation turn into unreadable text strings.</li>
-          <li><strong>No PDF Integration:</strong> Constantly switching between Acrobat, browser tabs, and Excel rows.</li>
-          <li><strong>Manual Data Ingestion:</strong> Typing titles, authors, DOIs, and venues by hand for every paper.</li>
-          <li><strong>Flat Rigid Tables:</strong> Impossible to create nested hierarchical sub-columns without breaking formulas.</li>
-          <li><strong>No Auto-Synthesis:</strong> Manually compiling datasets, classifiers, and gaps takes weeks.</li>
-        </ul>
-      </div>
-
-      <div class="glow-card compare-card highlight reveal-card">
-        <div style="font-size: 0.9rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--accent-teal); text-transform: uppercase; margin-bottom: 0.6rem;">
-          The LitSphere Solution
-        </div>
-        <h3 style="font-size: 1.35rem; font-weight: 800; font-family: 'Outfit', sans-serif; margin-bottom: 1rem;">Structured, Deep & Automated</h3>
-        <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.9rem; font-size: 0.98rem; color: var(--text-primary);">
-          <li><strong>Full KaTeX LaTeX Engine:</strong> Loss functions, complexity bounds, and mathematical models render natively.</li>
-          <li><strong>Split-Screen Workspace:</strong> Read PDFs side-by-side with your data panel and highlight passages in color.</li>
-          <li><strong>Smart Ingestion & DOI Auto-Fetch:</strong> 1st-page PDF regex parser + CrossRef API pulls metadata in seconds.</li>
-          <li><strong>Dynamic Multi-Level Columns:</strong> Add custom columns and split parents into sub-headers on demand.</li>
-          <li><strong>Auto-Synthesized Insights:</strong> Instant aggregated summaries of benchmark datasets, models, and thesis opportunities.</li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <!-- Alternating Feature Breakdown -->
-  <section class="content-section" id="features">
-    <div class="section-eyebrow">Deep Feature Exploration</div>
-    <h2 class="section-headline">A Complete Research Benchmarking Engine</h2>
-    <p class="section-subtext">Explore the modular capabilities powering every stage of your literature survey.</p>
-
-    <div class="feature-row reveal-card">
-      <div>
-        <span class="pill-badge" style="margin-bottom: 0.9rem;">Phase 1 & 2 • Ingestion</span>
-        <h3 style="font-family: 'Outfit', sans-serif; font-size: 2.1rem; font-weight: 800; margin-bottom: 0.95rem; color: var(--text-primary);">
-          Bulk PDF Ingestion & CrossRef DOI Auto-Fetch
-        </h3>
-        <p style="font-size: 1.05rem; color: var(--text-secondary); line-height: 1.7; margin-bottom: 1.35rem;">
-          Drag and drop batches of PDF research papers or simply enter DOIs. Our intelligent 1st-page parser and CrossRef integration automatically extract titles, author lists, publication years, conference venues, and abstracts.
-        </p>
-        <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.7rem; font-size: 0.96rem; color: var(--text-tertiary);">
-          <li>✓ Drag-and-drop batch upload with real-time dropzone visual feedback</li>
-          <li>✓ Automated CrossRef REST API metadata resolution</li>
-          <li>✓ Unassigned paper staging tray with HTML5 card drag-to-cluster assignment</li>
-        </ul>
-      </div>
-      <div class="glow-card feature-img-card">
-        <div style="font-size: 0.9rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--accent-primary); margin-bottom: 0.85rem;">
-          UNASSIGNED PAPERS STAGING TRAY
-        </div>
-        <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-base); border-radius: 12px; padding: 1.25rem; margin-bottom: 0.85rem;">
-          <div style="font-weight: 700; font-size: 0.98rem; color: var(--text-primary);">Deep Isolation Forest Benchmark.pdf</div>
-          <div style="font-size: 0.84rem; color: var(--text-tertiary); font-family: 'JetBrains Mono', monospace;">DOI: 10.1145/2939672.2939785 · 2024</div>
-        </div>
-        <div style="display: flex; gap: 0.6rem;">
-          <button class="btn-hero-primary" style="font-size: 0.88rem; padding: 0.5rem 1rem;">Drag to Cluster</button>
-          <span style="font-size: 0.86rem; color: var(--accent-emerald); display: flex; align-items: center;">✓ 1st-Page Parsed</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="feature-row reverse reveal-card">
-      <div>
-        <span class="pill-badge" style="margin-bottom: 0.9rem;">Phase 3 • Split-Screen Review</span>
-        <h3 style="font-family: 'Outfit', sans-serif; font-size: 2.1rem; font-weight: 800; margin-bottom: 0.95rem; color: var(--text-primary);">
-          Split-Screen Reading with KaTeX LaTeX Preview
-        </h3>
-        <p style="font-size: 1.05rem; color: var(--text-secondary); line-height: 1.7; margin-bottom: 1.35rem;">
-          Never lose your reading flow. Open any paper into a side-by-side workspace: view full PDFs with page navigation, zoom, and multi-color highlighting on the left, while entering mathematical loss functions, Big-O bounds, and dynamic keywords on the right.
-        </p>
-        <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.7rem; font-size: 0.96rem; color: var(--text-tertiary);">
-          <li>✓ In-built PDF viewer with Yellow, Green, Cyan, and Pink text highlighter</li>
-          <li>✓ Real-time KaTeX formula previewing as you type</li>
-          <li>✓ Dynamic keyword autocomplete suggestions with live database counts</li>
-        </ul>
-      </div>
-      <div class="glow-card feature-img-card">
-        <div style="font-size: 0.9rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--accent-indigo); margin-bottom: 0.85rem;">
-          SPLIT-SCREEN WORKSPACE &amp; MATH
-        </div>
-        <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-base); border-radius: 12px; padding: 1.5rem; text-align: center;">
-          <div style="font-size: 1.25rem; color: var(--accent-primary); margin-bottom: 0.6rem;">
-            $$\min_{\theta} \frac{1}{N}\sum_{i=1}^N \mathcal{L}(f_\theta(x_i), y_i) + \lambda \|\theta\|_1$$
-          </div>
-          <div style="font-size: 0.86rem; font-family: 'JetBrains Mono', monospace; color: var(--text-tertiary);">
-            LaTeX Preview · Auto-Saved to SQLite
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="feature-row reveal-card">
-      <div>
-        <span class="pill-badge" style="margin-bottom: 0.9rem;">Phase 4 & 5 • Matrix & Synthesis</span>
-        <h3 style="font-family: 'Outfit', sans-serif; font-size: 2.1rem; font-weight: 800; margin-bottom: 0.95rem; color: var(--text-primary);">
-          Excel-Like Master Matrix & Multi-Level Export
-        </h3>
-        <p style="font-size: 1.05rem; color: var(--text-secondary); line-height: 1.7; margin-bottom: 1.35rem;">
-          Benchmark your entire taxonomy in a dense, high-performance table. Double-click any cell to edit in-place, split parent columns into nested sub-headers (e.g. Time vs Space Complexity), and export directly to multi-level Excel spreadsheets.
-        </p>
-        <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.7rem; font-size: 0.96rem; color: var(--text-tertiary);">
-          <li>✓ Double-click inline cell editing with instant visual commit pulses</li>
-          <li>✓ Multi-span nested column grouping (colspan)</li>
-          <li>✓ Multi-format export: Multi-level Excel (.xlsx), CSV, and JSON</li>
-        </ul>
-      </div>
-      <div class="glow-card feature-img-card">
-        <div style="font-size: 0.9rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--accent-emerald); margin-bottom: 0.85rem;">
-          MULTI-LEVEL EXCEL EXPORT (.XLSX)
-        </div>
-        <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-base); border-radius: 12px; padding: 1.35rem;">
-          <div style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.45rem;">
-            SheetJS Multi-Level Header Generator
-          </div>
-          <div style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6;">
-            Merged Parent Headers: [ Computational Complexity $\rightarrow$ Time / Space ]
-          </div>
-          <div style="margin-top: 0.85rem; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; color: var(--accent-emerald);">
-            ✓ Compatible with Microsoft Excel, Apple Numbers & Google Sheets
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Capability Grid -->
-  <section class="content-section">
-    <div class="section-eyebrow">System Capabilities</div>
-    <h2 class="section-headline">Engineered for Robustness & Performance</h2>
-    <p class="section-subtext">Built using industry best practices in full-stack architecture, relational database integrity, and modern frontend styling.</p>
-
-    <div class="capability-grid">
-      <div class="glow-card capability-card reveal-card">
-        <h4 style="font-family: 'Outfit', sans-serif; font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">Multi-Project Isolation & RBAC</h4>
-        <p style="font-size: 0.96rem; color: var(--text-secondary); line-height: 1.65;">
-          Work on multiple separate literature surveys simultaneously. Strict role-based access control separates researcher data from platform administrators.
-        </p>
-      </div>
-
-      <div class="glow-card capability-card reveal-card">
-        <h4 style="font-family: 'Outfit', sans-serif; font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">SQLite WAL Engine</h4>
-        <p style="font-size: 0.96rem; color: var(--text-secondary); line-height: 1.65;">
-          Utilizes SQLite in Write-Ahead Logging (WAL) mode for lightning-fast concurrent read/writes, sub-millisecond query execution, and zero locking.
-        </p>
-      </div>
-
-      <div class="glow-card capability-card reveal-card">
-        <h4 style="font-family: 'Outfit', sans-serif; font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">Cascading Relational Protection</h4>
-        <p style="font-size: 0.96rem; color: var(--text-secondary); line-height: 1.65;">
-          Strict foreign keys and atomic SQL transactions ensure that deleting a project or cluster cleans up all related records without orphan data.
-        </p>
-      </div>
-
-      <div class="glow-card capability-card reveal-card">
-        <h4 style="font-family: 'Outfit', sans-serif; font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">Dynamic Keyword Autocomplete</h4>
-        <p style="font-size: 0.96rem; color: var(--text-secondary); line-height: 1.65;">
-          As you type research keywords, LitSphere queries the database in real-time to suggest existing tags with live paper frequency counts.
-        </p>
-      </div>
-
-      <div class="glow-card capability-card reveal-card">
-        <h4 style="font-family: 'Outfit', sans-serif; font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">Thesis Synthesis & Master Templates</h4>
-        <p style="font-size: 0.96rem; color: var(--text-secondary); line-height: 1.65;">
-          Auto-aggregates all benchmark datasets, machine learning baselines, strengths, and open research gaps with preloaded academic domain taxonomy templates.
-        </p>
-      </div>
-
-      <div class="glow-card capability-card reveal-card">
-        <h4 style="font-family: 'Outfit', sans-serif; font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">Automated Test Suite</h4>
-        <p style="font-size: 0.96rem; color: var(--text-secondary); line-height: 1.65;">
-          Includes a pre-built test harness (`npm test`) verifying all REST API endpoints, RBAC security guards, exports, and schema integrity.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <!-- 5-Step Workflow Pipeline -->
-  <section class="content-section" id="workflow">
-    <div class="section-eyebrow">Structured Methodology</div>
-    <h2 class="section-headline">The 5-Step Research Benchmarking Pipeline</h2>
-    <p class="section-subtext">From initial literature gathering to final publication matrix, LitSphere provides a seamless workflow.</p>
-
-    <div class="workflow-timeline">
-      <div class="glow-card step-card reveal-card">
-        <span class="step-number">01</span>
-        <h4 style="font-family: 'Outfit', sans-serif; font-size: 1.18rem; font-weight: 700; color: var(--text-primary);">Define Taxonomy</h4>
-        <p style="font-size: 0.92rem; color: var(--text-secondary); line-height: 1.6;">Create your project or clone a master template to initialize algorithmic clusters.</p>
-      </div>
-      <div class="glow-card step-card reveal-card">
-        <span class="step-number">02</span>
-        <h4 style="font-family: 'Outfit', sans-serif; font-size: 1.18rem; font-weight: 700; color: var(--text-primary);">Ingest Papers</h4>
-        <p style="font-size: 0.92rem; color: var(--text-secondary); line-height: 1.6;">Drop batches of PDFs or paste DOIs to automatically pull metadata and populate trays.</p>
-      </div>
-      <div class="glow-card step-card reveal-card">
-        <span class="step-number">03</span>
-        <h4 style="font-family: 'Outfit', sans-serif; font-size: 1.18rem; font-weight: 700; color: var(--text-primary);">Split-Screen Review</h4>
-        <p style="font-size: 0.92rem; color: var(--text-secondary); line-height: 1.6;">Read PDFs, highlight passages, enter KaTeX math equations, and tag keywords.</p>
-      </div>
-      <div class="glow-card step-card reveal-card">
-        <span class="step-number">04</span>
-        <h4 style="font-family: 'Outfit', sans-serif; font-size: 1.18rem; font-weight: 700; color: var(--text-primary);">Matrix Benchmark</h4>
-        <p style="font-size: 0.92rem; color: var(--text-secondary); line-height: 1.6;">Compare algorithms in the Master Matrix, split columns, and edit inline.</p>
-      </div>
-      <div class="glow-card step-card reveal-card">
-        <span class="step-number">05</span>
-        <h4 style="font-family: 'Outfit', sans-serif; font-size: 1.18rem; font-weight: 700; color: var(--text-primary);">Synthesize & Export</h4>
-        <p style="font-size: 0.92rem; color: var(--text-secondary); line-height: 1.6;">Review synthesized research gaps, generate supervisor share links, and export to Excel.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Personas Section -->
-  <section class="content-section">
-    <div class="section-eyebrow">Who It's Built For</div>
-    <h2 class="section-headline">Tailored for Academic Excellence</h2>
-    <p class="section-subtext">Whether you are an undergraduate working on your thesis or a faculty researcher drafting a survey paper.</p>
-
-    <div class="persona-grid">
-      <div class="glow-card persona-card reveal-card">
-        <span class="persona-tag">Final Year Students</span>
-        <h4 style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1.15rem; color: var(--text-primary);">Thesis Literature Reviews</h4>
-        <p style="font-size: 0.92rem; color: var(--text-secondary); line-height: 1.6;">
-          Organize 50+ papers into neat clusters, extract equations, and auto-generate comparison tables for your thesis chapter 2.
-        </p>
-      </div>
-      <div class="glow-card persona-card reveal-card">
-        <span class="persona-tag">Survey Paper Authors</span>
-        <h4 style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1.15rem; color: var(--text-primary);">Systematic Reviews</h4>
-        <p style="font-size: 0.92rem; color: var(--text-secondary); line-height: 1.6;">
-          Conduct PRISMA-compliant systematic reviews with complete audit trails, metadata extraction, and multi-level matrix exports.
-        </p>
-      </div>
-      <div class="glow-card persona-card reveal-card">
-        <span class="persona-tag">Research Groups</span>
-        <h4 style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1.15rem; color: var(--text-primary);">Lab Benchmarking</h4>
-        <p style="font-size: 0.92rem; color: var(--text-secondary); line-height: 1.6;">
-          Maintain standardized benchmarks across datasets, classifiers, hardware setups, and algorithmic execution complexity.
-        </p>
-      </div>
-      <div class="glow-card persona-card reveal-card">
-        <span class="persona-tag">Faculty Supervisors</span>
-        <h4 style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1.15rem; color: var(--text-primary);">Research Supervision</h4>
-        <p style="font-size: 0.92rem; color: var(--text-secondary); line-height: 1.6;">
-          Review student progress in real-time with read-only supervisor links, verified citations, and structured gap summaries.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Call To Action Banner -->
+  <!-- ========================================================================
+       10. CALL TO ACTION BANNER
+       ======================================================================== -->
   <section class="cta-banner">
-    <div class="cta-inner">
+    <div class="container">
       <h2 class="cta-title">Ready to Benchmark Your Research Literature?</h2>
       <p class="cta-subtext">
-        Launch the interactive workspace to create your clusters, upload research papers, and build your comprehensive literature matrix in seconds.
+        Join leading researchers and graduate students who use LitSphere to organize papers, extract mathematical equations, and synthesize theses with speed and precision.
       </p>
-      <a href="/workspace" class="btn-hero-primary" style="font-size: 1.18rem; padding: 1.05rem 2.6rem;">
-        <span>Launch Workspace Now</span>
-        <span>→</span>
-      </a>
+      <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+        <a href="/dashboard?action=new" class="btn-primary-hero" id="btn-cta-start-new-survey" style="font-size: 1.15rem; padding: 14px 36px;">
+          <span>Start with New Survey</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </a>
+      </div>
     </div>
   </section>
 
-  <!-- Commercial Enterprise & Academic Platform Footer (Auto-rendered by /js/core/footer.js) -->
+  <!-- Site Footer (Auto-rendered by /js/core/footer.js) -->
   <footer id="site-footer"></footer>
 
-
+  <!-- Core Scripts -->
+  <script src="/js/core/navbar.js"></script>
+  <script src="/js/core/footer.js"></script>
+  <script src="/js/core/homeInteractive.js?v=2.2"></script>
 
   <script>
-    // 1. Scroll Progress Bar
-    window.addEventListener('scroll', () => {
-      const winScroll = document.documentElement.scrollTop || document.body.scrollTop;
-      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-      const scrolled = (winScroll / height) * 100;
-      const bar = document.getElementById('scroll-progress');
-      if (bar) bar.style.width = scrolled + '%';
-    });
 
-    // 2. Cursor Reactive Spotlight on all Glow Cards
-    document.querySelectorAll('.glow-card').forEach(card => {
-      card.addEventListener('mousemove', (e) => {
-        const rect = card.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        card.style.setProperty('--mouse-x', `${x}px`);
-        card.style.setProperty('--mouse-y', `${y}px`);
-      });
-    });
+    // 2. Dynamic Rotating Word Flipper
+    const flipperWords = ['benchmarked.', 'synthesized.', 'appraised.', 'accelerated.', 'discovered.'];
+    let flipperIdx = 0;
+    const flipperEl = document.getElementById('flipper-word');
+    if (flipperEl) {
+      setInterval(() => {
+        flipperEl.style.opacity = '0';
+        flipperEl.style.transform = 'translateY(8px)';
+        setTimeout(() => {
+          flipperIdx = (flipperIdx + 1) % flipperWords.length;
+          flipperEl.textContent = flipperWords[flipperIdx];
+          flipperEl.style.opacity = '1';
+          flipperEl.style.transform = 'translateY(0)';
+        }, 260);
+      }, 2800);
+    }
 
-    // 3. Hero Constellation Particles Canvas
+    // 3. Hero Particle Network Canvas
     const canvas = document.getElementById('hero-canvas');
     if (canvas) {
       const ctx = canvas.getContext('2d');
-      let particles = [];
       let width = (canvas.width = window.innerWidth);
-      let height = (canvas.height = 750);
+      let height = (canvas.height = 850);
+      let particles = [];
 
       window.addEventListener('resize', () => {
         width = canvas.width = window.innerWidth;
-        height = canvas.height = 750;
+        height = canvas.height = 850;
       });
 
-      for (let i = 0; i < 45; i++) {
+      for (let i = 0; i < 48; i++) {
         particles.push({
           x: Math.random() * width,
           y: Math.random() * height,
-          vx: (Math.random() - 0.5) * 0.45,
-          vy: (Math.random() - 0.5) * 0.45,
+          vx: (Math.random() - 0.5) * 0.4,
+          vy: (Math.random() - 0.5) * 0.4,
           radius: Math.random() * 1.8 + 0.8
         });
       }
@@ -1118,303 +646,28 @@
       drawNetwork();
     }
 
-    // 4. Rotating Dynamic Word Flipper in Headline
-    const flipperWords = ['benchmarked.', 'synthesized.', 'classified.', 'accelerated.'];
-    let flipperIdx = 0;
-    const flipperEl = document.getElementById('flipper-word');
-    if (flipperEl) {
-      setInterval(() => {
-        flipperEl.style.opacity = '0';
-        flipperEl.style.transform = 'translateY(10px)';
-        setTimeout(() => {
-          flipperIdx = (flipperIdx + 1) % flipperWords.length;
-          flipperEl.textContent = flipperWords[flipperIdx];
-          flipperEl.style.opacity = '1';
-          flipperEl.style.transform = 'translateY(0)';
-        }, 300);
-      }, 2600);
-    }
-
-    // 5. Universal Theme Management
-    function applyTheme(theme) {
-      const targetTheme = theme === 'light' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', targetTheme);
-      localStorage.setItem('litsphere_theme', targetTheme);
-      localStorage.setItem('lr_platform_theme', targetTheme);
-      localStorage.setItem('fs_theme', targetTheme);
-
-      const sunSvg = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
-      const moonSvg = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
-      const iconSvg = targetTheme === 'light' ? sunSvg : moonSvg;
-      const text = targetTheme === 'light' ? 'Light' : 'Dark';
-
-      document.querySelectorAll('#theme-icon, .theme-icon-indicator, .theme-toggle-pill span, .theme-toggle-btn span:first-child').forEach(el => {
-        if (el && (el.id === 'theme-icon' || el.classList.contains('theme-icon-indicator') || el.parentElement.classList.contains('theme-toggle-pill'))) {
-          el.innerHTML = iconSvg;
-        }
-      });
-      document.querySelectorAll('#theme-text').forEach(el => {
-        if (el) el.textContent = text;
-      });
-
-      window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: targetTheme } }));
-    }
-
-    function toggleTheme() {
-      const currentTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
-      const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
-      applyTheme(nextTheme);
-    }
-
-    // Sync across browser tabs
-    window.addEventListener('storage', (e) => {
-      if (e.key === 'litsphere_theme' || e.key === 'lr_platform_theme' || e.key === 'fs_theme') {
-        if (e.newValue) applyTheme(e.newValue);
-      }
-    });
-
-    // Initialize theme state & active link on DOM load
-    document.addEventListener('DOMContentLoaded', () => {
-      const saved = localStorage.getItem('litsphere_theme') || document.documentElement.getAttribute('data-theme') || 'dark';
-      applyTheme(saved);
-
-      // Auto highlight active nav link
-      const path = window.location.pathname;
-      document.querySelectorAll('.nav-link-academic').forEach(link => {
-        const href = link.getAttribute('href');
-        if (href === path || ((path === '/' || path === '/home' || path.endsWith('index.html')) && (href === '/' || href === '/home'))) {
-          link.classList.add('active');
-        } else {
-          link.classList.remove('active');
-        }
-      });
-    });
-
-    // 6. Hero Film Tab Switcher
-    function switchFilmTab(tab) {
-      document.querySelectorAll('.film-tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.film-screen').forEach(s => s.classList.remove('active'));
-
-      const btn = document.getElementById('tab-btn-' + tab);
-      const screen = document.getElementById('screen-' + tab);
-      if (btn) btn.classList.add('active');
-      if (screen) screen.classList.add('active');
-
-      if (window.renderMathInElement) {
-        renderMathInElement(document.body, {
-          delimiters: [
-            { left: '$$', right: '$$', display: true },
-            { left: '$', right: '$', display: false }
-          ]
-        });
-      }
-    }
-
-    const filmTabs = ['matrix', 'splitscreen', 'synthesis'];
-    let currentFilmIdx = 0;
-    let autoFilmInterval = setInterval(() => {
-      currentFilmIdx = (currentFilmIdx + 1) % filmTabs.length;
-      switchFilmTab(filmTabs[currentFilmIdx]);
-    }, 4500);
-
-    const filmWindow = document.getElementById('hero-film-window');
-    if (filmWindow) {
-      filmWindow.addEventListener('mouseenter', () => clearInterval(autoFilmInterval));
-      
-      filmWindow.addEventListener('mousemove', (e) => {
-        const rect = filmWindow.getBoundingClientRect();
-        const x = e.clientX - rect.left - rect.width / 2;
-        const y = e.clientY - rect.top - rect.height / 2;
-        const rx = -(y / (rect.height / 2)) * 6;
-        const ry = (x / (rect.width / 2)) * 6;
-        filmWindow.style.transform = `perspective(1200px) rotateX(${rx}deg) rotateY(${ry}deg) scale3d(1.01, 1.01, 1.01)`;
-      });
-
-      filmWindow.addEventListener('mouseleave', () => {
-        filmWindow.style.transform = 'perspective(1200px) rotateX(4deg) rotateY(0deg) scale3d(1, 1, 1)';
-      });
-    }
-
-
-
-    // 8. Smooth Number Counting Animation
-    function animateCounter(el, target, duration = 1600) {
-      if (!el || target === 0) {
-        el.textContent = target;
-        return;
-      }
-      const start = 0;
-      const startTime = performance.now();
-      function update(now) {
-        const elapsed = now - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const ease = 1 - Math.pow(1 - progress, 4);
-        const current = Math.floor(start + (target - start) * ease);
-        el.textContent = current.toLocaleString();
-        if (progress < 1) {
-          requestAnimationFrame(update);
-        } else {
-          el.textContent = target.toLocaleString();
-        }
-      }
-      requestAnimationFrame(update);
-    }
-
-    let paperCount = 0, clusterCount = 0, keywordCount = 0;
-
-    async function fetchStatsData() {
+    // 4. Fetch live database telemetry for stats banner
+    async function updateLiveStats() {
       try {
         const res = await fetch('/api/stats');
         if (res.ok) {
           const data = await res.json();
-          paperCount = data.total_papers || 0;
-          clusterCount = data.total_clusters || 0;
-          keywordCount = data.total_unique_keywords || 0;
+          if (data.total_papers && document.getElementById('live-total-papers')) {
+            document.getElementById('live-total-papers').textContent = data.total_papers;
+          }
+          if (data.total_clusters && document.getElementById('live-total-clusters')) {
+            document.getElementById('live-total-clusters').textContent = data.total_clusters;
+          }
+          if (data.total_unique_keywords && document.getElementById('live-unique-keywords')) {
+            document.getElementById('live-unique-keywords').textContent = data.total_unique_keywords;
+          }
         }
       } catch (e) {
-        console.warn('Could not fetch live stats:', e);
+        // Fallback already rendered
       }
     }
 
-    const revealObserver = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('active');
-          
-          if (entry.target.classList.contains('stat-card')) {
-            const elPapers = document.getElementById('live-total-papers');
-            const elClusters = document.getElementById('live-total-clusters');
-            const elKeywords = document.getElementById('live-unique-keywords');
-            if (elPapers) animateCounter(elPapers, paperCount);
-            if (elClusters) animateCounter(elClusters, clusterCount);
-            if (elKeywords) animateCounter(elKeywords, keywordCount);
-          }
-        }
-      });
-    }, {
-      threshold: 0.15,
-      rootMargin: '0px 0px -40px 0px'
-    });
-
-    function handleNavProtectedClick(targetPath) {
-      const token = localStorage.getItem('litsphere_auth_token');
-      if (!token) {
-        window.location.href = '/login?redirect=' + encodeURIComponent(targetPath);
-      } else {
-        window.location.href = targetPath;
-      }
-    }
-
-    // Check if already authenticated to update header and hero signup section
-    async function checkCurrentSession() {
-      const token = localStorage.getItem('litsphere_auth_token');
-      const guestGroup = document.getElementById('nav-guest-group');
-      const authGroup = document.getElementById('nav-auth-group');
-      const userNameEl = document.getElementById('nav-user-name');
-      const adminLink = document.getElementById('nav-admin-link');
-      const heroOverleafAuth = document.getElementById('hero-overleaf-auth');
-
-      if (!token) {
-        if (guestGroup) guestGroup.style.display = 'flex';
-        if (authGroup) authGroup.style.display = 'none';
-        if (heroOverleafAuth) heroOverleafAuth.style.display = 'block';
-        return;
-      }
-
-      try {
-        const res = await fetch('/api/auth/me', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (guestGroup) guestGroup.style.display = 'none';
-          if (authGroup) authGroup.style.display = 'flex';
-          if (heroOverleafAuth) heroOverleafAuth.style.display = 'none';
-          if (userNameEl && data.user) {
-            const displayUsername = data.user.username || (data.user.name ? data.user.name.split(' ')[0] : 'User');
-            userNameEl.textContent = displayUsername;
-            if (document.getElementById('dropdown-user-name-txt')) document.getElementById('dropdown-user-name-txt').textContent = data.user.name || displayUsername;
-            if (document.getElementById('dropdown-user-email-txt')) document.getElementById('dropdown-user-email-txt').textContent = data.user.email;
-            if (document.getElementById('nav-user-role-badge')) document.getElementById('nav-user-role-badge').textContent = (data.user.role || 'USER').toUpperCase();
-            if (document.getElementById('dropdown-admin-link') && data.user.role === 'admin') document.getElementById('dropdown-admin-link').style.display = 'flex';
-          }
-          if (adminLink && data.user && data.user.role === 'admin') {
-            adminLink.style.display = 'inline-flex';
-          }
-        } else {
-          localStorage.removeItem('litsphere_auth_token');
-          if (guestGroup) guestGroup.style.display = 'flex';
-          if (authGroup) authGroup.style.display = 'none';
-          if (heroOverleafAuth) heroOverleafAuth.style.display = 'block';
-        }
-      } catch (e) {
-        if (guestGroup) guestGroup.style.display = 'flex';
-        if (authGroup) authGroup.style.display = 'none';
-        if (heroOverleafAuth) heroOverleafAuth.style.display = 'block';
-      }
-    }
-
-    function toggleAccountDropdown(e) {
-      if (e) { e.preventDefault(); e.stopPropagation(); }
-      const menu = document.getElementById('account-dropdown-menu');
-      const btn = document.getElementById('account-dropdown-toggle');
-      if (!menu) return;
-      const isShown = menu.classList.contains('show');
-      if (isShown) {
-        menu.classList.remove('show');
-        if (btn) btn.classList.remove('open');
-      } else {
-        menu.classList.add('show');
-        if (btn) btn.classList.add('open');
-      }
-    }
-
-    document.addEventListener('click', (e) => {
-      const wrap = document.getElementById('account-dropdown-wrap');
-      if (wrap && !wrap.contains(e.target)) {
-        const menu = document.getElementById('account-dropdown-menu');
-        const btn = document.getElementById('account-dropdown-toggle');
-        if (menu) menu.classList.remove('show');
-        if (btn) btn.classList.remove('open');
-      }
-    });
-
-    function handleHomeLogout() {
-      localStorage.removeItem('litsphere_auth_token');
-      localStorage.removeItem('litsphere_user');
-      window.location.reload();
-    }
-
-    window.addEventListener('DOMContentLoaded', async () => {
-      await fetchStatsData();
-      await checkCurrentSession();
-      
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('auth') === 'login' || urlParams.get('login') === '1') {
-        window.location.href = '/login';
-      } else if (urlParams.get('auth') === 'register' || urlParams.get('register') === '1') {
-        window.location.href = '/register';
-      }
-      
-      document.querySelectorAll('.reveal-card').forEach(el => {
-        revealObserver.observe(el);
-      });
-
-      setTimeout(() => {
-        if (window.renderMathInElement) {
-          renderMathInElement(document.body, {
-            delimiters: [
-              { left: '$$', right: '$$', display: true },
-              { left: '$', right: '$', display: false }
-            ]
-          });
-        }
-      }, 300);
-    });
+    window.addEventListener('DOMContentLoaded', updateLiveStats);
   </script>
-
-  <!-- Modular Core Scripts -->
-  <script src="/js/core/navbar.js"></script>
-  <script src="/js/core/footer.js"></script>
 </body>
 </html>

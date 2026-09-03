@@ -145,13 +145,16 @@ function buildCardInsights(p) {
 }
 
 window.deletePaper = async function(paperId, event) {
-  if (event) event.stopPropagation();
-  if (['reviewer', 'viewer'].includes(currentProjectRole)) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  if (typeof currentProjectRole !== 'undefined' && ['reviewer', 'viewer'].includes(currentProjectRole)) {
     showToast(`[Read-Only] Role '${currentProjectRole.toUpperCase()}' cannot delete papers.`, 'info');
     return;
   }
 
-  if (!confirm('Are you sure you want to delete this research paper?')) return;
+  if (!confirm('⚠️ Are you sure you want to permanently delete this research paper from the survey?')) return;
 
   try {
     const res = await fetch(`/api/papers/${paperId}`, {
@@ -164,7 +167,14 @@ window.deletePaper = async function(paperId, event) {
       if (typeof loadStats === 'function') await loadStats();
       if (typeof loadSynthesisInsights === 'function') await loadSynthesisInsights();
     } else {
-      throw new Error(await res.text());
+      let errText = 'Failed to delete paper';
+      try {
+        const json = await res.json();
+        if (json.error) errText = json.error;
+      } catch (_) {
+        errText = await res.text();
+      }
+      throw new Error(errText);
     }
   } catch (err) {
     showToast('Failed to delete paper: ' + err.message, 'error');

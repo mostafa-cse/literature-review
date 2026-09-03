@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const path = require('path');
+const fs = require('fs');
 const { getDb } = require('../db');
-const { getProjectRole, recalculateUserStorage } = require('../utils/auth');
+const { getProjectRole, recalculateUserStorage, logAuditEvent } = require('../utils/auth');
 
 // ==========================================
 // PAPERS CRUD & FILTERING API
@@ -600,20 +602,40 @@ router.post('/papers/bulk-reassign', (req, res) => {
 router.delete('/papers/:id', (req, res) => {
   try {
     const db = getDb();
-    const existing = db.prepare('SELECT id, project_id FROM papers WHERE id = ?').get(req.params.id);
+    const existing = db.prepare('SELECT id, project_id, title, pdf_url FROM papers WHERE id = ?').get(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Paper not found' });
 
-    const role = req.user ? getProjectRole(req.user.id, existing.project_id) : 'viewer';
-    if (!['owner', 'editor'].includes(role)) {
-      return res.status(403).json({ error: `Access Denied. Role '${role}' cannot delete papers. Required: Owner or Editor.` });
+    if (req.user) {
+      const role = getProjectRole(req.user.id, existing.project_id);
+      if (!['owner', 'editor'].includes(role) && req.user.role !== 'admin') {
+        return res.status(403).json({ error: `Access Denied. Role '${role}' cannot delete papers. Required: Owner or Editor.` });
+      }
+    }
+
+    // Clean up associated physical disk PDF file if exists
+    if (existing.pdf_url && existing.pdf_url.startsWith('/uploads/')) {
+      const filename = path.basename(existing.pdf_url);
+      const rootUploads = path.resolve(__dirname, '../../../uploads', filename);
+      const backendUploads = path.resolve(__dirname, '../../uploads', filename);
+      try {
+        if (fs.existsSync(rootUploads)) fs.unlinkSync(rootUploads);
+      } catch (_) {}
+      try {
+        if (fs.existsSync(backendUploads)) fs.unlinkSync(backendUploads);
+      } catch (_) {}
     }
 
     const result = db.prepare('DELETE FROM papers WHERE id = ?').run(req.params.id);
     if (result.changes === 0) return res.status(404).json({ error: 'Paper not found' });
+
     if (req.user && req.user.id) {
       recalculateUserStorage(req.user.id);
+      if (typeof logAuditEvent === 'function') {
+        logAuditEvent(req, 'DELETE_PAPER', `Deleted paper #${existing.id} ("${existing.title}") from project #${existing.project_id}`);
+      }
     }
-    res.json({ success: true, message: 'Paper deleted' });
+
+    res.json({ success: true, message: 'Paper deleted successfully', id: req.params.id });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
