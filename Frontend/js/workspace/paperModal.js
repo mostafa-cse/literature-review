@@ -441,6 +441,7 @@ window.submitAddPaperForm = async function(e) {
     showToast(hasFile ? 'Research Paper & PDF Document uploaded successfully!' : 'Research Paper added successfully!', 'success');
 
     if (typeof loadPapers === 'function') await loadPapers();
+    if (typeof loadClusters === 'function') await loadClusters();
     if (typeof loadStats === 'function') await loadStats();
     if (typeof loadSynthesisInsights === 'function') await loadSynthesisInsights();
   } catch (err) {

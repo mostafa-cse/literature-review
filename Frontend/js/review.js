@@ -37,13 +37,20 @@
     summary: {}   // Key-value pairs object for summary breakdown
   };
 
-  // PDF.js State
+  // PDF.js & Text Highlighting State
   let currentPdfDoc = null;
   let pdfCurrentPageNum = 1;
   let pdfTotalPages = 1;
   let pdfScale = 1.0;
   let isRenderingPdf = false;
   let pdfRenderQueue = null;
+  let paperHighlights = [];
+  let defaultHighlightColor = '#fef08a';
+  let defaultHighlightLabel = 'Key Point';
+  let isHighlightModeActive = true;
+  let activeClickedHighlight = null;
+  let activeSelectionData = null;
+  let currentHighlightFilter = 'all';
 
   /* ────────────────────────────────────────────────────────────────
      1. INITIALIZATION & DATA LOADING
@@ -51,7 +58,7 @@
   window.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
     currentProjectId = parseInt(urlParams.get('project') || urlParams.get('projectId') || '1', 10);
-    currentPaperId = parseInt(urlParams.get('paper') || urlParams.get('paperId') || '0', 10);
+    currentPaperId = parseInt(urlParams.get('paper') || urlParams.get('paperId') || urlParams.get('id') || '0', 10);
 
     // Setup back button link
     const backBtn = document.getElementById('btn-back-to-workspace');
@@ -114,7 +121,24 @@
 
   async function loadInitialData() {
     try {
-      // 1. Fetch Clusters for this survey
+      // 1. Fetch Single Active Paper Info FIRST (if paper ID is provided)
+      if (currentPaperId) {
+        try {
+          const paperRes = await fetch(`/api/papers/${currentPaperId}`, {
+            headers: getAuthHeaders()
+          });
+          if (paperRes.ok) {
+            activePaper = await paperRes.json();
+            if (activePaper && activePaper.project_id) {
+              currentProjectId = parseInt(activePaper.project_id, 10);
+            }
+          }
+        } catch (e) {
+          console.warn('Notice: Error fetching paper by id', e);
+        }
+      }
+
+      // 2. Fetch Clusters for this survey/project
       try {
         const clustersRes = await fetch(`/api/clusters?project_id=${currentProjectId}`, {
           headers: getAuthHeaders()
@@ -129,7 +153,7 @@
         allClusters = [];
       }
 
-      // 2. Fetch Project Info
+      // 3. Fetch Project Info
       try {
         const projRes = await fetch(`/api/projects/${currentProjectId}`, {
           headers: getAuthHeaders()
@@ -144,22 +168,55 @@
         console.warn('Notice: Error fetching project info', e);
       }
 
-      // 3. Fetch Dynamic Columns for this survey
+      // 4. Fetch Dynamic Columns for this survey and this paper's cluster
+      const fetchedColsMap = new Map();
+
+      // A. If paper belongs to a specific cluster, fetch that cluster's specific columns
+      const paperClusterId = activePaper ? activePaper.cluster_id : null;
+      if (paperClusterId && paperClusterId !== 'unassigned') {
+        try {
+          const clusterColsRes = await fetch(`/api/dynamic-columns?cluster_id=${paperClusterId}`, {
+            headers: getAuthHeaders()
+          });
+          if (clusterColsRes.ok) {
+            const cCols = await clusterColsRes.json();
+            if (Array.isArray(cCols)) {
+              cCols.forEach(col => {
+                const name = col.column_name || col.name;
+                if (name && !fetchedColsMap.has(name)) {
+                  fetchedColsMap.set(name, col);
+                }
+              });
+            }
+          }
+        } catch (e) {
+          console.warn('Notice: Error fetching cluster-specific columns', e);
+        }
+      }
+
+      // B. Fetch project-wide dynamic columns
       try {
         const colsRes = await fetch(`/api/dynamic-columns?project_id=${currentProjectId}`, {
           headers: getAuthHeaders()
         });
         if (colsRes.ok) {
-          surveyDynamicColumns = await colsRes.json();
-        } else {
-          surveyDynamicColumns = [];
+          const pCols = await colsRes.json();
+          if (Array.isArray(pCols)) {
+            pCols.forEach(col => {
+              const name = col.column_name || col.name;
+              if (name && !fetchedColsMap.has(name)) {
+                fetchedColsMap.set(name, col);
+              }
+            });
+          }
         }
       } catch (e) {
         console.warn('Notice: Error fetching dynamic columns', e);
-        surveyDynamicColumns = [];
       }
 
-      // 4. Fetch All Papers of this survey to aggregate survey-wide domains & keywords
+      surveyDynamicColumns = Array.from(fetchedColsMap.values());
+
+      // 5. Fetch All Papers of this survey to aggregate survey-wide domains & keywords
       try {
         const allPapersRes = await fetch(`/api/papers?project_id=${currentProjectId}`, {
           headers: getAuthHeaders()
@@ -174,21 +231,7 @@
         surveyPapers = [];
       }
 
-      // 5. Fetch Single Active Paper Info
-      if (currentPaperId) {
-        try {
-          const paperRes = await fetch(`/api/papers/${currentPaperId}`, {
-            headers: getAuthHeaders()
-          });
-          if (paperRes.ok) {
-            activePaper = await paperRes.json();
-          }
-        } catch (e) {
-          console.warn('Notice: Error fetching paper by id', e);
-        }
-      }
-
-      // Fallback: If no paper id is in URL or paper was not found, pick first paper of project
+      // Fallback: If no paper id was passed or paper was not found, pick first paper of project
       if (!activePaper && Array.isArray(surveyPapers) && surveyPapers.length > 0) {
         activePaper = surveyPapers[0];
         currentPaperId = activePaper.id;
@@ -287,23 +330,39 @@
     }
     componentState.keywords = Array.from(surveyKeywordsSet);
 
-    // 4. Columns (from survey dynamic columns + active paper column values)
+    // 4. Columns (consolidate cluster columns + project columns + custom columns + paper column values)
     componentState.columns = {};
-    if (Array.isArray(surveyDynamicColumns)) {
-      surveyDynamicColumns.forEach(col => {
+
+    // A. Cluster-specific columns from paper endpoint
+    if (p && Array.isArray(p.cluster_columns)) {
+      p.cluster_columns.forEach(col => {
         const colName = col.column_name || col.name;
         if (colName) {
           componentState.columns[colName] = '';
         }
       });
     }
-    if (p && p.custom_columns && Object.keys(p.custom_columns).length > 0) {
+
+    // B. Project / Survey dynamic columns
+    if (Array.isArray(surveyDynamicColumns)) {
+      surveyDynamicColumns.forEach(col => {
+        const colName = col.column_name || col.name;
+        if (colName && !(colName in componentState.columns)) {
+          componentState.columns[colName] = '';
+        }
+      });
+    }
+
+    // C. Custom columns key-value dictionary
+    if (p && p.custom_columns && typeof p.custom_columns === 'object') {
       Object.entries(p.custom_columns).forEach(([k, v]) => {
         if (k && !k.startsWith('col_') && !/^\d+$/.test(k)) {
           componentState.columns[k] = v || '';
         }
       });
     }
+
+    // D. Explicit column values from paper_column_values table
     if (p && Array.isArray(p.column_values)) {
       p.column_values.forEach(cv => {
         if (cv.column_name) {
@@ -333,8 +392,9 @@
       detailedInput.value = p.gaps || p.intuition || '';
     }
 
-    // Load PDF preview
+    // Load PDF preview & Highlights
     loadPdfPreview(p.pdf_url || (p.doi ? `https://doi.org/${p.doi}` : null));
+    loadPaperHighlights(p.id);
   }
 
   function updateUnassignedSectionVisibility() {
@@ -346,19 +406,11 @@
     const clusterSec = document.getElementById('section-cluster');
     const prismaSec = document.getElementById('section-prisma');
 
-    if (isUnassigned) {
-      // Review from Unassign Cluster: hide Domain, Keywords, Columns, Detailed Summary
-      if (domainSec) domainSec.style.display = 'none';
-      if (keywordsSec) keywordsSec.style.display = 'none';
-      if (colsSec) colsSec.style.display = 'none';
-      if (summarySec) summarySec.style.display = 'none';
-    } else {
-      // Assigned paper in cluster: show all sections
-      if (domainSec) domainSec.style.display = 'block';
-      if (keywordsSec) keywordsSec.style.display = 'block';
-      if (colsSec) colsSec.style.display = 'block';
-      if (summarySec) summarySec.style.display = 'block';
-    }
+    // Keep all sections visible and functional so users can inspect/extract data at any stage
+    if (domainSec) domainSec.style.display = 'block';
+    if (keywordsSec) keywordsSec.style.display = 'block';
+    if (colsSec) colsSec.style.display = 'block';
+    if (summarySec) summarySec.style.display = 'block';
     if (clusterSec) clusterSec.style.display = 'block';
     if (prismaSec) prismaSec.style.display = 'block';
   }
@@ -754,6 +806,51 @@
         showToast(targetCluster ? `✓ Transferred to "${targetCluster.name}" and linked to Included` : 'Saved as Unassigned');
       }
 
+      // Broadcast transfer to parent workspace tabs/windows so they update live without reload
+      try {
+        const pid = (new URLSearchParams(window.location.search)).get('project') || 1;
+        const syncPayload = {
+          type: 'paper_transferred',
+          paperId: activePaper.id,
+          clusterId: stagedClusterId,
+          clusterName: targetCluster ? targetCluster.name : null,
+          screeningDecision: 'included',
+          projectId: pid,
+          timestamp: Date.now()
+        };
+        try {
+          const bc = new BroadcastChannel('literature_review_sync');
+          bc.postMessage(syncPayload);
+          bc.close();
+        } catch (_) {}
+        try {
+          localStorage.setItem('literature_review_sync_event', JSON.stringify(syncPayload));
+        } catch (_) {}
+      } catch (_) {}
+
+      // Fetch and merge new cluster's dynamic columns if transferred
+      if (stagedClusterId && stagedClusterId !== 'unassigned') {
+        try {
+          const clusterColsRes = await fetch(`/api/dynamic-columns?cluster_id=${stagedClusterId}`, {
+            headers: getAuthHeaders()
+          });
+          if (clusterColsRes.ok) {
+            const newCols = await clusterColsRes.json();
+            if (Array.isArray(newCols)) {
+              newCols.forEach(col => {
+                const colName = col.column_name || col.name;
+                if (colName && !(colName in componentState.columns)) {
+                  componentState.columns[colName] = '';
+                }
+              });
+              renderColumnsDashedBoxes();
+            }
+          }
+        } catch (e) {
+          console.warn('Notice: Error fetching new cluster dynamic columns', e);
+        }
+      }
+
       updateHeaderSubtitle();
       updateBreadcrumb();
       updateUnassignedSectionVisibility();
@@ -811,18 +908,79 @@
     }
   }
 
+  /* ────────────────────────────────────────────────────────────────
+     3. DOMAIN GRID & Instant Search Filter
+  ──────────────────────────────────────────────────────────────── */
+  let domainSearchQuery = '';
+
+  window.handleDomainSearch = function (query) {
+    domainSearchQuery = (query || '').trim().toLowerCase();
+    const clearBtn = document.getElementById('btn-clear-domain-search');
+    if (clearBtn) {
+      clearBtn.style.display = domainSearchQuery ? 'flex' : 'none';
+    }
+    renderDomainsGrid();
+  };
+
+  window.clearDomainSearch = function () {
+    const input = document.getElementById('domain-search-input');
+    if (input) {
+      input.value = '';
+      input.focus();
+    }
+    const clearBtn = document.getElementById('btn-clear-domain-search');
+    if (clearBtn) clearBtn.style.display = 'none';
+    domainSearchQuery = '';
+    renderDomainsGrid();
+  };
+
+  window.handleDomainSearchFocus = function () {
+    const sec = document.getElementById('section-domain');
+    if (sec && sec.classList.contains('collapsed')) {
+      window.toggleSection('section-domain');
+    }
+  };
+
+  function updateDomainCounterBadge(totalCount, filteredCount) {
+    const badge = document.getElementById('domain-count-badge');
+    if (!badge) return;
+    if (totalCount === 0) {
+      badge.style.display = 'none';
+      return;
+    }
+    badge.style.display = 'inline-flex';
+    if (domainSearchQuery) {
+      badge.textContent = `${filteredCount} / ${totalCount}`;
+      badge.classList.add('filtered');
+      badge.title = `Showing ${filteredCount} of ${totalCount} domains matching "${domainSearchQuery}"`;
+    } else {
+      badge.textContent = `${totalCount}`;
+      badge.classList.remove('filtered');
+      badge.title = `Total domains: ${totalCount}`;
+    }
+  }
+
   function renderDomainsGrid(selectedDomain) {
     const container = document.getElementById('grid-domains');
     if (!container) return;
     container.innerHTML = '';
 
-    const currentDomain = selectedDomain || (activePaper ? activePaper.domain : '');
+    const currentDomain = selectedDomain !== undefined ? selectedDomain : (activePaper ? activePaper.domain : '');
     const domainList = Array.from(new Set([
       ...(componentState.domains || []),
       ...(currentDomain ? [currentDomain] : [])
-    ]));
+    ])).filter(Boolean);
 
-    if (domainList.length === 0) {
+    const totalCount = domainList.length;
+
+    // Filter items according to search query
+    const filteredList = domainSearchQuery
+      ? domainList.filter(dom => String(dom).toLowerCase().includes(domainSearchQuery))
+      : domainList;
+
+    updateDomainCounterBadge(totalCount, filteredList.length);
+
+    if (totalCount === 0) {
       const emptyNote = document.createElement('div');
       emptyNote.className = 'empty-taxonomy-note';
       emptyNote.style.gridColumn = '1 / -1';
@@ -832,9 +990,23 @@
       emptyNote.style.padding = '4px 0';
       emptyNote.textContent = 'No domains defined yet for this survey.';
       container.appendChild(emptyNote);
+    } else if (filteredList.length === 0 && domainSearchQuery) {
+      const noMatchBox = document.createElement('div');
+      noMatchBox.className = 'no-column-matches';
+      noMatchBox.style.gridColumn = '1 / -1';
+      noMatchBox.style.padding = '8px 4px 12px';
+      noMatchBox.style.fontSize = '12px';
+      noMatchBox.style.color = 'var(--text-muted, #94a3b8)';
+      noMatchBox.innerHTML = `
+        <div>No domains matching "<strong style="color:var(--text-main); font-weight:600;">${esc(domainSearchQuery)}</strong>"</div>
+        <button type="button" class="clear-search-pill-btn" onclick="clearDomainSearch()">
+          ✕ Clear search
+        </button>
+      `;
+      container.appendChild(noMatchBox);
     }
 
-    domainList.forEach(dom => {
+    filteredList.forEach(dom => {
       if (!dom) return;
       const isSelected = currentDomain && String(dom).toLowerCase() === String(currentDomain).toLowerCase();
       const item = document.createElement('div');
@@ -896,6 +1068,58 @@
     container.appendChild(addBtn);
   }
 
+  /* ────────────────────────────────────────────────────────────────
+     4. KEYWORDS GRID & Instant Search Filter
+  ──────────────────────────────────────────────────────────────── */
+  let keywordsSearchQuery = '';
+
+  window.handleKeywordsSearch = function (query) {
+    keywordsSearchQuery = (query || '').trim().toLowerCase();
+    const clearBtn = document.getElementById('btn-clear-keywords-search');
+    if (clearBtn) {
+      clearBtn.style.display = keywordsSearchQuery ? 'flex' : 'none';
+    }
+    renderKeywordsGrid();
+  };
+
+  window.clearKeywordsSearch = function () {
+    const input = document.getElementById('keywords-search-input');
+    if (input) {
+      input.value = '';
+      input.focus();
+    }
+    const clearBtn = document.getElementById('btn-clear-keywords-search');
+    if (clearBtn) clearBtn.style.display = 'none';
+    keywordsSearchQuery = '';
+    renderKeywordsGrid();
+  };
+
+  window.handleKeywordsSearchFocus = function () {
+    const sec = document.getElementById('section-keywords');
+    if (sec && sec.classList.contains('collapsed')) {
+      window.toggleSection('section-keywords');
+    }
+  };
+
+  function updateKeywordsCounterBadge(totalCount, filteredCount) {
+    const badge = document.getElementById('keywords-count-badge');
+    if (!badge) return;
+    if (totalCount === 0) {
+      badge.style.display = 'none';
+      return;
+    }
+    badge.style.display = 'inline-flex';
+    if (keywordsSearchQuery) {
+      badge.textContent = `${filteredCount} / ${totalCount}`;
+      badge.classList.add('filtered');
+      badge.title = `Showing ${filteredCount} of ${totalCount} keywords matching "${keywordsSearchQuery}"`;
+    } else {
+      badge.textContent = `${totalCount}`;
+      badge.classList.remove('filtered');
+      badge.title = `Total keywords: ${totalCount}`;
+    }
+  }
+
   function renderKeywordsGrid(activeKwList) {
     const container = document.getElementById('grid-keywords');
     if (!container) return;
@@ -904,7 +1128,16 @@
     const currentList = Array.isArray(activeKwList) ? activeKwList : paperKeywords;
     const combined = Array.from(new Set([...currentList, ...componentState.keywords])).filter(Boolean);
 
-    if (combined.length === 0) {
+    const totalCount = combined.length;
+
+    // Filter items according to search query
+    const filteredList = keywordsSearchQuery
+      ? combined.filter(kw => String(kw).toLowerCase().includes(keywordsSearchQuery))
+      : combined;
+
+    updateKeywordsCounterBadge(totalCount, filteredList.length);
+
+    if (totalCount === 0) {
       const emptyNote = document.createElement('div');
       emptyNote.className = 'empty-taxonomy-note';
       emptyNote.style.gridColumn = '1 / -1';
@@ -914,9 +1147,23 @@
       emptyNote.style.padding = '4px 0';
       emptyNote.textContent = 'No keywords defined yet for this survey.';
       container.appendChild(emptyNote);
+    } else if (filteredList.length === 0 && keywordsSearchQuery) {
+      const noMatchBox = document.createElement('div');
+      noMatchBox.className = 'no-column-matches';
+      noMatchBox.style.gridColumn = '1 / -1';
+      noMatchBox.style.padding = '8px 4px 12px';
+      noMatchBox.style.fontSize = '12px';
+      noMatchBox.style.color = 'var(--text-muted, #94a3b8)';
+      noMatchBox.innerHTML = `
+        <div>No keywords matching "<strong style="color:var(--text-main); font-weight:600;">${esc(keywordsSearchQuery)}</strong>"</div>
+        <button type="button" class="clear-search-pill-btn" onclick="clearKeywordsSearch()">
+          ✕ Clear search
+        </button>
+      `;
+      container.appendChild(noMatchBox);
     }
 
-    combined.forEach(kw => {
+    filteredList.forEach(kw => {
       const isSelected = currentList.includes(kw);
       const item = document.createElement('div');
       item.className = `grid-item ${isSelected ? 'selected' : ''}`;
@@ -983,8 +1230,57 @@
   }
 
   /* ────────────────────────────────────────────────────────────────
-     5. DASHED BOXES (Dynamic Survey Columns)
+     5. DASHED BOXES (Dynamic Survey Columns & Instant Search Filter)
   ──────────────────────────────────────────────────────────────── */
+  let columnSearchQuery = '';
+
+  window.handleColumnSearch = function (query) {
+    columnSearchQuery = (query || '').trim().toLowerCase();
+    const clearBtn = document.getElementById('btn-clear-column-search');
+    if (clearBtn) {
+      clearBtn.style.display = columnSearchQuery ? 'flex' : 'none';
+    }
+    renderColumnsArray();
+  };
+
+  window.clearColumnSearch = function () {
+    const input = document.getElementById('column-search-input');
+    if (input) {
+      input.value = '';
+      input.focus();
+    }
+    const clearBtn = document.getElementById('btn-clear-column-search');
+    if (clearBtn) clearBtn.style.display = 'none';
+    columnSearchQuery = '';
+    renderColumnsArray();
+  };
+
+  window.handleColumnSearchFocus = function () {
+    const sec = document.getElementById('section-columns');
+    if (sec && sec.classList.contains('collapsed')) {
+      window.toggleSection('section-columns');
+    }
+  };
+
+  function updateColumnsCounterBadge(totalCount, filteredCount) {
+    const badge = document.getElementById('columns-count-badge');
+    if (!badge) return;
+    if (totalCount === 0) {
+      badge.style.display = 'none';
+      return;
+    }
+    badge.style.display = 'inline-flex';
+    if (columnSearchQuery) {
+      badge.textContent = `${filteredCount} / ${totalCount}`;
+      badge.classList.add('filtered');
+      badge.title = `Showing ${filteredCount} of ${totalCount} columns matching "${columnSearchQuery}"`;
+    } else {
+      badge.textContent = `${totalCount}`;
+      badge.classList.remove('filtered');
+      badge.title = `Total columns: ${totalCount}`;
+    }
+  }
+
   function renderColumnsDashedBoxes() {
     const container = document.getElementById('dashed-columns-container');
     if (!container) return;
@@ -993,7 +1289,14 @@
     paperColumnsList = [];
     if (componentState.columns && Object.keys(componentState.columns).length > 0) {
       Object.entries(componentState.columns).forEach(([k, v]) => {
-        paperColumnsList.push({ key: k, value: v });
+        if (!k) return;
+        const dyn = Array.isArray(surveyDynamicColumns) ? surveyDynamicColumns.find(dc => dc.column_name === k || dc.name === k) : null;
+        paperColumnsList.push({
+          id: dyn ? dyn.id : null,
+          key: k,
+          original_key: k,
+          value: v !== undefined && v !== null ? String(v) : ''
+        });
       });
     }
 
@@ -1005,7 +1308,11 @@
     if (!container) return;
     container.innerHTML = '';
 
-    if (paperColumnsList.length === 0) {
+    const totalCount = paperColumnsList.length;
+
+    // 1. If no columns defined at all in the paper
+    if (totalCount === 0) {
+      updateColumnsCounterBadge(0, 0);
       const emptyBox = document.createElement('div');
       emptyBox.className = 'empty-columns-hint';
       emptyBox.style.fontSize = '12.5px';
@@ -1017,25 +1324,89 @@
       return;
     }
 
-    paperColumnsList.forEach((colItem, idx) => {
+    // 2. Filter items according to search query
+    const filteredEntries = columnSearchQuery
+      ? paperColumnsList
+          .map((item, originalIdx) => ({ item, originalIdx }))
+          .filter(({ item }) => {
+            const k = (item.key || '').toLowerCase();
+            const v = (item.value || '').toLowerCase();
+            return k.includes(columnSearchQuery) || v.includes(columnSearchQuery);
+          })
+      : paperColumnsList.map((item, originalIdx) => ({ item, originalIdx }));
+
+    updateColumnsCounterBadge(totalCount, filteredEntries.length);
+
+    // 3. If searching and no matches found
+    if (filteredEntries.length === 0) {
+      const noMatchBox = document.createElement('div');
+      noMatchBox.className = 'no-column-matches';
+      noMatchBox.style.padding = '12px 8px 16px';
+      noMatchBox.style.fontSize = '12.5px';
+      noMatchBox.style.color = 'var(--text-muted, #94a3b8)';
+      noMatchBox.innerHTML = `
+        <div>No columns matching "<strong style="color:var(--text-main); font-weight:600;">${esc(columnSearchQuery)}</strong>"</div>
+        <button type="button" class="clear-search-pill-btn" onclick="clearColumnSearch()">
+          ✕ Clear search
+        </button>
+      `;
+      container.appendChild(noMatchBox);
+      return;
+    }
+
+    // 4. Render matched dashed boxes with direct editable column name and delete action
+    filteredEntries.forEach(({ item: colItem, originalIdx }) => {
       const box = document.createElement('div');
       box.className = 'dashed-box';
+      box.setAttribute('data-col-idx', originalIdx);
       box.innerHTML = `
-        <input type="text" class="dashed-col1" value="${esc(colItem.key)}" placeholder="Column name">
+        <div class="dashed-col1-wrapper">
+          <input type="text" class="dashed-col1" value="${esc(colItem.key)}" placeholder="Column name" title="Click to rename column: ${esc(colItem.key)}">
+          <span class="col-rename-icon" title="Edit column name">✎</span>
+        </div>
         <input type="text" class="dashed-col2" value="${esc(colItem.value)}" placeholder="Extracted value or notes...">
+        <button type="button" class="dashed-col-del-btn" title="Delete column '${esc(colItem.key)}'" onclick="handleDeleteColumn(${originalIdx})">
+          ✕
+        </button>
       `;
 
-      box.querySelector('.dashed-col1').oninput = (e) => {
-        const oldKey = paperColumnsList[idx].key;
+      const inputCol1 = box.querySelector('.dashed-col1');
+      const inputCol2 = box.querySelector('.dashed-col2');
+
+      inputCol1.oninput = (e) => {
         const newKey = e.target.value;
-        paperColumnsList[idx].key = newKey;
+        const oldKey = paperColumnsList[originalIdx].key;
+        paperColumnsList[originalIdx].key = newKey;
         delete componentState.columns[oldKey];
-        componentState.columns[newKey] = paperColumnsList[idx].value;
+        componentState.columns[newKey] = paperColumnsList[originalIdx].value;
         triggerAutoSave(false);
       };
-      box.querySelector('.dashed-col2').oninput = (e) => {
-        paperColumnsList[idx].value = e.target.value;
-        componentState.columns[paperColumnsList[idx].key] = e.target.value;
+
+      inputCol1.onblur = async (e) => {
+        const newKey = (e.target.value || '').trim();
+        const origKey = paperColumnsList[originalIdx].original_key;
+        if (!newKey) {
+          e.target.value = origKey;
+          paperColumnsList[originalIdx].key = origKey;
+          componentState.columns[origKey] = paperColumnsList[originalIdx].value;
+          showToast('Column name cannot be empty');
+          return;
+        }
+        if (newKey !== origKey) {
+          await renameColumnDirect(origKey, newKey, paperColumnsList[originalIdx].id, originalIdx);
+        }
+      };
+
+      inputCol1.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          inputCol1.blur();
+        }
+      };
+
+      inputCol2.oninput = (e) => {
+        paperColumnsList[originalIdx].value = e.target.value;
+        componentState.columns[paperColumnsList[originalIdx].key] = e.target.value;
         triggerAutoSave(false);
       };
 
@@ -1043,27 +1414,262 @@
     });
   }
 
-  window.handleSplitColumn = function () {
+  window.renameColumnDirect = async function (oldKey, newKey, colId, originalIdx) {
+    if (!oldKey || !newKey || oldKey === newKey) return;
+    try {
+      const payload = {
+        old_column_name: oldKey,
+        new_column_name: newKey,
+        column_id: colId || null,
+        project_id: currentProjectId,
+        cluster_id: activePaper ? activePaper.cluster_id : null
+      };
+
+      const res = await fetch('/api/dynamic-columns/rename-by-name', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.warn('Rename column notice:', errText);
+      }
+
+      if (originalIdx !== undefined && paperColumnsList[originalIdx]) {
+        paperColumnsList[originalIdx].key = newKey;
+        paperColumnsList[originalIdx].original_key = newKey;
+      }
+
+      delete componentState.columns[oldKey];
+      componentState.columns[newKey] = (paperColumnsList[originalIdx] ? paperColumnsList[originalIdx].value : (componentState.columns[oldKey] || ''));
+
+      if (activePaper && activePaper.custom_columns) {
+        delete activePaper.custom_columns[oldKey];
+        activePaper.custom_columns[newKey] = componentState.columns[newKey];
+      }
+
+      // Update in surveyDynamicColumns cache
+      if (Array.isArray(surveyDynamicColumns)) {
+        const dyn = surveyDynamicColumns.find(dc => dc.column_name === oldKey || dc.name === oldKey || (colId && dc.id === colId));
+        if (dyn) {
+          dyn.column_name = newKey;
+          dyn.name = newKey;
+        }
+      }
+
+      showToast(`✓ Renamed column: "${oldKey}" → "${newKey}"`);
+
+      // Broadcast rename to Workspace
+      const syncPayload = {
+        type: 'column_renamed',
+        oldName: oldKey,
+        newName: newKey,
+        columnId: colId,
+        projectId: currentProjectId,
+        clusterId: activePaper ? activePaper.cluster_id : null,
+        timestamp: Date.now()
+      };
+      try {
+        const bc = new BroadcastChannel('literature_review_sync');
+        bc.postMessage(syncPayload);
+        bc.close();
+      } catch (_) {}
+      try {
+        localStorage.setItem('literature_review_sync_event', JSON.stringify(syncPayload));
+      } catch (_) {}
+    } catch (err) {
+      console.warn('Rename column notice:', err);
+    }
+  };
+
+  window.handleDeleteColumn = async function (originalIdx) {
+    const colItem = paperColumnsList[originalIdx];
+    if (!colItem || !colItem.key) return;
+
+    const colName = colItem.key;
+    const colId = colItem.id;
+
+    if (!confirm(`Are you sure you want to delete column "${colName}"?`)) {
+      return;
+    }
+
+    try {
+      const payload = {
+        column_name: colName,
+        column_id: colId || null,
+        project_id: currentProjectId,
+        cluster_id: activePaper ? activePaper.cluster_id : null
+      };
+
+      await fetch('/api/dynamic-columns/delete-by-name', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
+      });
+
+      paperColumnsList.splice(originalIdx, 1);
+      delete componentState.columns[colName];
+      if (activePaper && activePaper.custom_columns) {
+        delete activePaper.custom_columns[colName];
+      }
+
+      if (Array.isArray(surveyDynamicColumns)) {
+        surveyDynamicColumns = surveyDynamicColumns.filter(dc => dc.column_name !== colName && dc.name !== colName && (!colId || dc.id !== colId));
+      }
+
+      renderColumnsArray();
+      showToast(`✓ Deleted column "${colName}"`);
+
+      // Broadcast delete to Workspace
+      const syncPayload = {
+        type: 'column_deleted',
+        columnName: colName,
+        columnId: colId,
+        projectId: currentProjectId,
+        clusterId: activePaper ? activePaper.cluster_id : null,
+        timestamp: Date.now()
+      };
+      try {
+        const bc = new BroadcastChannel('literature_review_sync');
+        bc.postMessage(syncPayload);
+        bc.close();
+      } catch (_) {}
+      try {
+        localStorage.setItem('literature_review_sync_event', JSON.stringify(syncPayload));
+      } catch (_) {}
+    } catch (err) {
+      console.warn('Delete column error:', err);
+    }
+  };
+
+  window.handleSplitColumn = async function () {
     const nextIdx = paperColumnsList.length + 1;
+    const parentName = `Feature_${nextIdx}`;
     const splitKey1 = `Feature_${nextIdx}(TC)`;
     const splitKey2 = `Feature_${nextIdx}(SC)`;
+
+    try {
+      await fetch('/api/dynamic-columns/split', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          parent_column_name: parentName,
+          sub_columns: [splitKey1, splitKey2],
+          project_id: currentProjectId,
+          cluster_id: activePaper ? activePaper.cluster_id : null
+        })
+      });
+    } catch (e) {
+      console.warn('Split column error:', e);
+    }
+
     paperColumnsList.push(
-      { key: splitKey1, value: '' },
-      { key: splitKey2, value: '' }
+      { id: null, key: splitKey1, original_key: splitKey1, value: '' },
+      { id: null, key: splitKey2, original_key: splitKey2, value: '' }
     );
     componentState.columns[splitKey1] = '';
     componentState.columns[splitKey2] = '';
-    renderColumnsArray();
+
+    if (columnSearchQuery) {
+      window.clearColumnSearch();
+    } else {
+      renderColumnsArray();
+    }
     triggerAutoSave(true);
+    showToast(`✓ Created split columns: "${splitKey1}" & "${splitKey2}"`);
+
+    const syncPayload = {
+      type: 'column_added',
+      columnName: splitKey1,
+      projectId: currentProjectId,
+      clusterId: activePaper ? activePaper.cluster_id : null,
+      timestamp: Date.now()
+    };
+    try {
+      const bc = new BroadcastChannel('literature_review_sync');
+      bc.postMessage(syncPayload);
+      bc.close();
+    } catch (_) {}
+    try {
+      localStorage.setItem('literature_review_sync_event', JSON.stringify(syncPayload));
+    } catch (_) {}
   };
 
-  window.handleAddColumn = function () {
+  window.handleAddColumn = async function () {
     const nextIdx = paperColumnsList.length + 1;
     const newKey = `Feature_${nextIdx}`;
-    paperColumnsList.push({ key: newKey, value: '' });
+
+    let createdId = null;
+    try {
+      const res = await fetch('/api/dynamic-columns', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          column_name: newKey,
+          project_id: currentProjectId,
+          cluster_id: activePaper ? activePaper.cluster_id : null,
+          col_type: 'text'
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        createdId = data.id || null;
+      }
+    } catch (e) {
+      console.warn('Create dynamic column warning:', e);
+    }
+
+    paperColumnsList.push({
+      id: createdId,
+      key: newKey,
+      original_key: newKey,
+      value: ''
+    });
     componentState.columns[newKey] = '';
-    renderColumnsArray();
+
+    if (columnSearchQuery) {
+      window.clearColumnSearch();
+    } else {
+      renderColumnsArray();
+    }
+
+    // Auto-focus the newly created column input so the user can immediately rename it
+    setTimeout(() => {
+      const container = document.getElementById('dashed-columns-container');
+      if (container) {
+        const boxes = container.querySelectorAll('.dashed-box');
+        if (boxes.length > 0) {
+          const lastBox = boxes[boxes.length - 1];
+          const col1Input = lastBox.querySelector('.dashed-col1');
+          if (col1Input) {
+            col1Input.focus();
+            col1Input.select();
+          }
+        }
+      }
+    }, 60);
+
     triggerAutoSave(true);
+    showToast(`✓ Added column "${newKey}". Edit name directly.`);
+
+    // Broadcast column added
+    const syncPayload = {
+      type: 'column_added',
+      columnName: newKey,
+      columnId: createdId,
+      projectId: currentProjectId,
+      clusterId: activePaper ? activePaper.cluster_id : null,
+      timestamp: Date.now()
+    };
+    try {
+      const bc = new BroadcastChannel('literature_review_sync');
+      bc.postMessage(syncPayload);
+      bc.close();
+    } catch (_) {}
+    try {
+      localStorage.setItem('literature_review_sync_event', JSON.stringify(syncPayload));
+    } catch (_) {}
   };
 
   /* ────────────────────────────────────────────────────────────────
@@ -1179,7 +1785,63 @@
     const updatedTitle = titleEl ? titleEl.textContent.trim() : (activePaper.title || '');
 
     const detailedSummaryEl = document.getElementById('detailed-summary-input');
-    const detailedSummaryVal = detailedSummaryEl ? detailedSummaryEl.value.trim() : (activePaper.gaps || '');
+    // Sync any pending renamed columns to dynamic_columns definition
+    if (Array.isArray(paperColumnsList)) {
+      for (const col of paperColumnsList) {
+        if (col && col.original_key && col.key && col.key.trim() && col.key.trim() !== col.original_key.trim()) {
+          try {
+            await fetch('/api/dynamic-columns/rename-by-name', {
+              method: 'POST',
+              headers: getAuthHeaders(),
+              body: JSON.stringify({
+                old_column_name: col.original_key.trim(),
+                new_column_name: col.key.trim(),
+                column_id: col.id || null,
+                project_id: currentProjectId,
+                cluster_id: activePaper ? activePaper.cluster_id : null
+              })
+            });
+            col.original_key = col.key.trim();
+          } catch (rErr) {
+            console.warn('Auto-save rename sync notice:', rErr);
+          }
+        }
+      }
+    }
+
+    // Consolidate custom columns from paperColumnsList & componentState.columns
+    const columnUpdates = [];
+    const customColsDict = {};
+
+    if (Array.isArray(paperColumnsList) && paperColumnsList.length > 0) {
+      paperColumnsList.forEach(col => {
+        if (col && col.key && typeof col.key === 'string' && col.key.trim()) {
+          const colKey = col.key.trim();
+          const colVal = col.value !== undefined && col.value !== null ? String(col.value) : '';
+          customColsDict[colKey] = colVal;
+          columnUpdates.push({
+            paper_id: activePaper.id,
+            column_name: colKey,
+            value: colVal
+          });
+        }
+      });
+    } else if (componentState.columns && typeof componentState.columns === 'object') {
+      Object.entries(componentState.columns).forEach(([k, v]) => {
+        if (k && typeof k === 'string' && k.trim()) {
+          const colKey = k.trim();
+          const colVal = v !== undefined && v !== null ? String(v) : '';
+          customColsDict[colKey] = colVal;
+          columnUpdates.push({
+            paper_id: activePaper.id,
+            column_name: colKey,
+            value: colVal
+          });
+        }
+      });
+    }
+
+    componentState.columns = Object.assign({}, componentState.columns || {}, customColsDict);
 
     const payload = {
       title: updatedTitle,
@@ -1195,7 +1857,8 @@
       gaps: detailedSummaryVal || activePaper.gaps || '',
       keywords: paperKeywords,
       screening_decision: activePrismaVote,
-      screening_reason: activePrismaReason
+      screening_reason: activePrismaReason,
+      custom_columns: customColsDict
     };
 
     try {
@@ -1207,23 +1870,51 @@
 
       if (!res.ok) throw new Error(await res.text());
 
-      // Save custom column values
-      for (const col of paperColumnsList) {
-        if (col.key && col.value) {
-          await fetch('/api/paper-column-values', {
+      // Batch save custom column values directly to guarantee persistence
+      if (columnUpdates.length > 0) {
+        try {
+          await fetch('/api/paper-column-values/batch', {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({
               paper_id: activePaper.id,
-              column_name: col.key,
-              value: col.value
+              updates: columnUpdates
             })
           });
+        } catch (batchErr) {
+          console.warn('Batch column values save warning:', batchErr);
         }
       }
 
       Object.assign(activePaper, payload);
+      activePaper.custom_columns = Object.assign({}, activePaper.custom_columns || {}, customColsDict);
       updateStatusBadge('saved');
+
+      // Broadcast live sync to all Workspace matrix tabs
+      const pid = (new URLSearchParams(window.location.search)).get('project') || activePaper.project_id || 1;
+      const syncPayload = {
+        type: 'paper_updated',
+        paperId: activePaper.id,
+        paperIds: [activePaper.id],
+        clusterId: activePaper.cluster_id,
+        clusterName: activePaper.cluster_name,
+        title: updatedTitle,
+        domain: activePaper.domain,
+        keywords: paperKeywords,
+        screeningDecision: activePrismaVote,
+        screeningReason: activePrismaReason,
+        custom_columns: customColsDict,
+        projectId: pid,
+        timestamp: Date.now()
+      };
+      try {
+        const bc = new BroadcastChannel('literature_review_sync');
+        bc.postMessage(syncPayload);
+        bc.close();
+      } catch (_) {}
+      try {
+        localStorage.setItem('literature_review_sync_event', JSON.stringify(syncPayload));
+      } catch (_) {}
     } catch (err) {
       console.warn('Auto-save notice:', err);
       updateStatusBadge('saved'); // Optimistic saved in mock mode
@@ -1447,7 +2138,7 @@
   }
 
   /* ────────────────────────────────────────────────────────────────
-     11. PDF.js EMBEDDED VIEWER
+     11. PDF.js EMBEDDED VIEWER, TEXT SELECTION & MULTI-COLOR HIGHLIGHTS
   ──────────────────────────────────────────────────────────────── */
   function loadPdfPreview(pdfUrl) {
     const placeholder = document.getElementById('pdf-placeholder-area');
@@ -1470,8 +2161,19 @@
     if (typeof pdfjsLib === 'undefined') return;
 
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    if (pdfjsLib.VerbosityLevel) {
+      pdfjsLib.GlobalWorkerOptions.verbosity = pdfjsLib.VerbosityLevel.ERRORS;
+    }
 
-    pdfjsLib.getDocument(fullPdfUrl).promise.then(pdf => {
+    const loadingTask = pdfjsLib.getDocument({
+      url: fullPdfUrl,
+      cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+      cMapPacked: true,
+      standardFontDataUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/standard_fonts/',
+      verbosity: (typeof pdfjsLib !== 'undefined' && pdfjsLib.VerbosityLevel) ? pdfjsLib.VerbosityLevel.ERRORS : 0
+    });
+
+    loadingTask.promise.then(pdf => {
       currentPdfDoc = pdf;
       pdfTotalPages = pdf.numPages;
       pdfCurrentPageNum = 1;
@@ -1502,18 +2204,64 @@
 
     currentPdfDoc.getPage(num).then(page => {
       const canvas = document.getElementById('pdf-canvas');
-      if (!canvas) return;
+      const textLayer = document.getElementById('pdf-text-layer');
+      const highlightLayer = document.getElementById('pdf-highlight-layer');
+      const container = document.getElementById('pdf-page-container');
+      if (!canvas || !container) return;
+
       const ctx = canvas.getContext('2d');
       const viewport = page.getViewport({ scale: pdfScale });
 
+      // Synchronize container and canvas dimensions & PDF.js scale factor
       canvas.height = viewport.height;
       canvas.width = viewport.width;
+      container.style.width = `${viewport.width}px`;
+      container.style.height = `${viewport.height}px`;
+      container.style.setProperty('--scale-factor', viewport.scale);
 
+      if (highlightLayer) {
+        highlightLayer.style.width = `${viewport.width}px`;
+        highlightLayer.style.height = `${viewport.height}px`;
+        highlightLayer.style.setProperty('--scale-factor', viewport.scale);
+        highlightLayer.innerHTML = '';
+      }
+
+      if (textLayer) {
+        textLayer.style.width = `${viewport.width}px`;
+        textLayer.style.height = `${viewport.height}px`;
+        textLayer.style.setProperty('--scale-factor', viewport.scale);
+        textLayer.innerHTML = '';
+      }
+
+      // 1. Render canvas
       const renderContext = { canvasContext: ctx, viewport: viewport };
       const renderTask = page.render(renderContext);
 
       renderTask.promise.then(() => {
         isRenderingPdf = false;
+
+        // 2. Render TextLayer for Selection & Copying
+        page.getTextContent().then(textContent => {
+          if (textLayer && typeof pdfjsLib.renderTextLayer === 'function') {
+            const textLayerRenderTask = pdfjsLib.renderTextLayer({
+              textContentSource: textContent,
+              container: textLayer,
+              viewport: viewport,
+              textDivs: []
+            });
+            if (textLayerRenderTask && textLayerRenderTask.promise) {
+              textLayerRenderTask.promise.then(() => {
+                setupPdfSelectionHandlers();
+              });
+            } else {
+              setupPdfSelectionHandlers();
+            }
+          }
+        }).catch(err => console.warn('TextLayer fetch notice:', err));
+
+        // 3. Render Multi-Color Highlight Marks on this page
+        renderPageHighlights(num, viewport);
+
         if (pdfRenderQueue !== null) {
           renderPdfPage(pdfRenderQueue);
           pdfRenderQueue = null;
@@ -1524,6 +2272,564 @@
     const pageNumInput = document.getElementById('pdf-page-num');
     if (pageNumInput) pageNumInput.value = num;
   }
+
+  // --- HIGHLIGHTS API & PERSISTENCE ---
+  async function loadPaperHighlights(paperId) {
+    if (!paperId) return;
+    try {
+      const res = await fetch(`/api/papers/${paperId}/highlights`, {
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        const data = await res.json();
+        paperHighlights = Array.isArray(data.highlights) ? data.highlights : [];
+      } else {
+        const cached = localStorage.getItem(`litsphere_hl_${paperId}`);
+        paperHighlights = cached ? JSON.parse(cached) : [];
+      }
+    } catch (e) {
+      console.warn('Failed to fetch highlights from API, loading local cache:', e);
+      const cached = localStorage.getItem(`litsphere_hl_${paperId}`);
+      paperHighlights = cached ? JSON.parse(cached) : [];
+    }
+
+    updateHighlightsUi();
+    if (currentPdfDoc) {
+      currentPdfDoc.getPage(pdfCurrentPageNum).then(page => {
+        const viewport = page.getViewport({ scale: pdfScale });
+        renderPageHighlights(pdfCurrentPageNum, viewport);
+      }).catch(() => {});
+    }
+  }
+
+  function updateHighlightsUi() {
+    const count = paperHighlights.length;
+    const sidebarBadge = document.getElementById('highlights-section-count');
+    const toolbarBadge = document.getElementById('pdf-toolbar-hl-count');
+    if (sidebarBadge) sidebarBadge.textContent = count;
+    if (toolbarBadge) toolbarBadge.textContent = count;
+
+    renderHighlightsList(currentHighlightFilter);
+  }
+
+  function getDarkerBorderColor(hex) {
+    const map = {
+      '#fef08a': '#eab308',
+      '#bbf7d0': '#22c55e',
+      '#bfdbfe': '#3b82f6',
+      '#e9d5ff': '#a855f7',
+      '#fbcfe8': '#ec4899',
+      '#fed7aa': '#f97316'
+    };
+    return map[hex] || '#d4af37';
+  }
+
+  function renderPageHighlights(pageNum, viewport) {
+    const highlightLayer = document.getElementById('pdf-highlight-layer');
+    if (!highlightLayer) return;
+    highlightLayer.innerHTML = '';
+
+    const pageHls = paperHighlights.filter(h => Number(h.page_number) === Number(pageNum));
+
+    pageHls.forEach(hl => {
+      const color = hl.color || '#fef08a';
+      const rects = Array.isArray(hl.rects) ? hl.rects : [];
+
+      if (rects.length > 0) {
+        rects.forEach((r, idx) => {
+          const mark = document.createElement('div');
+          mark.className = 'pdf-highlight-mark';
+          mark.dataset.hlId = hl.id;
+          mark.style.left = `${r.x * viewport.width}px`;
+          mark.style.top = `${r.y * viewport.height}px`;
+          mark.style.width = `${r.w * viewport.width}px`;
+          mark.style.height = `${r.h * viewport.height}px`;
+          mark.style.backgroundColor = color;
+          mark.style.borderBottom = `2px solid ${getDarkerBorderColor(color)}`;
+          mark.title = `[${hl.color_label || 'Highlight'}] ${hl.selected_text || ''}`;
+
+          mark.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showHighlightPopover(hl, e.pageX, e.pageY);
+          });
+
+          highlightLayer.appendChild(mark);
+        });
+      }
+    });
+  }
+
+  // --- TEXT SELECTION & FLOATING TOOLBAR LOGIC ---
+  let selectionHandlerBound = false;
+
+  function getSafeElement(target) {
+    if (!target) return null;
+    return target instanceof Element ? target : (target.parentElement instanceof Element ? target.parentElement : null);
+  }
+
+  function setupPdfSelectionHandlers() {
+    if (selectionHandlerBound) return;
+    selectionHandlerBound = true;
+
+    document.addEventListener('selectionchange', handlePdfSelection);
+    document.addEventListener('mouseup', handlePdfSelectionEnd);
+    document.addEventListener('click', handleOutsideClicks);
+  }
+
+  function handlePdfSelection() {
+    // Selection live tracking
+  }
+
+  function handlePdfSelectionEnd(e) {
+    const targetEl = e ? getSafeElement(e.target) : null;
+    // Don't close floating toolbar if user is clicking buttons on the toolbar itself
+    if (targetEl && (targetEl.closest('#pdf-floating-toolbar') || targetEl.closest('#pdf-highlight-popover') || targetEl.closest('.pdf-color-picker-dropdown'))) {
+      return;
+    }
+
+    const selection = window.getSelection();
+    const toolbar = document.getElementById('pdf-floating-toolbar');
+    const container = document.getElementById('pdf-page-container');
+    const textLayer = document.getElementById('pdf-text-layer');
+
+    if (!selection || selection.isCollapsed || !container || !textLayer) {
+      if (toolbar && targetEl && !targetEl.closest('#pdf-floating-toolbar')) {
+        toolbar.style.display = 'none';
+      }
+      return;
+    }
+
+    const selectedText = selection.toString().trim();
+    if (!selectedText) {
+      if (toolbar) toolbar.style.display = 'none';
+      return;
+    }
+
+    // Check if selection is inside our PDF container
+    const range = selection.getRangeAt(0);
+    const commonAncestor = range.commonAncestorContainer;
+    if (!container.contains(commonAncestor) && !textLayer.contains(commonAncestor)) {
+      if (toolbar) toolbar.style.display = 'none';
+      return;
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    const rangeRect = range.getBoundingClientRect();
+    const clientRects = Array.from(range.getClientRects());
+
+    if (clientRects.length === 0 || containerRect.width === 0 || containerRect.height === 0) {
+      return;
+    }
+
+    // Compute normalized coordinates (0.0 to 1.0) so zoom invariance works perfectly
+    const normalizedRects = clientRects.map(r => ({
+      x: Math.max(0, (r.left - containerRect.left) / containerRect.width),
+      y: Math.max(0, (r.top - containerRect.top) / containerRect.height),
+      w: Math.min(1, r.width / containerRect.width),
+      h: Math.min(1, r.height / containerRect.height)
+    })).filter(r => r.w > 0.005 && r.h > 0.005);
+
+    activeSelectionData = {
+      text: selectedText,
+      rects: normalizedRects,
+      page_number: pdfCurrentPageNum
+    };
+
+    if (toolbar) {
+      toolbar.style.display = 'flex';
+      const toolbarX = Math.max(120, Math.min(window.innerWidth - 160, rangeRect.left + (rangeRect.width / 2)));
+      const toolbarY = Math.max(10, rangeRect.top + window.scrollY - 12);
+      toolbar.style.left = `${toolbarX}px`;
+      toolbar.style.top = `${toolbarY}px`;
+    }
+  }
+
+  function handleOutsideClicks(e) {
+    const targetEl = getSafeElement(e.target);
+    if (!targetEl) return;
+    if (!targetEl.closest('#pdf-highlight-popover') && !targetEl.closest('.pdf-highlight-mark')) {
+      const pop = document.getElementById('pdf-highlight-popover');
+      if (pop) pop.style.display = 'none';
+    }
+    if (!targetEl.closest('.pdf-color-picker-dropdown')) {
+      const menu = document.getElementById('pdf-color-picker-menu');
+      if (menu) menu.style.display = 'none';
+    }
+  }
+
+  // --- FLOATING TOOLBAR ACTIONS ---
+  window.copySelectionText = async function () {
+    if (!activeSelectionData || !activeSelectionData.text) return;
+    try {
+      await navigator.clipboard.writeText(activeSelectionData.text);
+      showToast(`✓ Copied "${activeSelectionData.text.slice(0, 30)}..." to clipboard!`);
+    } catch (e) {
+      // Fallback
+      const ta = document.createElement('textarea');
+      ta.value = activeSelectionData.text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast('✓ Text copied to clipboard!');
+    }
+    const toolbar = document.getElementById('pdf-floating-toolbar');
+    if (toolbar) toolbar.style.display = 'none';
+  };
+
+  window.applyHighlightFromToolbar = async function (color, label) {
+    if (!activeSelectionData || !activeSelectionData.text) {
+      handlePdfSelectionEnd({ target: document.getElementById('pdf-page-container') });
+    }
+    if (!activeSelectionData || !activeSelectionData.text || !activePaper) return;
+
+    const newHighlight = {
+      id: 'hl_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+      paper_id: activePaper.id,
+      page_number: activeSelectionData.page_number,
+      color: color || defaultHighlightColor,
+      color_label: label || defaultHighlightLabel,
+      selected_text: activeSelectionData.text,
+      rects: activeSelectionData.rects,
+      created_at: new Date().toISOString()
+    };
+
+    // Optimistic UI update
+    paperHighlights.push(newHighlight);
+    localStorage.setItem(`litsphere_hl_${activePaper.id}`, JSON.stringify(paperHighlights));
+    updateHighlightsUi();
+
+    if (currentPdfDoc) {
+      currentPdfDoc.getPage(pdfCurrentPageNum).then(page => {
+        const viewport = page.getViewport({ scale: pdfScale });
+        renderPageHighlights(pdfCurrentPageNum, viewport);
+      });
+    }
+
+    // Dismiss selection & floating toolbar
+    window.getSelection().removeAllRanges();
+    const toolbar = document.getElementById('pdf-floating-toolbar');
+    if (toolbar) toolbar.style.display = 'none';
+
+    showToast(`✓ Marked in ${label || 'Highlight'} (Page ${activeSelectionData.page_number})`);
+
+    // Persist to Backend API
+    try {
+      const res = await fetch(`/api/papers/${activePaper.id}/highlights`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          page_number: newHighlight.page_number,
+          color: newHighlight.color,
+          color_label: newHighlight.color_label,
+          selected_text: newHighlight.selected_text,
+          rects: newHighlight.rects
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.highlight && data.highlight.id) {
+          newHighlight.id = data.highlight.id;
+          localStorage.setItem(`litsphere_hl_${activePaper.id}`, JSON.stringify(paperHighlights));
+        }
+      }
+    } catch (err) {
+      console.warn('Notice: Background highlight sync', err.message);
+    }
+  };
+
+  window.addSelectionToDetailedSummary = function () {
+    if (!activeSelectionData || !activeSelectionData.text) return;
+    const summaryInput = document.getElementById('detailed-summary-input');
+    if (summaryInput) {
+      const excerpt = `[Page ${activeSelectionData.page_number}] "${activeSelectionData.text}"`;
+      summaryInput.value = summaryInput.value ? `${summaryInput.value}\n\n${excerpt}` : excerpt;
+      handleDetailedSummaryChange(summaryInput.value);
+      showToast('✓ Added quote excerpt to Detailed Summary!');
+      applyHighlightFromToolbar(defaultHighlightColor, defaultHighlightLabel);
+    }
+  };
+
+  // --- CLICKED HIGHLIGHT POPOVER LOGIC ---
+  function showHighlightPopover(hl, clientX, clientY) {
+    activeClickedHighlight = hl;
+    const popover = document.getElementById('pdf-highlight-popover');
+    if (!popover) return;
+
+    const tagEl = document.getElementById('popover-color-tag');
+    const pageEl = document.getElementById('popover-page-badge');
+    const quoteEl = document.getElementById('popover-quote-box');
+
+    if (tagEl) {
+      tagEl.textContent = hl.color_label || 'Key Point';
+      tagEl.style.color = hl.color || '#38bdf8';
+    }
+    if (pageEl) pageEl.textContent = `Page ${hl.page_number}`;
+    if (quoteEl) quoteEl.textContent = hl.selected_text || '';
+
+    popover.style.display = 'block';
+    const popX = Math.max(10, Math.min(window.innerWidth - 280, clientX - 130));
+    const popY = Math.max(10, clientY - 140);
+    popover.style.left = `${popX}px`;
+    popover.style.top = `${popY}px`;
+  }
+
+  window.updateActiveHighlightColor = async function (newColor, newLabel) {
+    if (!activeClickedHighlight) return;
+    activeClickedHighlight.color = newColor;
+    activeClickedHighlight.color_label = newLabel;
+
+    if (activePaper) {
+      localStorage.setItem(`litsphere_hl_${activePaper.id}`, JSON.stringify(paperHighlights));
+    }
+    updateHighlightsUi();
+
+    if (currentPdfDoc) {
+      currentPdfDoc.getPage(pdfCurrentPageNum).then(page => {
+        const viewport = page.getViewport({ scale: pdfScale });
+        renderPageHighlights(pdfCurrentPageNum, viewport);
+      });
+    }
+
+    const popover = document.getElementById('pdf-highlight-popover');
+    if (popover) popover.style.display = 'none';
+
+    showToast(`✓ Color updated to ${newLabel}`);
+
+    if (typeof activeClickedHighlight.id === 'number' || !String(activeClickedHighlight.id).startsWith('hl_')) {
+      try {
+        await fetch(`/api/papers/highlights/${activeClickedHighlight.id}`, {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ color: newColor, color_label: newLabel })
+        });
+      } catch (e) {}
+    }
+  };
+
+  window.copyActiveHighlightQuote = async function () {
+    if (!activeClickedHighlight) return;
+    const text = activeClickedHighlight.selected_text || '';
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('✓ Quote copied to clipboard!');
+    } catch (e) {
+      showToast('✓ Quote copied!');
+    }
+    const popover = document.getElementById('pdf-highlight-popover');
+    if (popover) popover.style.display = 'none';
+  };
+
+  window.deleteActiveHighlight = async function () {
+    if (!activeClickedHighlight) return;
+    const hlId = activeClickedHighlight.id;
+    paperHighlights = paperHighlights.filter(h => h.id !== hlId);
+
+    if (activePaper) {
+      localStorage.setItem(`litsphere_hl_${activePaper.id}`, JSON.stringify(paperHighlights));
+    }
+    updateHighlightsUi();
+
+    if (currentPdfDoc) {
+      currentPdfDoc.getPage(pdfCurrentPageNum).then(page => {
+        const viewport = page.getViewport({ scale: pdfScale });
+        renderPageHighlights(pdfCurrentPageNum, viewport);
+      });
+    }
+
+    const popover = document.getElementById('pdf-highlight-popover');
+    if (popover) popover.style.display = 'none';
+
+    showToast('Highlight deleted.');
+
+    if (typeof hlId === 'number' || !String(hlId).startsWith('hl_')) {
+      try {
+        await fetch(`/api/papers/highlights/${hlId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
+      } catch (e) {}
+    }
+  };
+
+  // --- TOOLBAR CONTROLS ---
+  window.toggleHighlightMode = function () {
+    isHighlightModeActive = !isHighlightModeActive;
+    const btn = document.getElementById('btn-highlight-mode-toggle');
+    if (btn) {
+      btn.classList.toggle('active', isHighlightModeActive);
+    }
+    showToast(isHighlightModeActive ? 'Marker mode enabled: Select text on PDF to highlight' : 'Marker mode disabled');
+  };
+
+  window.toggleColorPickerMenu = function () {
+    const menu = document.getElementById('pdf-color-picker-menu');
+    if (menu) {
+      menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+    }
+  };
+
+  window.setDefaultHighlightColor = function (color, label) {
+    defaultHighlightColor = color;
+    defaultHighlightLabel = label;
+    const swatch = document.getElementById('pdf-current-color-swatch');
+    if (swatch) swatch.style.backgroundColor = color;
+    const menu = document.getElementById('pdf-color-picker-menu');
+    if (menu) menu.style.display = 'none';
+    showToast(`Default highlight color: ${label}`);
+  };
+
+  window.pdfFitWidth = function () {
+    if (!currentPdfDoc) return;
+    const leftPane = document.getElementById('review-left-pane');
+    if (!leftPane) return;
+    currentPdfDoc.getPage(pdfCurrentPageNum).then(page => {
+      const baseViewport = page.getViewport({ scale: 1.0 });
+      const availableWidth = Math.max(300, leftPane.clientWidth - 48);
+      pdfScale = Math.max(0.5, Math.min(2.5, availableWidth / baseViewport.width));
+      const zoomVal = document.getElementById('pdf-zoom-val');
+      if (zoomVal) zoomVal.textContent = `${Math.round(pdfScale * 100)}%`;
+      renderPdfPage(pdfCurrentPageNum);
+    });
+  };
+
+  // --- RIGHT-PANE HIGHLIGHTS SECTION RENDERING ---
+  window.renderHighlightsList = function (filterColor = 'all') {
+    const container = document.getElementById('highlights-list-container');
+    if (!container) return;
+
+    let items = [...paperHighlights];
+    if (filterColor && filterColor !== 'all') {
+      items = items.filter(h => h.color === filterColor);
+    }
+
+    if (items.length === 0) {
+      container.innerHTML = `
+        <div class="highlights-empty-state">
+          <span>No highlights in this filter.</span><br>
+          <small style="color:var(--text-tertiary); font-size:10.5px;">Select any text in the PDF reader to highlight in Yellow, Green, Blue, Purple, Pink, or Orange.</small>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = items.map(hl => {
+      const color = hl.color || '#fef08a';
+      const label = hl.color_label || 'Key Point';
+      const page = hl.page_number || 1;
+      const quote = esc(hl.selected_text || '');
+      return `
+        <div class="highlight-card" style="--hl-color:${color};" onclick="jumpToHighlightPage(${page}, '${hl.id}')">
+          <div class="highlight-card-header">
+            <span class="hl-tag-badge">${esc(label)}</span>
+            <span class="hl-page-tag">Page ${page}</span>
+          </div>
+          <div class="highlight-card-quote">"${quote}"</div>
+          <div class="highlight-card-actions" onclick="event.stopPropagation();">
+            <button type="button" class="hl-action-mini-btn" onclick="copyHighlightQuoteFromList('${encodeURIComponent(hl.selected_text || '')}', event)" title="Copy excerpt">Copy</button>
+            <button type="button" class="hl-action-mini-btn danger" onclick="deleteHighlightFromList('${hl.id}', event)" title="Delete highlight">Delete</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  };
+
+  window.filterHighlightsByColor = function (color) {
+    currentHighlightFilter = color;
+    renderHighlightsList(color);
+  };
+
+  window.jumpToHighlightPage = function (pageNum, hlId) {
+    if (!currentPdfDoc || pageNum < 1 || pageNum > pdfTotalPages) return;
+    pdfCurrentPageNum = pageNum;
+    renderPdfPage(pageNum);
+
+    const viewportEl = document.getElementById('pdf-viewport');
+    if (viewportEl) {
+      viewportEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    setTimeout(() => {
+      const marks = document.querySelectorAll(`[data-hl-id="${hlId}"]`);
+      marks.forEach(m => {
+        m.classList.add('pulse-highlight');
+        setTimeout(() => m.classList.remove('pulse-highlight'), 2400);
+      });
+    }, 350);
+  };
+
+  window.copyHighlightQuoteFromList = async function (encodedQuote, e) {
+    if (e) e.stopPropagation();
+    const text = decodeURIComponent(encodedQuote || '');
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('✓ Quote excerpt copied to clipboard!');
+    } catch (err) {
+      showToast('✓ Excerpt copied!');
+    }
+  };
+
+  window.deleteHighlightFromList = async function (hlId, e) {
+    if (e) e.stopPropagation();
+    paperHighlights = paperHighlights.filter(h => String(h.id) !== String(hlId));
+
+    if (activePaper) {
+      localStorage.setItem(`litsphere_hl_${activePaper.id}`, JSON.stringify(paperHighlights));
+    }
+    updateHighlightsUi();
+
+    if (currentPdfDoc) {
+      currentPdfDoc.getPage(pdfCurrentPageNum).then(page => {
+        const viewport = page.getViewport({ scale: pdfScale });
+        renderPageHighlights(pdfCurrentPageNum, viewport);
+      });
+    }
+
+    showToast('Highlight deleted');
+
+    if (typeof hlId === 'number' || !String(hlId).startsWith('hl_')) {
+      try {
+        await fetch(`/api/papers/highlights/${hlId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
+      } catch (err) {}
+    }
+  };
+
+  window.exportHighlightsAsNotes = async function () {
+    if (paperHighlights.length === 0) {
+      showToast('No highlights yet to export for this paper.');
+      return;
+    }
+
+    const title = activePaper ? (activePaper.title || 'Paper Review') : 'Paper Review';
+    const doi = activePaper && activePaper.doi ? ` (DOI: ${activePaper.doi})` : '';
+
+    let markdown = `# Literature Synthesis & Highlights: ${title}${doi}\n\n`;
+
+    const grouped = {};
+    paperHighlights.forEach(h => {
+      const p = h.page_number || 1;
+      if (!grouped[p]) grouped[p] = [];
+      grouped[p].push(h);
+    });
+
+    Object.keys(grouped).sort((a, b) => Number(a) - Number(b)).forEach(p => {
+      markdown += `### Page ${p}\n`;
+      grouped[p].forEach(h => {
+        markdown += `- **[${h.color_label || 'Highlight'}]**: "${h.selected_text || ''}"\n`;
+      });
+      markdown += '\n';
+    });
+
+    try {
+      await navigator.clipboard.writeText(markdown);
+      showToast('✓ All paper highlights & synthesis notes copied as Markdown!');
+    } catch (err) {
+      showToast('✓ Highlights formatted & copied!');
+    }
+  };
 
   window.pdfGotoPage = function (num) {
     if (!currentPdfDoc || num < 1 || num > pdfTotalPages) return;

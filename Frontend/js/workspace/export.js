@@ -61,18 +61,18 @@ window.updateExportColumnsList = async function(clusterId) {
 
   // 2. Base Columns
   const baseCols = [
-    { id: 'year', label: 'Publish Year' },
-    { id: 'title', label: 'Paper Title' },
-    { id: 'cluster', label: 'Cluster Name' },
-    { id: 'pub', label: 'Publisher / Conf / Journal' },
+    { id: 'title', label: 'Title' },
+    { id: 'authors', label: 'Authors' },
+    { id: 'year', label: 'Year' },
+    { id: 'pub', label: 'Venue' },
+    { id: 'doi', label: 'DOI / Link' },
+    { id: 'cluster', label: 'Cluster' },
+    { id: 'domain', label: 'Domain' },
+    { id: 'status', label: 'Reading Status' },
     { id: 'advantages', label: 'Advantages' },
     { id: 'criticism', label: 'Criticism' },
     { id: 'future_directions', label: 'Future Research Direction' },
-    { id: 'authors', label: 'Authors' },
-    { id: 'domain', label: 'Domain' },
-    { id: 'status', label: 'Reading Status' },
-    { id: 'doi', label: 'DOI' },
-    { id: 'pdf_url', label: 'PDF Link' }
+    { id: 'keywords', label: 'Keywords' }
   ];
 
   const projId = (typeof activeProjectId !== 'undefined' && activeProjectId)

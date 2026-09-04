@@ -44,19 +44,87 @@ window.toggleSortSI = function(event) {
 };
 
 /**
- * Returns the active list of customizable columns in user-defined order
+ * Returns the active list of customizable columns in user-defined order.
+ * Default arrangement places Paper Metadata columns first:
+ * Paper ID, Title (frozen) followed by Authors, Year, Venue, DOI / Link, Cluster, Domain, Reading Status,
+/**
+ * Column View Mode (All Columns vs Custom Columns Only vs Metadata Only)
+ */
+window.getMatrixColumnViewMode = function() {
+  const projId = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'default';
+  const modeKey = 'matrix_col_view_mode_' + projId;
+  return localStorage.getItem(modeKey) || 'all';
+};
+
+window.setMatrixColumnViewMode = function(mode) {
+  const projId = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'default';
+  const modeKey = 'matrix_col_view_mode_' + projId;
+  localStorage.setItem(modeKey, mode);
+
+  // Sync toolbar controls
+  window.syncMatrixColumnViewControls();
+
+  // Re-render matrix
+  if (typeof applyFilters === 'function') {
+    applyFilters();
+  } else if (typeof allPapers !== 'undefined' && Array.isArray(allPapers)) {
+    window.renderMasterMatrix(allPapers);
+  }
+
+  let toastMsg = 'Showing all columns';
+  if (mode === 'custom') toastMsg = 'Hiding metadata columns • Showing custom columns only';
+  else if (mode === 'custom_pure') toastMsg = 'Showing pure custom columns only (metadata & title hidden)';
+  else if (mode === 'metadata') toastMsg = 'Showing metadata columns only';
+
+  if (typeof showToast === 'function') showToast(toastMsg, 'info');
+};
+
+window.toggleMetadataColumnsVisibility = function() {
+  const currentMode = window.getMatrixColumnViewMode();
+  const nextMode = (currentMode === 'custom' || currentMode === 'custom_pure') ? 'all' : 'custom';
+  window.setMatrixColumnViewMode(nextMode);
+};
+
+window.syncMatrixColumnViewControls = function() {
+  const mode = window.getMatrixColumnViewMode();
+  const selectEl = document.getElementById('matrix-column-view-select');
+  if (selectEl) {
+    selectEl.value = mode;
+    selectEl.classList.toggle('active-custom-filter', mode === 'custom' || mode === 'custom_pure');
+  }
+
+  const btnEl = document.getElementById('btn-toggle-metadata-visibility');
+  const btnLabel = document.getElementById('metadata-toggle-btn-label');
+  if (btnEl && btnLabel) {
+    const isCustom = (mode === 'custom' || mode === 'custom_pure');
+    btnEl.classList.toggle('active', isCustom);
+    btnLabel.textContent = isCustom ? 'Show All Columns' : 'Show Custom Only';
+    btnEl.title = isCustom 
+      ? 'Currently showing Custom Columns Only. Click to show All Columns.' 
+      : 'Currently showing All Columns. Click to hide metadata and show custom columns only.';
+  }
+};
+
+/**
+ * Returns ordered columns list for matrix rendering.
+ * Initial arrangement follows Paper Metadata first:
+ * Paper ID, Title (frozen sticky columns 1 & 2),
+ * Authors, Year, Venue, DOI / Link, Cluster, Domain, Reading Status,
+ * then Advantages, Criticism, Future Research Direction, Keywords, and dynamic columns.
  */
 window.getOrderedColumnsList = function() {
   const baseCols = [
-    { key: 'cluster', name: 'Cluster Name', isBase: true },
-    { key: 'year', name: 'Publish Year', isBase: true },
-    { key: 'pub', name: 'Publisher / Conf / Journal', isBase: true },
-    { key: 'advantages', name: 'Advantages', isBase: true },
-    { key: 'criticism', name: 'Criticism', isBase: true },
-    { key: 'future_directions', name: 'Future Research Direction', isBase: true },
-    { key: 'keywords', name: 'Keywords', isBase: true },
-    { key: 'authors', name: 'Authors', isBase: true },
-    { key: 'domain', name: 'Domain', isBase: true }
+    { key: 'authors', name: 'Authors', isBase: true, group: 'Paper Metadata' },
+    { key: 'year', name: 'Year', isBase: true, group: 'Paper Metadata' },
+    { key: 'pub', name: 'Venue', isBase: true, group: 'Paper Metadata' },
+    { key: 'doi', name: 'DOI / Link', isBase: true, group: 'Paper Metadata' },
+    { key: 'cluster', name: 'Cluster', isBase: true, group: 'Paper Metadata' },
+    { key: 'domain', name: 'Domain', isBase: true, group: 'Paper Metadata' },
+    { key: 'status', name: 'Reading Status', isBase: true, group: 'Paper Metadata' },
+    { key: 'advantages', name: 'Advantages', isBase: true, group: 'Synthesis & Insights' },
+    { key: 'criticism', name: 'Criticism', isBase: true, group: 'Synthesis & Insights' },
+    { key: 'future_directions', name: 'Future Research Direction', isBase: true, group: 'Synthesis & Insights' },
+    { key: 'keywords', name: 'Keywords', isBase: true, group: 'Synthesis & Insights' }
   ];
 
   const rawCols = window.activeDataColumns || window.activeClusterColumns || [];
@@ -72,6 +140,7 @@ window.getOrderedColumnsList = function() {
         name: cName,
         id: col.id,
         isDynamic: true,
+        group: 'Custom Columns',
         parent_column_id: col.parent_column_id,
         parent_column_name: col.parent_column_name,
         col_type: col.col_type
@@ -97,11 +166,50 @@ window.getOrderedColumnsList = function() {
     if (aliases[bc.key]) bc.name = aliases[bc.key];
   });
 
-  const combined = [...baseCols.filter(c => !hiddenCols.includes(c.key)), ...dynCols];
+  // Filter columns based on active column view mode
+  const mode = window.getMatrixColumnViewMode();
+  let filteredBaseCols = baseCols.filter(c => !hiddenCols.includes(c.key));
+  let filteredDynCols = dynCols;
+
+  // Suppress duplicate base columns when exact dynamic columns exist
+  const hasDynStrengths = dynCols.some(c => c.name && c.name.toLowerCase() === 'strengths');
+  if (hasDynStrengths) {
+    filteredBaseCols = filteredBaseCols.filter(c => c.key !== 'advantages');
+  }
+  const hasDynCriticism = dynCols.some(c => c.name && (c.name.toLowerCase().includes('criticism') || c.name.toLowerCase().includes('limitation')));
+  if (hasDynCriticism) {
+    filteredBaseCols = filteredBaseCols.filter(c => c.key !== 'criticism');
+  }
+  const hasDynFuture = dynCols.some(c => c.name && c.name.toLowerCase().includes('future'));
+  if (hasDynFuture) {
+    filteredBaseCols = filteredBaseCols.filter(c => c.key !== 'future_directions');
+  }
+  // Paper ID is rendered as Frozen Column 1, so suppress duplicate dyn_Paper ID from scrollable body
+  filteredDynCols = filteredDynCols.filter(c => c.name && c.name.toLowerCase() !== 'paper id');
+
+  if (mode === 'custom' || mode === 'custom_pure') {
+    // Hide default metadata columns, show only custom taxonomy & synthesis columns
+    filteredBaseCols = filteredBaseCols.filter(c => c.group !== 'Paper Metadata');
+  } else if (mode === 'metadata') {
+    filteredBaseCols = filteredBaseCols.filter(c => c.group === 'Paper Metadata');
+    filteredDynCols = [];
+  }
+
+  const combined = [...filteredBaseCols, ...filteredDynCols];
   
   let savedOrder = null;
   try {
     savedOrder = JSON.parse(localStorage.getItem(storageKey) || 'null');
+    // Migration: If savedOrder is from the legacy layout (lacks 'doi' or 'status'),
+    // upgrade to the requested Paper Metadata arrangement while preserving custom dynamic columns
+    if (Array.isArray(savedOrder)) {
+      const isLegacyOrder = !savedOrder.includes('doi') || !savedOrder.includes('status');
+      if (isLegacyOrder) {
+        const dynKeysInSaved = savedOrder.filter(k => k.startsWith('dyn_'));
+        savedOrder = [...baseCols.map(c => c.key), ...dynKeysInSaved];
+        localStorage.setItem(storageKey, JSON.stringify(savedOrder));
+      }
+    }
   } catch (e) {
     console.warn('Error parsing saved column order:', e);
   }
@@ -127,6 +235,21 @@ window.saveOrderedColumnsList = function(cols) {
   const projId = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'default';
   const storageKey = 'matrix_col_order_' + projId;
   localStorage.setItem(storageKey, JSON.stringify(cols.map(c => c.key)));
+};
+
+/**
+ * Resets matrix column order back to default Paper Metadata sequence
+ */
+window.resetMatrixColumnOrder = function() {
+  const projId = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : 'default';
+  const storageKey = 'matrix_col_order_' + projId;
+  localStorage.removeItem(storageKey);
+  if (typeof applyFilters === 'function') {
+    applyFilters();
+  } else if (typeof allPapers !== 'undefined' && Array.isArray(allPapers)) {
+    window.renderMasterMatrix(allPapers);
+  }
+  showToast('Matrix column layout reset to default Paper Metadata order', 'info');
 };
 
 /**
@@ -168,6 +291,10 @@ window.moveColumn = function(key, direction, event) {
  */
 let draggedColKey = null;
 window.handleColDragStart = function(event, key) {
+  if (event.target && event.target.closest('.col-title-text, .col-menu-dropdown-wrapper')) {
+    event.preventDefault();
+    return false;
+  }
   draggedColKey = key;
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move';
@@ -443,7 +570,7 @@ window.submitRenameColumnModal = async function() {
     return;
   }
 
-  const isDynamic = colObj ? colObj.isDynamic : (key.startsWith('dyn_') || !['cluster', 'domain', 'authors', 'year', 'pub'].includes(key));
+  const isDynamic = colObj ? colObj.isDynamic : (key.startsWith('dyn_') || !['cluster', 'domain', 'authors', 'year', 'pub', 'doi', 'status', 'advantages', 'criticism', 'future_directions', 'keywords'].includes(key));
 
   const submitBtn = document.getElementById('btn-submit-rename-col');
   if (submitBtn) {
@@ -595,7 +722,7 @@ window.submitDeleteColumnModal = async function() {
   }
 
   const displayCurrentName = colObj ? colObj.name : (key ? key.replace(/^dyn_/, '') : 'Column');
-  const isDynamic = colObj ? colObj.isDynamic : (key.startsWith('dyn_') || !['cluster', 'domain', 'authors', 'year', 'pub'].includes(key));
+  const isDynamic = colObj ? colObj.isDynamic : (key.startsWith('dyn_') || !['cluster', 'domain', 'authors', 'year', 'pub', 'doi', 'status', 'advantages', 'criticism', 'future_directions', 'keywords'].includes(key));
 
   const submitBtn = document.getElementById('btn-submit-delete-col');
   if (submitBtn) {
@@ -713,7 +840,60 @@ const COL_FIXED_W = '200px';
 const COL_SPLIT_W = '260px';
 const COL_EXPANDED_MAX = '540px';
 
-window.toggleColExpand = function(key, btnEl, event) {
+/**
+ * Single-click and Double-click column header handlers
+ * - Single click: Extends (expands) the column
+ * - Double click: Collapses the column
+ */
+let colHeaderClickTimer = null;
+let lastClickedColKey = null;
+
+window.handleColHeaderClick = function(key, event) {
+  if (event) {
+    event.stopPropagation();
+  }
+  // If the browser fires click with detail >= 2 (rapid second click), collapse immediately
+  if (event && event.detail && event.detail >= 2) {
+    if (colHeaderClickTimer) {
+      clearTimeout(colHeaderClickTimer);
+      colHeaderClickTimer = null;
+      lastClickedColKey = null;
+    }
+    window.toggleColExpand(key, null, null, false);
+    return;
+  }
+
+  if (colHeaderClickTimer) {
+    clearTimeout(colHeaderClickTimer);
+    colHeaderClickTimer = null;
+    if (lastClickedColKey && lastClickedColKey !== key) {
+      window.toggleColExpand(lastClickedColKey, null, null, true);
+    }
+  }
+  lastClickedColKey = key;
+  colHeaderClickTimer = setTimeout(() => {
+    colHeaderClickTimer = null;
+    const targetKey = lastClickedColKey;
+    lastClickedColKey = null;
+    if (targetKey) {
+      window.toggleColExpand(targetKey, null, null, true);
+    }
+  }, 250);
+};
+
+window.handleColHeaderDblClick = function(key, event) {
+  if (event) {
+    event.stopPropagation();
+  }
+  if (colHeaderClickTimer) {
+    clearTimeout(colHeaderClickTimer);
+    colHeaderClickTimer = null;
+    lastClickedColKey = null;
+  }
+  window.toggleColExpand(key, null, null, false);
+};
+
+window.toggleColExpand = function(key, btnEl, event, forceExpand) {
   if (event) event.stopPropagation();
 
   const colIdx = _getColIndexByKey(key);
@@ -730,27 +910,35 @@ window.toggleColExpand = function(key, btnEl, event) {
 
   const span = parseInt(th.colSpan, 10) || 1;
   const isExpanded = th.getAttribute('data-col-expanded') === 'true';
+  const shouldExpand = (forceExpand !== undefined && forceExpand !== null) ? !!forceExpand : !isExpanded;
+
+  if (shouldExpand === isExpanded) return;
+
   const isSplitCol = th.querySelector('.col-split-header-badge') !== null || th.getAttribute('data-is-split') === 'true' || span > 1;
   const baseWidth = isSplitCol ? `${span * 140}px` : COL_FIXED_W;
 
-  if (!isExpanded) {
+  if (shouldExpand) {
     // EXPAND: unlock width so content dictates size
-    th.style.width = isSplitCol ? `${Math.max(span * 200, 420)}px` : COL_EXPANDED_MAX;
-    th.style.minWidth = baseWidth;
+    const expWidth = isSplitCol ? `${Math.max(span * 220, 460)}px` : COL_EXPANDED_MAX;
+    th.style.width = expWidth;
+    th.style.minWidth = expWidth;
     th.style.maxWidth = 'none';
     th.style.overflow = 'visible';
     th.style.whiteSpace = 'normal';
     th.setAttribute('data-col-expanded', 'true');
+    th.classList.add('col-expanded');
 
     table.querySelectorAll('tbody tr').forEach(row => {
       for (let s = 0; s < span; s++) {
         const td = row.cells[cellStartIdx + s];
         if (!td) continue;
         td.style.width = isSplitCol ? '220px' : COL_EXPANDED_MAX;
-        td.style.minWidth = isSplitCol ? '140px' : baseWidth;
+        td.style.minWidth = isSplitCol ? '220px' : COL_EXPANDED_MAX;
         td.style.maxWidth = 'none';
         td.style.overflow = 'visible';
         td.style.whiteSpace = 'normal';
+        td.classList.add('col-expanded');
+        td.setAttribute('data-col-expanded', 'true');
 
         // Expand split cell values
         const splitValCells = td.querySelectorAll('.split-cell-val');
@@ -786,6 +974,7 @@ window.toggleColExpand = function(key, btnEl, event) {
     th.style.overflow = 'hidden';
     th.style.whiteSpace = 'nowrap';
     th.setAttribute('data-col-expanded', 'false');
+    th.classList.remove('col-expanded');
 
     table.querySelectorAll('tbody tr').forEach(row => {
       for (let s = 0; s < span; s++) {
@@ -796,6 +985,8 @@ window.toggleColExpand = function(key, btnEl, event) {
         td.style.maxWidth = isSplitCol ? '200px' : COL_FIXED_W;
         td.style.overflow = 'hidden';
         td.style.whiteSpace = 'nowrap';
+        td.classList.remove('col-expanded');
+        td.setAttribute('data-col-expanded', 'false');
 
         // Restore split cell values nowrap
         const splitValCells = td.querySelectorAll('.split-cell-val');
@@ -893,6 +1084,9 @@ window.addEventListener('resize', closeAllColumnMenus);
 window.addEventListener('scroll', closeAllColumnMenus, true);
 
 document.addEventListener('DOMContentLoaded', () => {
+  if (typeof window.syncMatrixColumnViewControls === 'function') {
+    window.syncMatrixColumnViewControls();
+  }
   const renameInput = document.getElementById('rename-col-input');
   if (renameInput) {
     renameInput.addEventListener('keydown', (e) => {
@@ -964,6 +1158,13 @@ window.renderMasterMatrix = function(papers) {
   }
 
   window.lastRenderedPapers = papers;
+  if (typeof window.syncMatrixColumnViewControls === 'function') {
+    window.syncMatrixColumnViewControls();
+  }
+
+  const mode = window.getMatrixColumnViewMode();
+  const hideTitle = (mode === 'custom_pure');
+
   const orderedCols = window.getOrderedColumnsList();
   const rawAllCols = window.activeDataColumns || window.activeClusterColumns || [];
 
@@ -977,30 +1178,34 @@ window.renderMasterMatrix = function(papers) {
   const trHead = document.createElement('tr');
   trHead.id = 'matrix-main-headers';
 
-  // Frozen Column 1: SI (Clickable to sort rows ascending / descending)
+  // Frozen Column 1: Paper ID (Clickable to sort rows ascending / descending)
   const thIndex = document.createElement('th');
   thIndex.id = 'th-sort-si';
   thIndex.className = 'sticky-col th-sortable';
   thIndex.rowSpan = hasAnySplitCol ? 2 : 1;
   thIndex.style.cursor = 'pointer';
   thIndex.style.userSelect = 'none';
-  thIndex.title = `Click to sort rows by SI (${window.siSortOrder === 'desc' ? 'Descending' : 'Ascending'})`;
+  thIndex.title = `Click to sort rows by Paper ID (${window.siSortOrder === 'desc' ? 'Descending' : 'Ascending'})`;
   thIndex.onclick = (e) => window.toggleSortSI(e);
   const sortIcon = window.siSortOrder === 'desc' ? '▼' : (window.siSortOrder === 'asc' ? '▲' : '⇅');
   thIndex.innerHTML = `
     <div style="display: flex; align-items: center; justify-content: center; gap: 0.3rem;">
-      <span style="font-weight: 700;">SI</span>
+      <span style="font-weight: 700; font-size: 0.76rem; letter-spacing: 0.02em;">Paper ID</span>
       <span id="si-sort-indicator" style="font-size: 0.68rem; color: var(--accent-gold); opacity: 0.9;">${sortIcon}</span>
     </div>
   `;
   trHead.appendChild(thIndex);
 
-  // Frozen Column 2: Paper Title
+  // Frozen Column 2: Title
   const thTitle = document.createElement('th');
-  thTitle.textContent = 'Paper Title';
+  thTitle.textContent = 'Title';
+  thTitle.title = 'Paper Title';
   thTitle.className = 'sticky-col-2';
   thTitle.style.textAlign = 'center';
   thTitle.rowSpan = hasAnySplitCol ? 2 : 1;
+  if (hideTitle) {
+    thTitle.style.display = 'none';
+  }
   trHead.appendChild(thTitle);
 
   // Customizable & Reorderable Columns
@@ -1056,9 +1261,8 @@ window.renderMasterMatrix = function(papers) {
     th.innerHTML = `
       <div class="col-header-inner">
         <span class="col-drag-handle" title="Drag to change column position"><svg width="10" height="14" viewBox="0 0 10 16" fill="currentColor"><circle cx="3" cy="3" r="1.5"/><circle cx="7" cy="3" r="1.5"/><circle cx="3" cy="8" r="1.5"/><circle cx="7" cy="8" r="1.5"/><circle cx="3" cy="13" r="1.5"/><circle cx="7" cy="13" r="1.5"/></svg></span>
-        <span class="col-title-text" title="${escapeHtml(col.name)}">${escapeHtml(col.name)}</span>
+        <span class="col-title-text" draggable="false" onmousedown="event.stopPropagation()" title="${escapeHtml(col.name)} (Click to extend • Double-click to collapse)" onclick="window.handleColHeaderClick('${escapeHtml(col.key)}', event)" ondblclick="window.handleColHeaderDblClick('${escapeHtml(col.key)}', event)">${escapeHtml(col.name)}</span>
         ${subBadgeHtml}
-        <button class="col-expand-btn" draggable="false" onmousedown="event.stopPropagation()" data-col-key="${escapeHtml(col.key)}" title="Expand column to show full text" onclick="window.toggleColExpand(this.getAttribute('data-col-key'), this, event)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></button>
         <div class="col-menu-dropdown-wrapper" draggable="false" onmousedown="event.stopPropagation()">
           <button class="col-menu-btn" draggable="false" onmousedown="event.stopPropagation()" data-col-key="${escapeHtml(col.key)}" onclick="window.toggleColMenu(this.getAttribute('data-col-key'), event)" title="Column Settings"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></button>
           <div class="col-dropdown-menu" id="col-menu-${escapeHtml(col.key)}" draggable="false" onclick="event.stopPropagation()">
@@ -1077,6 +1281,9 @@ window.renderMasterMatrix = function(papers) {
             <button type="button" class="col-menu-item" data-col-key="${escapeHtml(col.key)}" onclick="window.toggleColExpand(this.getAttribute('data-col-key'), null, event); window.closeAllColumnMenus();">
               <span>Expand / Collapse</span>
             </button>
+            <button type="button" class="col-menu-item" onclick="window.toggleMetadataColumnsVisibility(); window.closeAllColumnMenus();">
+              <span>${(window.getMatrixColumnViewMode() === 'custom' || window.getMatrixColumnViewMode() === 'custom_pure') ? 'Show All Columns' : 'Show Custom Columns Only'}</span>
+            </button>
             <div class="col-menu-divider"></div>
             <button type="button" class="col-menu-item" data-col-key="${escapeHtml(col.key)}" onclick="window.moveColumn(this.getAttribute('data-col-key'), 'left', event)">
               <span>Move Left</span>
@@ -1091,6 +1298,9 @@ window.renderMasterMatrix = function(papers) {
               <span>Move to Last</span>
             </button>
             <div class="col-menu-divider"></div>
+            <button type="button" class="col-menu-item" onclick="window.resetMatrixColumnOrder(); window.closeAllColumnMenus();">
+              <span>↺ Reset Default Layout</span>
+            </button>
             <button type="button" class="col-menu-item danger-item" data-col-key="${escapeHtml(col.key)}" onclick="window.openDeleteColumnModal(this.getAttribute('data-col-key'), event)">
               <span>Delete Column</span>
             </button>
@@ -1100,6 +1310,24 @@ window.renderMasterMatrix = function(papers) {
     `;
     trHead.appendChild(th);
   });
+
+  // If there are no customizable dynamic columns defined in this matrix, append a clean + Add Column helper header
+  const hasDynCols = orderedCols.some(c => c.isDynamic);
+  if (!hasDynCols) {
+    const thAdd = document.createElement('th');
+    thAdd.className = 'th-add-col-placeholder';
+    thAdd.rowSpan = hasAnySplitCol ? 2 : 1;
+    thAdd.title = 'Click to add a custom extraction column to this matrix';
+    thAdd.onclick = () => {
+      if (typeof openAddColumnModal === 'function') openAddColumnModal();
+    };
+    thAdd.innerHTML = `
+      <div class="col-header-inner" style="justify-content: center; color: var(--accent-primary); border: 1.5px dashed rgba(56, 189, 248, 0.4); border-radius: 6px; padding: 0.25rem 0.65rem; transition: all 0.2s ease;">
+        <span style="font-weight: 600; font-size: 0.76rem; letter-spacing: 0.02em;">+ Add Column</span>
+      </div>
+    `;
+    trHead.appendChild(thAdd);
+  }
 
   matrixThead.appendChild(trHead);
 
@@ -1136,15 +1364,15 @@ window.renderMasterMatrix = function(papers) {
   const sortedPapers = [...papers];
   if (window.siSortOrder === 'desc') {
     sortedPapers.sort((a, b) => {
-      const sA = a.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(a.id) : a.id);
-      const sB = b.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(b.id) : b.id);
-      return Number(sB) - Number(sA);
+      const sA = (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(a) : (a.serial_no || a.id));
+      const sB = (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(b) : (b.serial_no || b.id));
+      return String(sB).localeCompare(String(sA), undefined, { numeric: true, sensitivity: 'base' });
     });
   } else if (window.siSortOrder === 'asc') {
     sortedPapers.sort((a, b) => {
-      const sA = a.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(a.id) : a.id);
-      const sB = b.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(b.id) : b.id);
-      return Number(sA) - Number(sB);
+      const sA = (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(a) : (a.serial_no || a.id));
+      const sB = (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(b) : (b.serial_no || b.id));
+      return String(sA).localeCompare(String(sB), undefined, { numeric: true, sensitivity: 'base' });
     });
   }
 
@@ -1160,7 +1388,7 @@ window.renderMasterMatrix = function(papers) {
     tdIndex.className = 'sticky-col td-index';
     tdIndex.style.fontFamily = 'var(--font-mono)';
     tdIndex.style.fontSize = '0.82rem';
-    const paperSerial = p.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(p.id) : (index + 1));
+    const paperSerial = (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(p) : (p.serial_no || (index + 1)));
     tdIndex.title = `Paper #${paperSerial} | Reading Status: ${statusVal.replace('_', ' ').toUpperCase()} (Click to toggle)`;
     tdIndex.innerHTML = `<span class="status-dot status-dot-${statusVal}"></span><span>${paperSerial}</span>`;
     tdIndex.onclick = (e) => cyclePaperStatus(p.id, statusVal, e);
@@ -1173,6 +1401,9 @@ window.renderMasterMatrix = function(papers) {
     tdTitle.setAttribute('data-raw-val', p.title || '');
     tdTitle.style.fontWeight = '600';
     tdTitle.innerHTML = formatCellContent(p.title, 'title', p.id);
+    if (hideTitle) {
+      tdTitle.style.display = 'none';
+    }
     makeCellEditable(tdTitle, 'title', p.id, true);
     tr.appendChild(tdTitle);
 
@@ -1219,24 +1450,7 @@ window.renderMasterMatrix = function(papers) {
           td.setAttribute('data-is-split', 'false');
         }
 
-        if (col.key === 'cluster') {
-          const tdCluster = document.createElement('td');
-          applyColFixedWidth(tdCluster);
-          tdCluster.className = 'editable-cell';
-          tdCluster.style.fontWeight = '600';
-          tdCluster.style.color = 'var(--accent-primary)';
-          tdCluster.textContent = p.cluster_name || 'Unassigned';
-          tr.appendChild(tdCluster);
-        } else if (col.key === 'domain') {
-          const tdDomain = document.createElement('td');
-          applyColFixedWidth(tdDomain);
-          tdDomain.className = 'editable-cell';
-          tdDomain.setAttribute('data-paper-id', p.id);
-          tdDomain.setAttribute('data-raw-val', p.domain || 'General');
-          tdDomain.innerHTML = formatCellContent(p.domain, 'domain', p.id);
-          makeCellEditable(tdDomain, 'domain', p.id, true);
-          tr.appendChild(tdDomain);
-        } else if (col.key === 'authors') {
+        if (col.key === 'authors') {
           const tdAuthors = document.createElement('td');
           applyColFixedWidth(tdAuthors);
           tdAuthors.className = 'editable-cell';
@@ -1265,6 +1479,48 @@ window.renderMasterMatrix = function(papers) {
           tdPub.innerHTML = formatCellContent(p.pub || '-', 'pub', p.id);
           makeCellEditable(tdPub, 'pub', p.id, true);
           tr.appendChild(tdPub);
+        } else if (col.key === 'doi') {
+          const tdDoi = document.createElement('td');
+          applyColFixedWidth(tdDoi);
+          tdDoi.className = 'editable-cell';
+          tdDoi.setAttribute('data-paper-id', p.id);
+          const rawDoi = p.doi || p.pdf_url || '';
+          tdDoi.setAttribute('data-raw-val', rawDoi);
+          tdDoi.innerHTML = formatCellContent(rawDoi, 'doi', p.id);
+          makeCellEditable(tdDoi, 'doi', p.id, false);
+          tr.appendChild(tdDoi);
+        } else if (col.key === 'cluster') {
+          const tdCluster = document.createElement('td');
+          applyColFixedWidth(tdCluster);
+          tdCluster.className = 'editable-cell';
+          tdCluster.setAttribute('data-paper-id', p.id);
+          tdCluster.setAttribute('data-raw-val', p.cluster_name || 'Unassigned');
+          const cName = p.cluster_name || 'Unassigned';
+          const cColor = p.cluster_color || 'var(--accent-primary)';
+          tdCluster.innerHTML = `<div class="cell-wrapper" style="display: flex; align-items: center; justify-content: center;"><span class="cluster-tag" style="background: rgba(56, 189, 248, 0.12); color: ${cColor}; border-radius: 4px; padding: 0.2rem 0.5rem; font-size: 0.8rem; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; max-width: 180px;" title="Cluster: ${escapeHtml(cName)}">${escapeHtml(cName)}</span></div>`;
+          tr.appendChild(tdCluster);
+        } else if (col.key === 'domain') {
+          const tdDomain = document.createElement('td');
+          applyColFixedWidth(tdDomain);
+          tdDomain.className = 'editable-cell';
+          tdDomain.setAttribute('data-paper-id', p.id);
+          tdDomain.setAttribute('data-raw-val', p.domain || 'General');
+          tdDomain.innerHTML = formatCellContent(p.domain, 'domain', p.id);
+          makeCellEditable(tdDomain, 'domain', p.id, true);
+          tr.appendChild(tdDomain);
+        } else if (col.key === 'status') {
+          const tdStatus = document.createElement('td');
+          applyColFixedWidth(tdStatus);
+          tdStatus.className = 'editable-cell td-status-cell';
+          tdStatus.setAttribute('data-paper-id', p.id);
+          const curStat = p.status || 'unread';
+          tdStatus.setAttribute('data-raw-val', curStat);
+          tdStatus.innerHTML = formatCellContent(curStat, 'status', p.id);
+          tdStatus.onclick = (e) => {
+            if (e.target && (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT')) return;
+            window.cyclePaperStatus(p.id, p.status || 'unread', e);
+          };
+          tr.appendChild(tdStatus);
         } else if (col.key === 'advantages') {
           const tdAdv = document.createElement('td');
           applyColFixedWidth(tdAdv);
@@ -1324,12 +1580,26 @@ window.renderMasterMatrix = function(papers) {
       }
     });
 
+    if (!hasDynCols) {
+      const tdAdd = document.createElement('td');
+      tdAdd.className = 'td-add-col-placeholder';
+      tdAdd.style.textAlign = 'center';
+      tdAdd.style.color = 'var(--text-tertiary)';
+      tdAdd.style.opacity = '0.35';
+      tdAdd.style.fontSize = '0.8rem';
+      tdAdd.textContent = '—';
+      tr.appendChild(tdAdd);
+    }
+
     matrixTbody.appendChild(tr);
   });
 
   window.triggerMath(matrixTbody);
   if (typeof window.renderClusterSummary === 'function') {
     window.renderClusterSummary(papers);
+  }
+  if (typeof window.updateMatrixColumnButtonStates === 'function') {
+    window.updateMatrixColumnButtonStates();
   }
 };
 
@@ -1391,8 +1661,7 @@ window.makeCellEditable = function(cell, fieldType, paperId, isMultiline = true,
       if (colIdx !== -1) {
         const th = table.querySelectorAll('thead tr th')[colIdx];
         if (th && th.getAttribute('data-col-expanded') !== 'true' && typeof window.toggleColExpand === 'function') {
-          const btnEl = th.querySelector('.col-expand-btn');
-          window.toggleColExpand(colKey, btnEl);
+          window.toggleColExpand(colKey, null, null, true);
         }
       }
     };
@@ -1405,8 +1674,7 @@ window.makeCellEditable = function(cell, fieldType, paperId, isMultiline = true,
       if (colIdx !== -1) {
         const th = table.querySelectorAll('thead tr th')[colIdx];
         if (th && th.getAttribute('data-col-expanded') === 'true' && typeof window.toggleColExpand === 'function') {
-          const btnEl = th.querySelector('.col-expand-btn');
-          window.toggleColExpand(colKey, btnEl);
+          window.toggleColExpand(colKey, null, null, false);
         }
       }
     };
@@ -1417,6 +1685,12 @@ window.makeCellEditable = function(cell, fieldType, paperId, isMultiline = true,
       input = document.createElement('input');
       input.type = 'number';
       input.className = 'cell-inline-input';
+      input.value = originalRaw;
+    } else if (fieldType === 'doi') {
+      input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'cell-inline-input';
+      input.placeholder = 'e.g. 10.xxxx or https://...';
       input.value = originalRaw;
     } else {
       input = document.createElement('textarea');
@@ -1514,6 +1788,8 @@ window.makeCellEditable = function(cell, fieldType, paperId, isMultiline = true,
           const bodyPayload = {};
           if (fieldType === 'year') {
             bodyPayload.year = valToSave ? parseInt(valToSave, 10) : null;
+          } else if (fieldType === 'doi') {
+            bodyPayload.doi = valToSave;
           } else if (fieldType === 'advantages') {
             bodyPayload.advantages = valToSave;
             bodyPayload.strengths = valToSave;
@@ -1545,6 +1821,7 @@ window.makeCellEditable = function(cell, fieldType, paperId, isMultiline = true,
             const pObj = (typeof allPapers !== 'undefined' && Array.isArray(allPapers)) ? allPapers.find(item => item.id === paperId) : null;
             if (pObj) {
               pObj[fieldType] = valToSave;
+              if (fieldType === 'doi') pObj.doi = valToSave;
               if (fieldType === 'advantages') pObj.strengths = valToSave;
               if (fieldType === 'criticism') pObj.gaps = valToSave;
               if (fieldType === 'future_directions') pObj.future_research_direction = valToSave;
@@ -1593,6 +1870,44 @@ function escapeHtml(str) {
 function formatCellContent(val, fieldType, paperId = null) {
   if (fieldType === 'domain') {
     return `<span class="domain-tag">${escapeHtml(val || 'General')}</span>`;
+  }
+  if (fieldType === 'status') {
+    const sVal = (val || 'unread').toLowerCase().trim();
+    const label = sVal === 'in_progress' ? 'In Progress' : (sVal === 'read' ? 'Read' : 'Unread');
+    return `
+      <div class="cell-wrapper" style="display: flex; align-items: center; justify-content: center;">
+        <span class="matrix-status-badge status-badge-${sVal}" title="Reading Status: ${label} (Click to change)">
+          <span class="status-dot status-dot-${sVal}"></span>
+          <span>${label}</span>
+        </span>
+      </div>
+    `;
+  }
+  if (fieldType === 'doi') {
+    if (!val || val === '-' || val === 'null' || val === 'undefined') {
+      return '<span style="color: var(--text-tertiary); font-size: 0.82rem;">-</span>';
+    }
+    const cleanVal = String(val).trim();
+    if (!cleanVal) return '<span style="color: var(--text-tertiary); font-size: 0.82rem;">-</span>';
+    let url = cleanVal;
+    let displayLabel = cleanVal;
+    if (cleanVal.startsWith('10.')) {
+      url = `https://doi.org/${cleanVal}`;
+    } else if (!cleanVal.startsWith('http://') && !cleanVal.startsWith('https://')) {
+      if (cleanVal.includes('doi.org/')) {
+        url = `https://${cleanVal.replace(/^https?:\/\//, '')}`;
+      } else {
+        url = `https://${cleanVal}`;
+      }
+    }
+    return `
+      <div class="cell-wrapper" style="display: flex; align-items: center; justify-content: flex-start;">
+        <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="matrix-doi-link" onclick="event.stopPropagation()" title="Open DOI / Link in new tab: ${escapeHtml(url)}">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; vertical-align: middle;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+          <span class="doi-text" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(displayLabel)}</span>
+        </a>
+      </div>
+    `;
   }
   if (fieldType === 'keywords') {
     const arr = Array.isArray(val)

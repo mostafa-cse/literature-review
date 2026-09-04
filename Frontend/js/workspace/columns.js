@@ -14,7 +14,20 @@ window.loadDynamicColumns = async function() {
 
     const res = await fetch(url, { headers: getAuthHeaders() });
     if (!res.ok) throw new Error('Failed to load dynamic columns');
-    const cols = await res.json();
+    let cols = await res.json();
+
+    // If cluster query returned empty, fall back to survey project's dynamic columns
+    if ((!Array.isArray(cols) || cols.length === 0) && isCluster) {
+      try {
+        const fallbackRes = await fetch(`/api/dynamic-columns?project_id=${projId}`, { headers: getAuthHeaders() });
+        if (fallbackRes.ok) {
+          const pCols = await fallbackRes.json();
+          if (Array.isArray(pCols) && pCols.length > 0) {
+            cols = pCols;
+          }
+        }
+      } catch (_) {}
+    }
 
     // Deduplicate and normalise each column with both name and column_name
     const seen = new Set();
@@ -40,11 +53,45 @@ window.loadDynamicColumns = async function() {
     if (typeof populateSearchColumnDropdown === 'function') {
       populateSearchColumnDropdown();
     }
+    if (typeof window.updateMatrixColumnButtonStates === 'function') {
+      window.updateMatrixColumnButtonStates();
+    }
     if (typeof renderMasterMatrix === 'function' && Array.isArray(allPapers) && allPapers.length > 0) {
       renderMasterMatrix(allPapers);
     }
   } catch (err) {
     console.warn('Load dynamic columns error:', err);
+  }
+};
+
+window.updateMatrixColumnButtonStates = function() {
+  const btnSplit = document.getElementById('matrix-btn-split-col') || document.getElementById('btn-split-dyn-col');
+  const eligibleCols = (window.activeDataColumns || []).filter(c => !c.parent_column_id);
+  const hasCols = eligibleCols.length > 0;
+
+  if (btnSplit) {
+    if (!hasCols) {
+      btnSplit.setAttribute('disabled', 'true');
+      btnSplit.setAttribute('aria-disabled', 'true');
+      btnSplit.classList.add('btn-split-disabled');
+      btnSplit.title = 'No customizable columns available to split. Please click "+ Add Column" first.';
+    } else {
+      btnSplit.removeAttribute('disabled');
+      btnSplit.removeAttribute('aria-disabled');
+      btnSplit.classList.remove('btn-split-disabled');
+      btnSplit.title = 'Split an extraction column into multi-level sub-columns';
+    }
+  }
+
+  const btnAdd = document.getElementById('matrix-btn-add-col') || document.getElementById('btn-open-add-col');
+  if (btnAdd) {
+    if (!hasCols) {
+      btnAdd.title = 'Click + Add Column to define taxonomy extraction parameters for this matrix';
+      btnAdd.classList.add('pulse-add-col-cta');
+    } else {
+      btnAdd.title = 'Add new extraction column';
+      btnAdd.classList.remove('pulse-add-col-cta');
+    }
   }
 };
 
@@ -229,6 +276,14 @@ window.openSplitColumnModal = function(preSelectedKey) {
     showToast(`[Read-Only] Role '${currentProjectRole.toUpperCase()}' cannot split columns.`, 'info');
     return;
   }
+  const eligibleCols = (window.activeDataColumns || []).filter(c => !c.parent_column_id);
+  if (eligibleCols.length === 0) {
+    showToast('No columns available to split. Please add a column first.', 'warning');
+    if (typeof openAddColumnModal === 'function') {
+      setTimeout(() => openAddColumnModal(), 200);
+    }
+    return;
+  }
   populateColumnSplittingSelect(preSelectedKey);
   const sel = document.getElementById('split-parent-col-select') || document.getElementById('split-target-col-select');
   const targetVal = (sel && sel.value) ? sel.value : preSelectedKey;
@@ -355,10 +410,24 @@ function addAnotherSplitSubColumn() {
 
 function populateColumnSplittingSelect(preSelectedKey) {
   const sel = document.getElementById('split-parent-col-select') || document.getElementById('split-target-col-select');
+  const emptyNotice = document.getElementById('split-col-empty-state');
+  const formContent = document.getElementById('split-col-form-content');
+
+  const eligibleCols = (window.activeDataColumns || []).filter(c => !c.parent_column_id);
+
+  if (emptyNotice && formContent) {
+    if (eligibleCols.length === 0) {
+      emptyNotice.style.display = 'block';
+      formContent.style.display = 'none';
+    } else {
+      emptyNotice.style.display = 'none';
+      formContent.style.display = 'block';
+    }
+  }
+
   if (!sel) return;
   sel.innerHTML = '<option value="">-- Choose Column to Split --</option>';
 
-  const eligibleCols = (window.activeDataColumns || []).filter(c => !c.parent_column_id);
   eligibleCols.forEach(c => {
     const opt = document.createElement('option');
     opt.value = c.id || c.name;
@@ -909,5 +978,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnOpenSplit = document.getElementById('btn-split-dyn-col') || document.getElementById('matrix-btn-split-col');
   if (btnOpenSplit) {
     btnOpenSplit.onclick = () => window.openSplitColumnModal();
+  }
+
+  if (typeof window.updateMatrixColumnButtonStates === 'function') {
+    window.updateMatrixColumnButtonStates();
   }
 });

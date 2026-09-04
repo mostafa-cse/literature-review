@@ -595,7 +595,16 @@
 
       updateAutoSaveStatusBadge('saved');
 
-      // Refresh background matrix if available
+      // Refresh background matrix and clusters if available
+      if (typeof window.renderClusters === 'function') {
+        window.renderClusters();
+      }
+      if (typeof window.applyFilters === 'function') {
+        window.applyFilters();
+      }
+      if (typeof window.loadClusters === 'function') {
+        window.loadClusters();
+      }
       if (typeof window.renderClusterSummary === 'function') {
         window.renderClusterSummary();
       }
@@ -791,8 +800,19 @@
     }
 
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    if (pdfjsLib.VerbosityLevel) {
+      pdfjsLib.GlobalWorkerOptions.verbosity = pdfjsLib.VerbosityLevel.ERRORS;
+    }
 
-    pdfjsLib.getDocument(fullPdfUrl).promise.then(pdf => {
+    const loadingTask = pdfjsLib.getDocument({
+      url: fullPdfUrl,
+      cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+      cMapPacked: true,
+      standardFontDataUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/standard_fonts/',
+      verbosity: (typeof pdfjsLib !== 'undefined' && pdfjsLib.VerbosityLevel) ? pdfjsLib.VerbosityLevel.ERRORS : 0
+    });
+
+    loadingTask.promise.then(pdf => {
       currentPdfDoc = pdf;
       pdfTotalPages = pdf.numPages;
       pdfCurrentPageNum = 1;

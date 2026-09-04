@@ -72,6 +72,7 @@ function initDb() {
       name TEXT NOT NULL,
       description TEXT,
       color TEXT,
+      position INTEGER DEFAULT 0,
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
 
@@ -211,6 +212,22 @@ function initDb() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS paper_highlights (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      paper_id INTEGER NOT NULL,
+      user_id INTEGER,
+      user_name TEXT,
+      user_role TEXT DEFAULT 'reviewer',
+      page_number INTEGER NOT NULL,
+      color TEXT NOT NULL,
+      color_label TEXT,
+      selected_text TEXT NOT NULL,
+      quads_json TEXT,
+      note TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (paper_id) REFERENCES papers(id) ON DELETE CASCADE
+    );
   `);
 
   // Safe migrations for existing tables
@@ -276,6 +293,12 @@ function initDb() {
     } catch (e) {
       // Column already exists
     }
+
+    const clusterCols = db.prepare("PRAGMA table_info(clusters)").all();
+    if (!clusterCols.some(c => c.name === 'position')) {
+      db.exec("ALTER TABLE clusters ADD COLUMN position INTEGER DEFAULT 0;");
+      db.exec("UPDATE clusters SET position = id WHERE position IS NULL OR position = 0;");
+    }
   } catch (err) {
     console.warn('Migration note:', err.message);
   }
@@ -289,6 +312,7 @@ function initDb() {
     CREATE INDEX IF NOT EXISTS idx_projects_owner ON projects(owner_id);
     CREATE INDEX IF NOT EXISTS idx_projects_token ON projects(share_token);
     CREATE INDEX IF NOT EXISTS idx_clusters_project ON clusters(project_id);
+    CREATE INDEX IF NOT EXISTS idx_clusters_position ON clusters(project_id, position);
     CREATE INDEX IF NOT EXISTS idx_papers_project ON papers(project_id);
     CREATE INDEX IF NOT EXISTS idx_papers_cluster ON papers(cluster_id);
     CREATE INDEX IF NOT EXISTS idx_papers_status ON papers(status);

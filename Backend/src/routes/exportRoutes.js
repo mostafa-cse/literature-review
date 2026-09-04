@@ -99,18 +99,18 @@ function handleExport(req, res) {
 
     // Define column mapping
     const baseColumns = [
-      { key: '#', label: 'SI', val: (p, idx) => p.serial_no || (idx + 1) },
+      { key: '#', label: 'Paper ID', val: (p, idx) => p.serial_no || (idx + 1) },
       { key: 'title', label: 'Paper Title', val: p => p.title || 'Untitled' },
-      { key: 'cluster', label: 'Cluster Name', val: p => p.cluster_name || 'Unassigned' },
-      { key: 'year', label: 'Publish Year', val: p => p.year || '' },
-      { key: 'pub', label: 'Publisher / Conf / Journal', val: p => p.pub || '' },
-      { key: 'advantages', label: 'Advantages', val: p => p.advantages || p.strengths || '' },
-      { key: 'criticism', label: 'Criticism', val: p => p.criticism || p.gaps || '' },
-      { key: 'future_directions', label: 'Future Research Direction', val: p => p.future_directions || '' },
       { key: 'authors', label: 'Authors', val: p => p.authors || '' },
+      { key: 'year', label: 'Year', val: p => p.year || '' },
+      { key: 'pub', label: 'Venue', val: p => p.pub || '' },
+      { key: 'doi', label: 'DOI / Link', val: p => p.doi || p.pdf_url || '' },
+      { key: 'cluster', label: 'Cluster', val: p => p.cluster_name || 'Unassigned' },
       { key: 'domain', label: 'Domain', val: p => p.domain || 'General' },
       { key: 'status', label: 'Reading Status', val: p => (p.status || 'unread').replace(/_/g, ' ').toUpperCase() },
-      { key: 'doi', label: 'DOI / Link', val: p => p.doi || p.pdf_url || '' }
+      { key: 'advantages', label: 'Advantages', val: p => p.advantages || p.strengths || '' },
+      { key: 'criticism', label: 'Criticism', val: p => p.criticism || p.gaps || '' },
+      { key: 'future_directions', label: 'Future Research Direction', val: p => p.future_directions || '' }
     ];
 
     const formatExportVal = (raw) => {

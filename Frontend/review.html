@@ -7,9 +7,11 @@
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2'><path d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20'/><path d='M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'/></svg>">
     <!-- PDF.js for in-browser PDF rendering -->
+    <!-- PDF.js for in-browser PDF rendering & text selection -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
     <!-- LitSphere Master Unified Review Stylesheet (Dual Theme Dark/Light) -->
-    <link rel="stylesheet" href="/review-react/ReviewApp.css?v=2.1">
+    <link rel="stylesheet" href="/review-react/ReviewApp.css?v=2.2">
 </head>
 <body>
 
@@ -165,29 +167,130 @@
 
     <!-- Main Content Area -->
     <main class="main-body" id="review-main-body">
-        <!-- Left Pane (PDF Preview) -->
+        <!-- Left Pane (PDF Preview & Interactive Reader) -->
         <div class="left-pane" id="review-left-pane">
-            <!-- PDF.js Toolbar (Visible when document is loaded) -->
+            <!-- PDF.js Toolbar (Enhanced with Highlighting & Selection controls) -->
             <div class="pdf-viewer-toolbar" id="pdf-toolbar" style="display: none;">
+                <!-- Page Navigation -->
                 <div class="pdf-nav-group">
-                    <button type="button" class="pdf-mini-btn" onclick="pdfPrevPage()">Prev</button>
+                    <button type="button" class="pdf-mini-btn" onclick="pdfPrevPage()" title="Previous Page (Left Arrow)">Prev</button>
                     <span>Page</span>
                     <input type="number" class="pdf-page-input" id="pdf-page-num" value="1" min="1" onchange="pdfGotoPage(parseInt(this.value,10))">
                     <span>of <span id="pdf-page-count">1</span></span>
-                    <button type="button" class="pdf-mini-btn" onclick="pdfNextPage()">Next</button>
+                    <button type="button" class="pdf-mini-btn" onclick="pdfNextPage()" title="Next Page (Right Arrow)">Next</button>
                 </div>
+
+                <!-- Zoom Controls -->
                 <div class="pdf-nav-group">
-                    <button type="button" class="pdf-mini-btn" onclick="pdfZoomOut()">−</button>
+                    <button type="button" class="pdf-mini-btn" onclick="pdfZoomOut()" title="Zoom Out (−)">−</button>
                     <span id="pdf-zoom-val">100%</span>
-                    <button type="button" class="pdf-mini-btn" onclick="pdfZoomIn()">+</button>
-                    <button type="button" class="pdf-mini-btn" onclick="handlePaperTitleClick()">Open ↗</button>
+                    <button type="button" class="pdf-mini-btn" onclick="pdfZoomIn()" title="Zoom In (+)">+</button>
+                    <button type="button" class="pdf-mini-btn" onclick="pdfFitWidth()" title="Fit to width">Fit</button>
+                </div>
+
+                <!-- Multi-Color Highlighter Bar & Mode Controls -->
+                <div class="pdf-nav-group pdf-highlight-controls-group">
+                    <button
+                        type="button"
+                        class="pdf-mini-btn pdf-highlight-toggle-btn active"
+                        id="btn-highlight-mode-toggle"
+                        onclick="toggleHighlightMode()"
+                        title="Highlighting & Text Selection Mode is Active"
+                    >
+                        <span class="hl-marker-icon">✏️</span>
+                        <span>Marker</span>
+                    </button>
+
+                    <!-- Active Color Palette Picker -->
+                    <div class="pdf-color-picker-dropdown" id="pdf-color-picker" title="Current default highlight color">
+                        <button type="button" class="pdf-color-active-swatch" id="pdf-current-color-swatch" style="background-color: #fef08a;" onclick="toggleColorPickerMenu()"></button>
+                        <div class="pdf-color-picker-menu" id="pdf-color-picker-menu" style="display: none;">
+                            <button type="button" class="color-pick-item" onclick="setDefaultHighlightColor('#fef08a', 'Key Point')">
+                                <span class="swatch-dot" style="background:#fef08a;"></span> Yellow (Key Point)
+                            </button>
+                            <button type="button" class="color-pick-item" onclick="setDefaultHighlightColor('#bbf7d0', 'Methodology')">
+                                <span class="swatch-dot" style="background:#bbf7d0;"></span> Green (Methodology)
+                            </button>
+                            <button type="button" class="color-pick-item" onclick="setDefaultHighlightColor('#bfdbfe', 'Results')">
+                                <span class="swatch-dot" style="background:#bfdbfe;"></span> Blue (Results)
+                            </button>
+                            <button type="button" class="color-pick-item" onclick="setDefaultHighlightColor('#e9d5ff', 'Architecture')">
+                                <span class="swatch-dot" style="background:#e9d5ff;"></span> Purple (Architecture)
+                            </button>
+                            <button type="button" class="color-pick-item" onclick="setDefaultHighlightColor('#fbcfe8', 'Strengths')">
+                                <span class="swatch-dot" style="background:#fbcfe8;"></span> Pink (Strengths)
+                            </button>
+                            <button type="button" class="color-pick-item" onclick="setDefaultHighlightColor('#fed7aa', 'Limitations')">
+                                <span class="swatch-dot" style="background:#fed7aa;"></span> Orange (Limitations)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Highlights Count Pill -->
+                    <button type="button" class="pdf-mini-btn pdf-hl-count-btn" id="btn-jump-highlights" onclick="toggleSection('section-highlights'); document.getElementById('section-highlights')?.scrollIntoView({behavior:'smooth'});" title="View all highlights and excerpts in sidebar">
+                        🏷️ <span id="pdf-toolbar-hl-count">0</span>
+                    </button>
+
+                    <!-- Open Source External Link -->
+                    <button type="button" class="pdf-mini-btn" onclick="handlePaperTitleClick()" title="Open manuscript in new tab">Open ↗</button>
                 </div>
             </div>
 
-            <!-- PDF Viewport Canvas -->
+            <!-- PDF Viewport with Synchronized Canvas, Highlight Layer, and Text Selection Layer -->
             <div class="pdf-viewport-container" id="pdf-viewport" style="display: none;">
-                <div class="pdf-canvas-wrapper">
+                <div class="pdf-canvas-wrapper" id="pdf-page-container">
                     <canvas id="pdf-canvas"></canvas>
+                    <!-- Highlight Layer for Multi-Color Marks -->
+                    <div id="pdf-highlight-layer" class="highlightLayer"></div>
+                    <!-- PDF.js Synchronized Text Layer for Selection & Copying -->
+                    <div id="pdf-text-layer" class="textLayer"></div>
+                </div>
+            </div>
+
+            <!-- Floating Quick-Action Selection Toolbar -->
+            <div id="pdf-floating-toolbar" class="pdf-floating-toolbar" style="display: none;">
+                <div class="toolbar-color-group" title="Mark selected text with color">
+                    <button type="button" class="swatch-btn" style="background:#fef08a;" onclick="applyHighlightFromToolbar('#fef08a', 'Key Point')" title="Yellow: Key Point / Finding"></button>
+                    <button type="button" class="swatch-btn" style="background:#bbf7d0;" onclick="applyHighlightFromToolbar('#bbf7d0', 'Methodology')" title="Green: Methodology / Approach"></button>
+                    <button type="button" class="swatch-btn" style="background:#bfdbfe;" onclick="applyHighlightFromToolbar('#bfdbfe', 'Results')" title="Blue: Results / Metrics"></button>
+                    <button type="button" class="swatch-btn" style="background:#e9d5ff;" onclick="applyHighlightFromToolbar('#e9d5ff', 'Architecture')" title="Purple: Architecture / Model"></button>
+                    <button type="button" class="swatch-btn" style="background:#fbcfe8;" onclick="applyHighlightFromToolbar('#fbcfe8', 'Strengths')" title="Pink: Strengths / Advantages"></button>
+                    <button type="button" class="swatch-btn" style="background:#fed7aa;" onclick="applyHighlightFromToolbar('#fed7aa', 'Limitations')" title="Orange: Limitations / Gaps"></button>
+                </div>
+                <div class="toolbar-v-divider"></div>
+                <!-- Copy Text Button -->
+                <button type="button" class="toolbar-act-btn" id="btn-copy-selection" onclick="copySelectionText()" title="Copy selected text to clipboard (Ctrl+C / Cmd+C)">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    <span>Copy</span>
+                </button>
+                <!-- Add to Detailed Summary Button -->
+                <button type="button" class="toolbar-act-btn" id="btn-add-to-summary" onclick="addSelectionToDetailedSummary()" title="Append excerpt into Detailed Summary section">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                    <span>To Summary</span>
+                </button>
+            </div>
+
+            <!-- Existing Highlight Popover (When clicking a rendered highlight mark) -->
+            <div id="pdf-highlight-popover" class="pdf-highlight-popover" style="display: none;">
+                <div class="popover-top-row">
+                    <span class="popover-color-tag" id="popover-color-tag">Key Point</span>
+                    <span class="popover-page-badge" id="popover-page-badge">Page 1</span>
+                </div>
+                <div class="popover-quote-box" id="popover-quote-box"></div>
+                <div class="popover-swatch-picker">
+                    <span class="popover-subhead">Change color:</span>
+                    <div class="popover-swatches-list">
+                        <button type="button" class="popover-swatch" style="background:#fef08a;" onclick="updateActiveHighlightColor('#fef08a', 'Key Point')" title="Yellow: Key Point"></button>
+                        <button type="button" class="popover-swatch" style="background:#bbf7d0;" onclick="updateActiveHighlightColor('#bbf7d0', 'Methodology')" title="Green: Methodology"></button>
+                        <button type="button" class="popover-swatch" style="background:#bfdbfe;" onclick="updateActiveHighlightColor('#bfdbfe', 'Results')" title="Blue: Results"></button>
+                        <button type="button" class="popover-swatch" style="background:#e9d5ff;" onclick="updateActiveHighlightColor('#e9d5ff', 'Architecture')" title="Purple: Architecture"></button>
+                        <button type="button" class="popover-swatch" style="background:#fbcfe8;" onclick="updateActiveHighlightColor('#fbcfe8', 'Strengths')" title="Pink: Strengths"></button>
+                        <button type="button" class="popover-swatch" style="background:#fed7aa;" onclick="updateActiveHighlightColor('#fed7aa', 'Limitations')" title="Orange: Limitations"></button>
+                    </div>
+                </div>
+                <div class="popover-actions-row">
+                    <button type="button" class="popover-btn" onclick="copyActiveHighlightQuote()">Copy Quote</button>
+                    <button type="button" class="popover-btn danger" onclick="deleteActiveHighlight()">Delete</button>
                 </div>
             </div>
 
@@ -218,6 +321,43 @@
         <!-- Right Pane (Settings/Options) -->
         <div class="right-pane" id="review-right-pane">
 
+            <!-- 0. Highlights & Excerpts Section -->
+            <div class="section" id="section-highlights">
+                <div class="section-header" onclick="toggleSection('section-highlights')">
+                    <div class="section-title">
+                        <span>Paper Highlights &amp; Marked Excerpts</span>
+                        <span class="section-count-badge" id="highlights-section-count">0</span>
+                    </div>
+                    <button type="button" class="expand-btn" aria-label="Toggle Highlights section">
+                        <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                </div>
+                <div class="section-content">
+                    <div class="highlights-panel-toolbar">
+                        <div class="highlights-filter-group">
+                            <select id="highlights-filter-color" onchange="filterHighlightsByColor(this.value)" class="highlights-filter-select">
+                                <option value="all">All Colors (▼)</option>
+                                <option value="#fef08a">🟡 Yellow (Key Point)</option>
+                                <option value="#bbf7d0">🟢 Green (Methodology)</option>
+                                <option value="#bfdbfe">🔵 Blue (Results)</option>
+                                <option value="#e9d5ff">🟣 Purple (Architecture)</option>
+                                <option value="#fbcfe8">🌸 Pink (Strengths)</option>
+                                <option value="#fed7aa">🟠 Orange (Limitations)</option>
+                            </select>
+                        </div>
+                        <button type="button" class="highlights-export-btn" onclick="exportHighlightsAsNotes()" title="Copy all highlights as structured markdown review notes">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                            <span>Copy All Notes</span>
+                        </button>
+                    </div>
+                    <div class="highlights-list-container" id="highlights-list-container">
+                        <!-- Dynamically populated cards of highlighted quotes -->
+                    </div>
+                </div>
+            </div>
+
             <!-- 1. Research Taxonomy Clusters -->
             <div class="section" id="section-cluster">
                 <div class="section-header" onclick="toggleSection('section-cluster')">
@@ -244,12 +384,46 @@
             <!-- 2. Domain -->
             <div class="section" id="section-domain">
                 <div class="section-header" onclick="toggleSection('section-domain')">
-                    <div class="section-title">Domain</div>
-                    <button type="button" class="expand-btn" aria-label="Toggle Domain section">
-                        <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                    </button>
+                    <div class="section-header-left">
+                        <div class="section-title">Domain</div>
+                        <span class="section-counter-badge" id="domain-count-badge" style="display: none;"></span>
+                    </div>
+                    <div class="section-header-right" onclick="event.stopPropagation()">
+                        <div class="column-search-wrapper" id="domain-search-wrapper" title="Search domains">
+                            <svg class="col-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                            <input
+                                type="text"
+                                id="domain-search-input"
+                                class="column-search-input"
+                                placeholder="Search domains..."
+                                autocomplete="off"
+                                spellcheck="false"
+                                oninput="handleDomainSearch(this.value)"
+                                onfocus="handleDomainSearchFocus()"
+                            />
+                            <button
+                                type="button"
+                                id="btn-clear-domain-search"
+                                class="col-search-clear-btn"
+                                onclick="clearDomainSearch()"
+                                title="Clear search"
+                                style="display: none;"
+                            >
+                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                        </div>
+                        <button type="button" class="expand-btn" aria-label="Toggle Domain section" onclick="toggleSection('section-domain')">
+                            <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="section-content">
                     <div class="grid-container" id="grid-domains">
@@ -266,12 +440,46 @@
             <!-- 3. Keywords -->
             <div class="section" id="section-keywords">
                 <div class="section-header" onclick="toggleSection('section-keywords')">
-                    <div class="section-title">Keywords</div>
-                    <button type="button" class="expand-btn" aria-label="Toggle Keywords section">
-                        <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                    </button>
+                    <div class="section-header-left">
+                        <div class="section-title">Keywords</div>
+                        <span class="section-counter-badge" id="keywords-count-badge" style="display: none;"></span>
+                    </div>
+                    <div class="section-header-right" onclick="event.stopPropagation()">
+                        <div class="column-search-wrapper" id="keywords-search-wrapper" title="Search keywords">
+                            <svg class="col-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                            <input
+                                type="text"
+                                id="keywords-search-input"
+                                class="column-search-input"
+                                placeholder="Search keywords..."
+                                autocomplete="off"
+                                spellcheck="false"
+                                oninput="handleKeywordsSearch(this.value)"
+                                onfocus="handleKeywordsSearchFocus()"
+                            />
+                            <button
+                                type="button"
+                                id="btn-clear-keywords-search"
+                                class="col-search-clear-btn"
+                                onclick="clearKeywordsSearch()"
+                                title="Clear search"
+                                style="display: none;"
+                            >
+                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                        </div>
+                        <button type="button" class="expand-btn" aria-label="Toggle Keywords section" onclick="toggleSection('section-keywords')">
+                            <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="section-content">
                     <div class="grid-container" id="grid-keywords">
@@ -288,12 +496,46 @@
             <!-- 4. Columns -->
             <div class="section" id="section-columns">
                 <div class="section-header" onclick="toggleSection('section-columns')">
-                    <div class="section-title">Columns</div>
-                    <button type="button" class="expand-btn" aria-label="Toggle Columns section">
-                        <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                    </button>
+                    <div class="section-header-left">
+                        <div class="section-title">Columns</div>
+                        <span class="section-counter-badge" id="columns-count-badge" style="display: none;"></span>
+                    </div>
+                    <div class="section-header-right" onclick="event.stopPropagation()">
+                        <div class="column-search-wrapper" id="column-search-wrapper" title="Search extraction columns">
+                            <svg class="col-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                            <input
+                                type="text"
+                                id="column-search-input"
+                                class="column-search-input"
+                                placeholder="Search columns..."
+                                autocomplete="off"
+                                spellcheck="false"
+                                oninput="handleColumnSearch(this.value)"
+                                onfocus="handleColumnSearchFocus()"
+                            />
+                            <button
+                                type="button"
+                                id="btn-clear-column-search"
+                                class="col-search-clear-btn"
+                                onclick="clearColumnSearch()"
+                                title="Clear search"
+                                style="display: none;"
+                            >
+                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                        </div>
+                        <button type="button" class="expand-btn" aria-label="Toggle Columns section" onclick="toggleSection('section-columns')">
+                            <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="section-content">
                     <div id="dashed-columns-container">
@@ -446,6 +688,6 @@
 <div id="review-toast"></div>
 
 <!-- Client-Side Engine for Review Page -->
-<script src="/js/review.js?v=2.1"></script>
+<script src="/js/review.js?v=2.2"></script>
 </body>
 </html>

@@ -45,20 +45,23 @@ window.renderCards = function(papers) {
         }).join('')}</div>`
       : '';
 
+    const validAuthors = (p.authors && p.authors !== '-' && p.authors.trim() !== '') ? p.authors : 'Authors pending extraction';
+    const validPub = (p.pub && p.pub !== '-' && p.pub.trim() !== '' && p.pub !== '—') ? p.pub : '';
+
     card.innerHTML = `
       <div>
         <div class="card-meta-row">
           <div class="meta-tag-group">
             <span class="domain-tag" style="font-family:var(--font-mono); font-weight:700; color:var(--accent-primary); background:rgba(56,189,248,0.12); border-color:rgba(56,189,248,0.3);" title="Static Paper Reference Number">#${p.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(p.id) : '')}</span>
             <span class="subfamily-tag" style="background:${cl ? cl.color + '22' : 'var(--accent-muted)'}; color:${clusterColor}">${clusterName}</span>
-            <span class="domain-tag">${p.domain || 'General'}</span>
-            ${p.year ? `<span class="domain-tag" style="font-family:var(--font-mono); font-weight:700;">${p.year}</span>` : ''}
+            <span class="domain-tag">${p.domain && p.domain !== '-' ? p.domain : 'General'}</span>
+            ${p.year && p.year !== '-' ? `<span class="domain-tag" style="font-family:var(--font-mono); font-weight:700;">${p.year}</span>` : ''}
           </div>
           <span class="status-badge status-${statusVal}" ${canModify ? `onclick="cyclePaperStatus(${p.id}, '${statusVal}', event)" style="cursor:pointer;" title="Click to cycle reading status"` : `style="cursor:default;" title="Reading Status: ${statusVal.replace('_', ' ')}"`}>${statusVal.replace('_', ' ')}</span>
         </div>
 
-        <h3 class="paper-title" onclick="window.handlePaperTitleClick(${p.id}, event)" title="Click to view full paper in browser">${p.title}</h3>
-        <div class="paper-authors">${p.authors || 'Academic Researchers'} ${p.pub ? `• <span style="font-style:italic;">${p.pub}</span>` : ''}</div>
+        <h3 class="paper-title" onclick="window.handlePaperTitleClick(${p.id}, event)" title="Click to view full paper in browser">${escapeHtml(p.title || 'Untitled Paper')}</h3>
+        <div class="paper-authors">${escapeHtml(validAuthors)} ${validPub ? `• <span style="font-style:italic;">${escapeHtml(validPub)}</span>` : ''}</div>
 
         ${p.intuition ? `
           <div class="concept-box">
@@ -164,6 +167,7 @@ window.deletePaper = async function(paperId, event) {
     if (res.ok) {
       showToast('Paper deleted successfully', 'success');
       if (typeof loadPapers === 'function') await loadPapers();
+      if (typeof loadClusters === 'function') await loadClusters();
       if (typeof loadStats === 'function') await loadStats();
       if (typeof loadSynthesisInsights === 'function') await loadSynthesisInsights();
     } else {

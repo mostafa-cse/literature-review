@@ -47,3 +47,12 @@ window.fetchWithAuth = async function(url, options = {}) {
 
   return response;
 };
+
+// Suppress known external browser-injected VM script error (Chrome DevTools / web-vitals reportAllChanges startTime bug)
+window.addEventListener('error', function(event) {
+  if (event && event.message && event.message.includes("Cannot read properties of undefined (reading 'startTime')")) {
+    if (typeof event.preventDefault === 'function') event.preventDefault();
+    if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+    return true;
+  }
+});

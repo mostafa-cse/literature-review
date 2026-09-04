@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="/css/modal.css">
   <link rel="stylesheet" href="/css/toast.css">
   <link rel="stylesheet" href="/css/footer.css">
-  <link rel="stylesheet" href="/css/workspace.css">
+  <link rel="stylesheet" href="/css/workspace.css?v=3.2">
 
   <!-- KaTeX & MathJax Libraries for Math Formulation -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
@@ -297,7 +297,7 @@
           <span id="keywords-count-badge" class="unassigned-badge" style="background: rgba(212,175,55,0.12); color: var(--accent-gold); border: 1px solid rgba(212,175,55,0.3);">0 Keywords</span>
           <span id="keywords-active-count-badge" class="unassigned-badge" style="display: none; background: rgba(56,189,248,0.12); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3);">0 Active</span>
         </div>
-        <p class="keywords-section-subtitle">
+        <p class="keywords-section-subtitle" id="keywords-section-subtitle">
           Interactive multi-topic filtering across systematic survey literature and taxonomy benchmark categories.
         </p>
       </div>
@@ -330,10 +330,18 @@
           </svg>
           Add Keyword
         </button>
+
+        <!-- Collapse / Expand Toggle Button -->
+        <button type="button" class="keywords-collapse-toggle-btn" id="btn-toggle-keywords-collapse" onclick="toggleKeywordsSectionCollapse()" aria-expanded="true" title="Collapse or expand keywords filtering section">
+          <span id="keywords-collapse-label">Collapse</span>
+          <svg id="keywords-collapse-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="18 15 12 9 6 15"></polyline>
+          </svg>
+        </button>
       </div>
     </div>
 
-    <div class="clusters-header-divider" style="margin-bottom: 0.85rem;"></div>
+    <div class="clusters-header-divider" id="keywords-header-divider" style="margin-bottom: 0.85rem;"></div>
 
     <div class="keywords-hub-card" id="keywords-hub-card">
       <!-- Active Filter Bar (shown when 1+ keywords selected) -->
@@ -360,19 +368,21 @@
     <div class="search-group">
       <select class="search-col-select" id="search-column-select" title="Select Column to Search">
         <option value="all">All Columns</option>
-        <optgroup label="Standard Columns" id="search-base-cols-group">
-          <option value="title">Paper Title</option>
-          <option value="cluster">Cluster Name</option>
-          <option value="year">Publish Year</option>
-          <option value="pub">Publisher / Conf / Journal</option>
+        <optgroup label="Paper Metadata" id="search-base-cols-group">
+          <option value="title">Title</option>
+          <option value="authors">Authors</option>
+          <option value="year">Year</option>
+          <option value="pub">Venue</option>
+          <option value="doi">DOI / Link</option>
+          <option value="cluster">Cluster</option>
+          <option value="domain">Domain</option>
+          <option value="status">Reading Status</option>
+        </optgroup>
+        <optgroup label="Synthesis &amp; Insights" id="search-synthesis-cols-group">
           <option value="advantages">Advantages</option>
           <option value="criticism">Criticism</option>
           <option value="future_directions">Future Research Direction</option>
-          <option value="authors">Authors</option>
-          <option value="domain">Domain</option>
-          <option value="status">Reading Status</option>
           <option value="keywords">Keywords</option>
-          <option value="doi">DOI / Link</option>
         </optgroup>
         <optgroup label="Custom Columns" id="search-dyn-cols-group">
           <!-- Populated dynamically -->
@@ -416,7 +426,24 @@
           <span><strong>Excel Freeze &amp; Inline Edit:</strong> Frozen Paper Title &amp; Headers. Double-click any cell
             to edit inline. Changes auto-save on Enter/Blur.</span>
         </div>
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+          <div class="matrix-view-select-wrapper" title="Select matrix column visibility mode">
+            <span class="matrix-view-select-icon">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="9" y1="3" x2="9" y2="21"></line>
+              </svg>
+            </span>
+            <select id="matrix-column-view-select" class="matrix-column-view-select" onchange="window.setMatrixColumnViewMode(this.value)" title="Choose which columns to display in the Master Matrix">
+              <option value="all">All Columns</option>
+              <option value="custom">Custom Columns Only</option>
+              <option value="custom_pure">Pure Custom (Hide Title)</option>
+              <option value="metadata">Metadata Only</option>
+            </select>
+          </div>
+          <button type="button" class="mini-btn matrix-filter-toggle-btn" id="btn-toggle-metadata-visibility" onclick="window.toggleMetadataColumnsVisibility()" title="Click to toggle: Show Custom Columns Only vs All Columns">
+            <span id="metadata-toggle-btn-label">Show Custom Only</span>
+          </button>
           <button type="button" class="mini-btn" id="matrix-btn-add-col" onclick="openAddColumnModal()"
             style="border-color: var(--accent-primary); color: var(--accent-primary); font-weight: 600;">+ Add
             Column</button>
@@ -2028,52 +2055,74 @@
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg></button>
       </div>
-      <div class="form-group" style="margin-bottom: 1rem;">
-        <label class="form-label" style="font-weight: 600;">Select Column to Split</label>
-        <select class="form-select" id="split-parent-col-select"
-          onchange="if(typeof handleSplitColumnSelectionChange === 'function') handleSplitColumnSelectionChange(this.value)">
-          <!-- Populated dynamically -->
-        </select>
-      </div>
-      <div class="form-group" style="margin-bottom: 1rem;">
-        <label class="form-label"
-          style="display: flex; justify-content: space-between; align-items: center; font-weight: 600;">
-          <span>Number of Sub-Columns</span>
-          <span style="font-size: 0.78rem; color: var(--text-tertiary); font-weight: normal;">Min 1 (Unsplit), Max
-            10</span>
-        </label>
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
-          <input type="number" class="form-input" id="split-count-input" value="2" min="1" max="10"
-            style="width: 100px;"
-            oninput="if(typeof handleSplitCountChange === 'function') handleSplitCountChange(this.value);"
-            onchange="if(typeof handleSplitCountChange === 'function') handleSplitCountChange(this.value);">
-          <span style="font-size: 0.82rem; color: var(--text-secondary);">sub-columns (set to 1 to unsplit back to
-            single column)</span>
+
+      <!-- Empty state when no columns exist to split -->
+      <div id="split-col-empty-state" style="display: none; text-align: center; padding: 1.75rem 1rem;">
+        <div style="margin-bottom: 0.65rem; color: var(--accent-amber); display: flex; justify-content: center;">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
         </div>
-      </div>
-      <div id="split-subcols-wrapper">
-        <label class="form-label"
-          style="display: flex; justify-content: space-between; align-items: center; font-weight: 600;">
-          <span>Sub-Column Labels (Optional / Auto-generated)</span>
-          <span style="font-size: 0.78rem; color: var(--text-tertiary); font-weight: normal;">e.g. Sub 1, Sub 2, or
-            custom names</span>
-        </label>
-        <div id="split-subcols-list"
-          style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem;">
-          <!-- Dynamic Sub-Column Rows populated by JS -->
+        <div style="font-weight: 700; font-size: 1.05rem; color: var(--text-primary); margin-bottom: 0.35rem;">No Customizable Columns Found</div>
+        <p style="font-size: 0.85rem; color: var(--text-secondary); max-width: 400px; margin: 0 auto 1.25rem; line-height: 1.5;">
+          You need at least one custom taxonomy extraction column in this matrix before you can split it into structured sub-headers.
+        </p>
+        <div style="display: flex; justify-content: center; gap: 0.65rem;">
+          <button type="button" class="mini-btn" onclick="closeModal('split-column-modal')">Close</button>
+          <button type="button" class="action-btn gold mini-btn" onclick="closeModal('split-column-modal'); openAddColumnModal();">+ Add Column Now</button>
         </div>
-        <button type="button" class="mini-btn" id="btn-add-more-subcol" onclick="addAnotherSplitSubColumn()"
-          style="font-size: 0.84rem; display: inline-flex; align-items: center; gap: 0.35rem; color: var(--accent-primary); border-color: rgba(56, 189, 248, 0.4);">
-          + Add Another Sub-Column
-        </button>
       </div>
 
-      <div
-        style="display: flex; justify-content: flex-end; gap: 0.65rem; margin-top: 1.4rem; border-top: 1px solid var(--border-base); padding-top: 0.95rem;">
-        <button type="button" class="mini-btn" id="btn-cancel-split-col"
-          onclick="closeModal('split-column-modal')">Cancel</button>
-        <button type="button" class="action-btn" id="btn-submit-split-col" onclick="submitSplitColumn(event)">Split
-          Column</button>
+      <div id="split-col-form-content">
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" style="font-weight: 600;">Select Column to Split</label>
+          <select class="form-select" id="split-parent-col-select"
+            onchange="if(typeof handleSplitColumnSelectionChange === 'function') handleSplitColumnSelectionChange(this.value)">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label"
+            style="display: flex; justify-content: space-between; align-items: center; font-weight: 600;">
+            <span>Number of Sub-Columns</span>
+            <span style="font-size: 0.78rem; color: var(--text-tertiary); font-weight: normal;">Min 1 (Unsplit), Max
+              10</span>
+          </label>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <input type="number" class="form-input" id="split-count-input" value="2" min="1" max="10"
+              style="width: 100px;"
+              oninput="if(typeof handleSplitCountChange === 'function') handleSplitCountChange(this.value);"
+              onchange="if(typeof handleSplitCountChange === 'function') handleSplitCountChange(this.value);">
+            <span style="font-size: 0.82rem; color: var(--text-secondary);">sub-columns (set to 1 to unsplit back to
+              single column)</span>
+          </div>
+        </div>
+        <div id="split-subcols-wrapper">
+          <label class="form-label"
+            style="display: flex; justify-content: space-between; align-items: center; font-weight: 600;">
+            <span>Sub-Column Labels (Optional / Auto-generated)</span>
+            <span style="font-size: 0.78rem; color: var(--text-tertiary); font-weight: normal;">e.g. Sub 1, Sub 2, or
+              custom names</span>
+          </label>
+          <div id="split-subcols-list"
+            style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem;">
+            <!-- Dynamic Sub-Column Rows populated by JS -->
+          </div>
+          <button type="button" class="mini-btn" id="btn-add-more-subcol" onclick="addAnotherSplitSubColumn()"
+            style="font-size: 0.84rem; display: inline-flex; align-items: center; gap: 0.35rem; color: var(--accent-primary); border-color: rgba(56, 189, 248, 0.4);">
+            + Add Another Sub-Column
+          </button>
+        </div>
+
+        <div id="split-col-footer-actions"
+          style="display: flex; justify-content: flex-end; gap: 0.65rem; margin-top: 1.4rem; border-top: 1px solid var(--border-base); padding-top: 0.95rem;">
+          <button type="button" class="mini-btn" id="btn-cancel-split-col"
+            onclick="closeModal('split-column-modal')">Cancel</button>
+          <button type="button" class="action-btn" id="btn-submit-split-col" onclick="submitSplitColumn(event)">Split
+            Column</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2083,22 +2132,22 @@
 
   <script src="/js/core/api.js"></script>
   <script src="/js/core/modal.js"></script>
-  <script src="/js/core/toast.js"></script>
-  <script src="/js/core/navbar.js"></script>
-  <script src="/js/core/footer.js"></script>
-  <script src="/js/workspace/state.js"></script>
-  <script src="/js/workspace/matrix.js"></script>
-  <script src="/js/workspace/cards.js"></script>
-  <script src="/js/workspace/clusters.js"></script>
-  <script src="/js/workspace/paperModal.js"></script>
-  <script src="/js/workspace/reader.js"></script>
-  <script src="/js/workspace/comments.js"></script>
-  <script src="/js/workspace/columns.js"></script>
-  <script src="/js/workspace/synthesis.js"></script>
-  <script src="/js/workspace/summary.js"></script>
-  <script src="/js/workspace/export.js"></script>
-  <script src="/js/workspace/team.js"></script>
-  <script src="/js/workspace/settings.js"></script>
-  <script src="/js/workspace/main.js"></script>
+  <script src="/js/core/toast.js?v=3.2"></script>
+  <script src="/js/core/navbar.js?v=3.2"></script>
+  <script src="/js/core/footer.js?v=3.2"></script>
+  <script src="/js/workspace/state.js?v=3.2"></script>
+  <script src="/js/workspace/matrix.js?v=3.2"></script>
+  <script src="/js/workspace/cards.js?v=3.2"></script>
+  <script src="/js/workspace/clusters.js?v=3.2"></script>
+  <script src="/js/workspace/paperModal.js?v=3.2"></script>
+  <script src="/js/workspace/reader.js?v=3.2"></script>
+  <script src="/js/workspace/comments.js?v=3.2"></script>
+  <script src="/js/workspace/columns.js?v=3.2"></script>
+  <script src="/js/workspace/synthesis.js?v=3.2"></script>
+  <script src="/js/workspace/summary.js?v=3.2"></script>
+  <script src="/js/workspace/export.js?v=3.2"></script>
+  <script src="/js/workspace/team.js?v=3.2"></script>
+  <script src="/js/workspace/settings.js?v=3.2"></script>
+  <script src="/js/workspace/main.js?v=3.2"></script>
 </body>
 </html>

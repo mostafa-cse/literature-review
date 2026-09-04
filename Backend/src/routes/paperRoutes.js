@@ -509,21 +509,37 @@ router.put('/papers/:id', (req, res) => {
 
     // Update custom column values if provided
     if (custom_columns && typeof custom_columns === 'object') {
+      const targetCluster = cluster_id !== undefined ? cluster_id : existing.cluster_id;
+      const targetProjectId = existing.project_id;
       const upsertColVal = db.prepare(`
         INSERT INTO paper_column_values (paper_id, column_id, value)
         VALUES (?, ?, ?)
         ON CONFLICT(paper_id, column_id) DO UPDATE SET value = excluded.value
       `);
       for (const [colKey, val] of Object.entries(custom_columns)) {
-        let colId = parseInt(colKey, 10);
+        if (!colKey || colKey.startsWith('col_') && isNaN(parseInt(colKey.replace('col_', ''), 10))) continue;
+        let colId = parseInt(colKey.replace(/^col_/, ''), 10);
         if (isNaN(colId)) {
-          // Look up column by name in paper's cluster
-          const targetCluster = cluster_id || existing.cluster_id;
-          const found = db.prepare('SELECT id FROM dynamic_columns WHERE cluster_id = ? AND column_name = ?').get(targetCluster, colKey);
-          if (found) colId = found.id;
+          // Look up column by name in paper's cluster or project
+          let found = null;
+          if (targetCluster) {
+            found = db.prepare('SELECT id FROM dynamic_columns WHERE cluster_id = ? AND (column_name = ? OR LOWER(column_name) = LOWER(?))').get(targetCluster, colKey, colKey);
+          }
+          if (!found && targetProjectId) {
+            found = db.prepare('SELECT dc.id FROM dynamic_columns dc JOIN clusters c ON c.id = dc.cluster_id WHERE c.project_id = ? AND (dc.column_name = ? OR LOWER(dc.column_name) = LOWER(?))').get(targetProjectId, colKey, colKey);
+          }
+          if (found) {
+            colId = found.id;
+          } else {
+            const tCl = targetCluster || (targetProjectId ? db.prepare('SELECT id FROM clusters WHERE project_id = ? LIMIT 1').get(targetProjectId)?.id : null);
+            if (tCl) {
+              const newCol = db.prepare('INSERT INTO dynamic_columns (cluster_id, column_name, col_type) VALUES (?, ?, ?)').run(tCl, colKey, 'text');
+              colId = newCol.lastInsertRowid;
+            }
+          }
         }
-        if (!isNaN(colId)) {
-          upsertColVal.run(paperId, colId, typeof val === 'object' ? JSON.stringify(val) : String(val));
+        if (!isNaN(colId) && colId) {
+          upsertColVal.run(paperId, colId, val !== undefined && val !== null ? (typeof val === 'object' ? JSON.stringify(val) : String(val)) : '');
         }
       }
     }

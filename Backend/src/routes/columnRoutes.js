@@ -22,6 +22,24 @@ router.get(['/dynamic-columns', '/columns'], (req, res) => {
         WHERE dc.cluster_id = ?
         ORDER BY dc.parent_column_id ASC, dc.id ASC
       `).all(cluster_id);
+
+      // Fallback: If cluster has no custom columns, retrieve project-level dynamic columns
+      if (cols.length === 0) {
+        const cl = db.prepare('SELECT project_id FROM clusters WHERE id = ?').get(cluster_id);
+        const pid = project_id || (cl ? cl.project_id : null);
+        if (pid) {
+          cols = db.prepare(`
+            SELECT MIN(dc.id) as id, MIN(dc.cluster_id) as cluster_id, dc.column_name, dc.column_name as name, dc.parent_column_id, dc.col_type, p.column_name as parent_column_name
+            FROM dynamic_columns dc
+            LEFT JOIN clusters c ON c.id = dc.cluster_id
+            LEFT JOIN dynamic_columns p ON p.id = dc.parent_column_id
+            WHERE c.project_id = ?
+               OR dc.id IN (SELECT pcv.column_id FROM paper_column_values pcv JOIN papers pa ON pa.id = pcv.paper_id WHERE pa.project_id = ?)
+            GROUP BY dc.column_name
+            ORDER BY dc.parent_column_id ASC, MIN(dc.id) ASC
+          `).all(pid, pid);
+        }
+      }
     } else if (project_id) {
       cols = db.prepare(`
         SELECT MIN(dc.id) as id, MIN(dc.cluster_id) as cluster_id, dc.column_name, dc.column_name as name, dc.parent_column_id, dc.col_type, p.column_name as parent_column_name
@@ -598,12 +616,41 @@ router.post('/paper-column-values/batch', (req, res) => {
       const pid = item.paper_id || globalPaperId;
       if (!pid) continue;
 
-      let colId = item.column_id;
+      let colId = item.column_id ? parseInt(item.column_id, 10) : null;
+      if (isNaN(colId)) colId = null;
+
+      const paper = db.prepare('SELECT project_id, cluster_id FROM papers WHERE id = ?').get(pid);
+      if (!paper) continue;
+
       if (!colId && item.column_name) {
-        const paper = db.prepare('SELECT cluster_id FROM papers WHERE id = ?').get(pid);
-        if (paper && paper.cluster_id) {
-          const col = db.prepare('SELECT id FROM dynamic_columns WHERE cluster_id = ? AND column_name = ?').get(paper.cluster_id, item.column_name);
-          if (col) colId = col.id;
+        let colRec = null;
+        if (paper.cluster_id) {
+          colRec = db.prepare('SELECT id FROM dynamic_columns WHERE cluster_id = ? AND (column_name = ? OR LOWER(column_name) = LOWER(?))').get(paper.cluster_id, item.column_name, item.column_name);
+        }
+        if (!colRec && paper.project_id) {
+          colRec = db.prepare('SELECT dc.id FROM dynamic_columns dc JOIN clusters c ON c.id = dc.cluster_id WHERE c.project_id = ? AND (dc.column_name = ? OR LOWER(dc.column_name) = LOWER(?))').get(paper.project_id, item.column_name, item.column_name);
+        }
+        if (colRec) {
+          colId = colRec.id;
+        } else {
+          const targetCluster = paper.cluster_id || (db.prepare('SELECT id FROM clusters WHERE project_id = ? LIMIT 1').get(paper.project_id)?.id);
+          if (targetCluster) {
+            const newCol = db.prepare('INSERT INTO dynamic_columns (cluster_id, column_name, col_type) VALUES (?, ?, ?)')
+              .run(targetCluster, item.column_name, 'text');
+            colId = newCol.lastInsertRowid;
+          }
+        }
+      } else if (colId && paper.cluster_id) {
+        const curCol = db.prepare('SELECT column_name, cluster_id FROM dynamic_columns WHERE id = ?').get(colId);
+        if (curCol && curCol.cluster_id !== paper.cluster_id) {
+          const matching = db.prepare('SELECT id FROM dynamic_columns WHERE cluster_id = ? AND (column_name = ? OR LOWER(column_name) = LOWER(?))').get(paper.cluster_id, curCol.column_name, curCol.column_name);
+          if (matching) {
+            colId = matching.id;
+          } else {
+            const created = db.prepare('INSERT INTO dynamic_columns (cluster_id, column_name, col_type) VALUES (?, ?, ?)')
+              .run(paper.cluster_id, curCol.column_name, 'text');
+            colId = created.lastInsertRowid;
+          }
         }
       }
 
@@ -611,7 +658,7 @@ router.post('/paper-column-values/batch', (req, res) => {
         normalizedUpdates.push({
           paper_id: pid,
           column_id: colId,
-          value: item.value !== undefined ? String(item.value) : ''
+          value: item.value !== undefined && item.value !== null ? String(item.value) : ''
         });
       }
     }

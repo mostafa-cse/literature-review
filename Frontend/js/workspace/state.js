@@ -70,14 +70,20 @@ window.getPaperSerialNo = function(paperOrId) {
   const papers = window.allPapers || [];
   if (Array.isArray(papers) && papers.length > 0) {
     const p = papers.find(item => item.id === paperId);
+    if (p && p.custom_columns && (p.custom_columns['Paper ID'] || p.custom_columns['paper_id'])) {
+      return p.custom_columns['Paper ID'] || p.custom_columns['paper_id'];
+    }
     if (p && p.serial_no !== undefined && p.serial_no !== null) return p.serial_no;
     // Fallback: deterministic sorted index by ID
     const sorted = [...papers].sort((a, b) => (a.id || 0) - (b.id || 0));
     const idx = sorted.findIndex(item => item.id === paperId);
     if (idx !== -1) return idx + 1;
   }
-  if (typeof paperOrId === 'object' && paperOrId.serial_no !== undefined) {
-    return paperOrId.serial_no;
+  if (typeof paperOrId === 'object') {
+    if (paperOrId.custom_columns && (paperOrId.custom_columns['Paper ID'] || paperOrId.custom_columns['paper_id'])) {
+      return paperOrId.custom_columns['Paper ID'] || paperOrId.custom_columns['paper_id'];
+    }
+    if (paperOrId.serial_no !== undefined) return paperOrId.serial_no;
   }
   return 1;
 };

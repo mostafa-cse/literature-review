@@ -304,6 +304,28 @@ export function PaperReviewApp() {
       console.warn('Backend cluster transfer save error:', e);
     }
 
+    // Broadcast transfer to parent workspace tabs/windows so they update live without reload
+    try {
+      const pid = (new URLSearchParams(window.location.search)).get('project') || 1;
+      const syncPayload = {
+        type: 'paper_transferred',
+        paperId: paperId,
+        clusterId: clusterId,
+        clusterName: target || null,
+        screeningDecision: 'included',
+        projectId: pid,
+        timestamp: Date.now()
+      };
+      try {
+        const bc = new BroadcastChannel('literature_review_sync');
+        bc.postMessage(syncPayload);
+        bc.close();
+      } catch (_) {}
+      try {
+        localStorage.setItem('literature_review_sync_event', JSON.stringify(syncPayload));
+      } catch (_) {}
+    } catch (_) {}
+
     if (target) {
       showToast(`✓ Transferred paper to cluster: "${target}"`);
     } else {

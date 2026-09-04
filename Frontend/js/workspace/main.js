@@ -41,6 +41,9 @@ window.init = async function () {
 
   // Bind Global Event Listeners
   bindWorkspaceEventListeners();
+  if (typeof window.restoreKeywordsSectionCollapseState === 'function') {
+    window.restoreKeywordsSectionCollapseState();
+  }
 
   // Load Project Hierarchy
   await loadProjects();
@@ -311,6 +314,10 @@ window.applyWorkspaceRolePermissions = function () {
     btn.style.display = canModify ? 'inline-flex' : 'none';
   });
 
+  if (typeof updateMatrixColumnButtonStates === 'function') {
+    updateMatrixColumnButtonStates();
+  }
+
   // 6. Team modal invite bar (Owner Only)
   const addMemberBar = document.getElementById('team-add-member-bar');
   const readOnlyNotice = document.getElementById('team-readonly-notice');
@@ -393,27 +400,86 @@ window.clearKeywordSearch = function () {
   renderKeywordsHub();
 };
 
+window.toggleKeywordsSectionCollapse = function () {
+  const sec = document.getElementById('keywords-section');
+  if (!sec) return;
+  const isNowCollapsed = sec.classList.toggle('is-collapsed');
+  const btn = document.getElementById('btn-toggle-keywords-collapse');
+  const label = document.getElementById('keywords-collapse-label');
+
+  if (label) {
+    label.textContent = isNowCollapsed ? 'Expand' : 'Collapse';
+  }
+  if (btn) {
+    btn.setAttribute('aria-expanded', !isNowCollapsed);
+    btn.title = isNowCollapsed ? 'Expand Research Keywords & Topic Filtering' : 'Collapse Research Keywords & Topic Filtering';
+  }
+
+  const pid = (typeof activeProjectId !== 'undefined' && activeProjectId)
+    ? activeProjectId
+    : (new URLSearchParams(window.location.search).get('project') || 1);
+  try {
+    localStorage.setItem(`keywords_section_collapsed_${pid}`, isNowCollapsed ? '1' : '0');
+  } catch (_) {}
+};
+
+window.restoreKeywordsSectionCollapseState = function () {
+  const sec = document.getElementById('keywords-section');
+  if (!sec) return;
+  const pid = (typeof activeProjectId !== 'undefined' && activeProjectId)
+    ? activeProjectId
+    : (new URLSearchParams(window.location.search).get('project') || 1);
+  let isCollapsed = false;
+  try {
+    isCollapsed = localStorage.getItem(`keywords_section_collapsed_${pid}`) === '1';
+  } catch (_) {}
+
+  if (isCollapsed) {
+    sec.classList.add('is-collapsed');
+    const label = document.getElementById('keywords-collapse-label');
+    const btn = document.getElementById('btn-toggle-keywords-collapse');
+    if (label) label.textContent = 'Expand';
+    if (btn) {
+      btn.setAttribute('aria-expanded', 'false');
+      btn.title = 'Expand Research Keywords & Topic Filtering';
+    }
+  } else {
+    sec.classList.remove('is-collapsed');
+    const label = document.getElementById('keywords-collapse-label');
+    const btn = document.getElementById('btn-toggle-keywords-collapse');
+    if (label) label.textContent = 'Collapse';
+    if (btn) {
+      btn.setAttribute('aria-expanded', 'true');
+      btn.title = 'Collapse Research Keywords & Topic Filtering';
+    }
+  }
+};
+
 window.renderKeywordsHub = function () {
   const container = document.getElementById('keywords-chips-container');
   const countBadge = document.getElementById('keywords-count-badge');
   const activeCountBadge = document.getElementById('keywords-active-count-badge');
   const activeWrap = document.getElementById('active-keywords-filter-wrap');
   const activeTagsContainer = document.getElementById('active-keywords-tags');
+  const subtitle = document.getElementById('keywords-section-subtitle');
 
   if (!container) return;
 
   const rawPapers = Array.isArray(allPapers) ? allPapers : [];
   const activeClusterId = window.currentClusterId || 'all';
-  const activeClusterObj = (activeClusterId !== 'all' && window.allClusters)
+  const isSpecificCluster = Boolean(activeClusterId && activeClusterId !== 'all');
+  const activeClusterObj = (isSpecificCluster && Array.isArray(window.allClusters))
     ? window.allClusters.find(c => String(c.id) === String(activeClusterId))
     : null;
 
-  // Filter papers to current cluster if focused, otherwise entire survey
-  const papers = (activeClusterId && activeClusterId !== 'all')
+  // STRICT CLUSTER FILTERING:
+  // When inside a specific cluster, ONLY provide keywords from papers belonging strictly to this cluster!
+  // All keywords across the entire project/corpus are shown at the workspace overview level only.
+  const papers = isSpecificCluster
     ? rawPapers.filter(p => String(p.cluster_id) === String(activeClusterId))
     : rawPapers;
 
-  // 1. Gather all keywords from target papers
+  // 1. Gather all keywords strictly from the target papers
   const kwMap = new Map(); // keyword (lower) -> { name: originalString, count: number }
 
   papers.forEach(p => {
@@ -433,39 +499,60 @@ window.renderKeywordsHub = function () {
     }
   });
 
-  // 2. Include any custom registered keywords in this project
-  const projId = (typeof activeProjectId !== 'undefined' && activeProjectId)
-    ? activeProjectId
-    : (new URLSearchParams(window.location.search).get('project') || 1);
-  const storageKey = 'workspace_custom_keywords_' + projId;
-  try {
-    const customKws = JSON.parse(localStorage.getItem(storageKey) || '[]');
-    if (Array.isArray(customKws)) {
-      customKws.forEach(k => {
-        if (k && typeof k === 'string') {
-          const trimmed = k.trim().replace(/^#/, '');
-          if (trimmed) {
-            const lower = trimmed.toLowerCase();
-            if (!kwMap.has(lower)) {
-              kwMap.set(lower, { name: trimmed, count: 0 });
+  // 2. ONLY at workspace level (all clusters): include custom registered keywords
+  if (!isSpecificCluster) {
+    const projId = (typeof activeProjectId !== 'undefined' && activeProjectId)
+      ? activeProjectId
+      : (new URLSearchParams(window.location.search).get('project') || 1);
+    const storageKey = 'workspace_custom_keywords_' + projId;
+    try {
+      const customKws = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      if (Array.isArray(customKws)) {
+        customKws.forEach(k => {
+          if (k && typeof k === 'string') {
+            const trimmed = k.trim().replace(/^#/, '');
+            if (trimmed) {
+              const lower = trimmed.toLowerCase();
+              if (!kwMap.has(lower)) {
+                kwMap.set(lower, { name: trimmed, count: 0 });
+              }
             }
           }
-        }
-      });
+        });
+      }
+    } catch (e) {}
+  }
+
+  // 3. Prune any active keyword filters that do not exist in this specific cluster
+  if (isSpecificCluster && window.selectedKeywords && window.selectedKeywords.size > 0) {
+    for (const kw of Array.from(window.selectedKeywords)) {
+      if (!kwMap.has(kw.toLowerCase())) {
+        window.selectedKeywords.delete(kw);
+      }
     }
-  } catch (e) {}
+  }
 
   const allUnique = Array.from(kwMap.values());
-  // Sort by count desc, then alphabetically
+  // Sort by paper count descending, then alphabetically
   allUnique.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 
+  // Update Section Subtitle
+  if (subtitle) {
+    if (activeClusterObj) {
+      subtitle.textContent = `Keywords and research topics identified across papers in "${activeClusterObj.name}".`;
+    } else {
+      subtitle.textContent = `Interactive multi-topic filtering across systematic survey literature and taxonomy benchmark categories.`;
+    }
+  }
+
+  // Update Count Badge
   if (countBadge) {
     if (activeClusterObj) {
       countBadge.textContent = `${allUnique.length} in ${activeClusterObj.name}`;
-      countBadge.title = `Showing keywords for ${activeClusterObj.name} (${papers.length} Papers)`;
+      countBadge.title = `Showing ${allUnique.length} keywords for ${activeClusterObj.name} (${papers.length} ${papers.length === 1 ? 'Paper' : 'Papers'})`;
     } else {
       countBadge.textContent = `${allUnique.length} ${allUnique.length === 1 ? 'Keyword' : 'Keywords'}`;
-      countBadge.title = `Showing all project keywords (${papers.length} Papers)`;
+      countBadge.title = `Showing all project keywords (${papers.length} Papers across all clusters)`;
     }
   }
 
@@ -497,12 +584,12 @@ window.renderKeywordsHub = function () {
 
   if (allUnique.length === 0) {
     container.innerHTML = `
-      <div style="font-size: 0.86rem; color: var(--text-tertiary); display: flex; align-items: center; justify-content: center; gap: 0.65rem; padding: 0.35rem 0; width: 100%;">
+      <div style="font-size: 0.86rem; color: var(--text-tertiary); display: flex; align-items: center; justify-content: center; gap: 0.65rem; padding: 0.75rem 0; width: 100%;">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-tertiary);">
           <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
           <line x1="7" y1="7" x2="7.01" y2="7"></line>
         </svg>
-        <span>${activeClusterObj ? `No keywords recorded for papers in "${escapeHtml(activeClusterObj.name)}" yet.` : 'No keywords assigned to papers yet.'}</span>
+        <span>${activeClusterObj ? `No keywords recorded for papers in "${escapeHtml(activeClusterObj.name)}" yet.` : 'No keywords assigned to papers in this workspace yet.'}</span>
         <button type="button" class="mini-btn gold" onclick="openAddKeywordModal()" style="font-size: 0.76rem; padding: 0.2rem 0.55rem; font-weight: 700;">+ Add First Keyword</button>
       </div>
     `;
@@ -517,7 +604,7 @@ window.renderKeywordsHub = function () {
 
   if (displayKeywords.length === 0 && window.keywordSearchQuery) {
     container.innerHTML = `
-      <div style="font-size: 0.84rem; color: var(--text-tertiary); display: flex; align-items: center; justify-content: center; gap: 0.65rem; padding: 0.35rem 0; width: 100%;">
+      <div style="font-size: 0.84rem; color: var(--text-tertiary); display: flex; align-items: center; justify-content: center; gap: 0.65rem; padding: 0.5rem 0; width: 100%;">
         <span>No keywords matching "<strong>${escapeHtml(window.keywordSearchQuery)}</strong>"</span>
         <button type="button" class="mini-btn" onclick="clearKeywordSearch()" style="font-size: 0.74rem; padding: 0.18rem 0.5rem;">Clear Search</button>
         <button type="button" class="mini-btn gold" onclick="openAddKeywordModal()" style="font-size: 0.74rem; padding: 0.18rem 0.5rem;">+ Add as Keyword</button>
@@ -530,7 +617,7 @@ window.renderKeywordsHub = function () {
   const isAllActive = window.selectedKeywords.size === 0;
   let html = `
     <div class="kw-chip kw-chip-all ${isAllActive ? 'active' : ''}" onclick="toggleKeywordFilter('all')" title="Show all ${activeClusterObj ? `papers in ${escapeHtml(activeClusterObj.name)}` : 'papers'} without keyword filtering">
-      <span>${activeClusterObj ? 'All Cluster Keywords' : 'All Keywords'}</span>
+      <span>${activeClusterObj ? `All in ${escapeHtml(activeClusterObj.name)}` : 'All Keywords'}</span>
       <span class="kw-chip-count">${papers.length}</span>
     </div>
   `;
@@ -899,9 +986,13 @@ window.renderUnassignedModalContent = function () {
                   ${hasValidYear ? `<span class="unassigned-year-badge">${p.year}</span>` : '<span style="color:var(--text-tertiary);">—</span>'}
                 </td>
                 <td style="text-align: right;">
-                  <div class="unassigned-row-actions" style="justify-content: flex-end;">
-                    <button class="action-btn mini-btn unassigned-review-btn" onclick="openPaperForReview(${p.id}, event)" title="Open in Split-Screen Review &amp; Transfer Workspace">
-                      📖 Live Review
+                  <div class="unassigned-row-actions" style="justify-content: flex-end; gap: 0.45rem; align-items: center;">
+                    <select class="unassigned-quick-cluster-select" onchange="quickAssignSinglePaper(${p.id}, this.value, event)" title="Instantly transfer this paper to a taxonomy cluster" style="max-width: 145px; font-size: 0.76rem; padding: 0.25rem 0.5rem; height: 28px; border-radius: 6px; background: var(--bg-surface); border: 1px solid var(--border-base); color: var(--text-primary); cursor: pointer;">
+                      <option value="">Move to...</option>
+                      ${(allClusters || []).map(c => `<option value="${c.id}">↳ ${escapeHtml(c.name)}</option>`).join('')}
+                    </select>
+                    <button class="action-btn mini-btn unassigned-review-btn" onclick="openPaperForReview(${p.id}, event)" title="Open in Split-Screen Review &amp; Transfer Workspace" style="height: 28px; padding: 0.25rem 0.65rem; font-size: 0.78rem;">
+                      📖 Review
                     </button>
                   </div>
                 </td>
@@ -912,55 +1003,89 @@ window.renderUnassignedModalContent = function () {
       </div>
     `;
   } else {
-    // Cards View: cleanly removes inline cluster assign, hides any '-' info, and adds live view review & transfer
+    // Cards View: Enhanced, balanced, information-dense academic card design
     container.innerHTML = `
       <div class="unassigned-modal-grid">
-        ${displayList.map(p => {
+        ${displayList.map((p, idx) => {
           const hasValidAuthors = p.authors && p.authors !== '-' && p.authors.trim() !== '' && p.authors.toLowerCase() !== 'academic researchers';
           const hasValidPub = p.pub && p.pub !== '-' && p.pub.trim() !== '' && p.pub !== '—';
           const hasValidYear = p.year && p.year !== '-' && String(p.year).trim() !== '' && p.year !== '—';
           const hasValidDoi = p.doi && p.doi !== '-' && p.doi.trim() !== '';
           const hasValidDomain = p.domain && p.domain !== '-' && p.domain.trim() !== '' && p.domain.toLowerCase() !== 'general';
-          const hasAnyMeta = hasValidAuthors || hasValidPub;
+          const hasPdf = !!(p.pdf_url && p.pdf_url.trim() && p.pdf_url !== '-');
+          const statusText = (p.status || 'unread').replace('_', ' ');
 
           return `
           <div class="unassigned-hub-card" data-paper-id="${p.id}">
+            <!-- Card Top: Index, Status Indicators & Select Checkbox -->
             <div class="unassigned-card-top">
-              <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
-                ${hasValidDomain ? `<span class="unassigned-tag domain">${escapeHtml(p.domain)}</span>` : ''}
+              <div class="unassigned-top-tags">
+                <span class="unassigned-paper-num" title="Paper Index in Staging">#${idx + 1}</span>
+                <span class="unassigned-tag unassigned-staging-badge">Unassigned</span>
+                <span class="unassigned-tag reading-status status-${p.status || 'unread'}">${escapeHtml(statusText)}</span>
                 ${hasValidYear ? `<span class="unassigned-year-badge">${p.year}</span>` : ''}
-                ${hasValidDoi ? `<span class="unassigned-tag doi">DOI</span>` : ''}
+                ${hasValidDomain ? `<span class="unassigned-tag domain">${escapeHtml(p.domain)}</span>` : ''}
+                ${hasPdf ? `<span class="unassigned-tag pdf" title="PDF Manuscript Uploaded">📄 PDF</span>` : ''}
+                ${hasValidDoi ? `<span class="unassigned-tag doi" title="DOI: ${escapeHtml(p.doi)}">DOI</span>` : ''}
               </div>
               <label class="unassigned-card-cb-label" title="Select paper for batch transfer">
                 <input type="checkbox" class="unassigned-paper-cb" value="${p.id}" onchange="updateUnassignedSelectedCount()">
               </label>
             </div>
 
-            <h4 class="unassigned-hub-title" onclick="openPaperForReview(${p.id}, event)" title="Click to open paper in live split-screen review &amp; cluster transfer mode">
+            <!-- Paper Title -->
+            <h4 class="unassigned-hub-title" onclick="openPaperForReview(${p.id}, event)" title="Click to open paper in live split-screen review &amp; classification mode">
               ${escapeHtml(p.title || 'Untitled Paper')}
             </h4>
 
-            ${hasAnyMeta ? `
-              <div class="unassigned-hub-meta">
-                ${hasValidAuthors ? `
-                  <div class="unassigned-meta-item">
-                    <span class="unassigned-meta-icon">👤</span>
-                    <span>${escapeHtml(p.authors)}</span>
-                  </div>
-                ` : ''}
-                ${hasValidPub ? `
-                  <div class="unassigned-meta-item">
-                    <span class="unassigned-meta-icon">🏛️</span>
-                    <span style="font-style: italic;">${escapeHtml(p.pub)}</span>
-                  </div>
-                ` : ''}
+            <!-- Academic Metadata Inset Box -->
+            <div class="unassigned-hub-meta-box">
+              <div class="unassigned-meta-item">
+                <span class="unassigned-meta-icon">👤</span>
+                <span class="unassigned-meta-text ${!hasValidAuthors ? 'pending' : ''}">
+                  ${hasValidAuthors ? escapeHtml(p.authors) : 'Authors pending extraction'}
+                </span>
               </div>
-            ` : ''}
+              <div class="unassigned-meta-item">
+                <span class="unassigned-meta-icon">🏛️</span>
+                <span class="unassigned-meta-text ${!hasValidPub ? 'pending' : ''}">
+                  ${hasValidPub ? `<span style="font-style: italic;">${escapeHtml(p.pub)}</span>` : 'Venue / Publication unrecorded'}
+                </span>
+              </div>
+              ${hasValidDoi ? `
+                <div class="unassigned-meta-item">
+                  <span class="unassigned-meta-icon">🔗</span>
+                  <span class="unassigned-meta-text doi-text" title="${escapeHtml(p.doi)}">
+                    ${escapeHtml(p.doi.length > 34 ? p.doi.substring(0, 34) + '...' : p.doi)}
+                  </span>
+                </div>
+              ` : ''}
+            </div>
 
+            <!-- Quick Cluster Transfer Selector -->
+            <div class="unassigned-quick-assign-row">
+              <select class="unassigned-quick-cluster-select" onchange="quickAssignSinglePaper(${p.id}, this.value, event)" title="Instantly assign this paper to a taxonomy cluster">
+                <option value="">📁 Move to Cluster...</option>
+                ${(allClusters || []).map(c => `<option value="${c.id}">↳ ${escapeHtml(c.name)}</option>`).join('')}
+              </select>
+            </div>
+
+            <!-- Action Buttons Footer -->
             <div class="unassigned-card-actions-row">
-              <button class="action-btn gold unassigned-card-review-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.52rem 1rem; font-weight: 700;" onclick="openPaperForReview(${p.id}, event)" title="Open Live Split-Screen Review, PRISMA Screening &amp; Cluster Transfer">
+              <button class="action-btn gold unassigned-card-review-btn" onclick="openPaperForReview(${p.id}, event)" title="Open Split-Screen Review, KaTeX Extraction &amp; PRISMA Screening">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                <span>Live Review &amp; Move Cluster</span>
+                <span>Live Review &amp; Classify</span>
+              </button>
+
+              ${hasPdf ? `
+                <button type="button" class="action-btn mini-btn unassigned-pdf-btn" onclick="openReaderModal(${p.id}); if(event) event.stopPropagation();" title="View PDF in Reader">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <span>PDF</span>
+                </button>
+              ` : ''}
+
+              <button type="button" class="action-btn mini-btn danger unassigned-del-btn" onclick="deletePaperFromUnassigned(${p.id}, event)" title="Delete this paper from survey">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
               </button>
             </div>
           </div>
@@ -983,6 +1108,132 @@ window.openPaperForReview = function (paperId, event) {
   window.open(`/review?project=${pid}&paper=${paperId}`, '_blank');
 };
 
+window.deletePaperFromUnassigned = function (paperId, event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  if (typeof window.deletePaper === 'function') {
+    window.deletePaper(paperId, event);
+  } else {
+    showToast('Delete function not loaded', 'error');
+  }
+};
+
+function broadcastPaperTransfer(payload) {
+  const pid = (typeof activeProjectId !== 'undefined' && activeProjectId)
+    ? activeProjectId
+    : (window.currentProjectId || (new URLSearchParams(window.location.search)).get('project') || 1);
+  const data = { ...payload, projectId: pid, timestamp: Date.now() };
+  try {
+    const bc = new BroadcastChannel('literature_review_sync');
+    bc.postMessage(data);
+    bc.close();
+  } catch (_) {}
+  try {
+    localStorage.setItem('literature_review_sync_event', JSON.stringify(data));
+  } catch (_) {}
+}
+
+window.quickAssignSinglePaper = async function (paperId, clusterId, event) {
+  if (event) event.stopPropagation();
+  if (!clusterId) return;
+
+  const cId = parseInt(clusterId, 10);
+  const targetCluster = (window.allClusters || []).find(c => c.id === cId);
+  const clusterName = targetCluster ? (targetCluster.name || 'Cluster') : 'Cluster';
+  const clusterColor = targetCluster ? (targetCluster.color || 'var(--accent-primary)') : 'var(--accent-primary)';
+
+  const card = document.querySelector(`.unassigned-hub-card[data-paper-id="${paperId}"]`);
+  const row = document.querySelector(`.unassigned-table-row[data-paper-id="${paperId}"]`);
+  if (card) card.classList.add('paper-vanish-animating');
+  if (row) row.classList.add('paper-vanish-animating');
+
+  try {
+    const res = await fetch('/api/papers/bulk-reassign', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        paper_ids: [paperId],
+        cluster_id: cId
+      })
+    });
+
+    if (res.ok) {
+      if (card) card.classList.add('paper-vanished');
+      if (row) row.classList.add('paper-vanished');
+
+      // 1. Immediately update paper in memory
+      let oldClusterId = null;
+      if (window.allPapers) {
+        const p = window.allPapers.find(item => item.id === paperId);
+        if (p) {
+          oldClusterId = p.cluster_id;
+          p.cluster_id = cId;
+          p.cluster_name = clusterName;
+          p.cluster_color = clusterColor;
+          p.screening_decision = 'included';
+        }
+      }
+      window.unassignedPapers = (window.allPapers || []).filter(p => !p.cluster_id);
+      showToast(`Assigned paper to "${clusterName}"!`, 'success');
+
+      // 2. Immediately update cluster counts in allClusters if present
+      if (Array.isArray(window.allClusters)) {
+        const cl = window.allClusters.find(c => c.id === cId);
+        if (cl) cl.paper_count = (cl.paper_count || 0) + 1;
+        if (oldClusterId) {
+          const oldCl = window.allClusters.find(c => c.id === oldClusterId);
+          if (oldCl) oldCl.paper_count = Math.max(0, (oldCl.paper_count || 1) - 1);
+        }
+      }
+
+      // 3. Update counter badges live
+      const countBadge = document.getElementById('unassigned-count-badge');
+      const modalCountBadge = document.getElementById('unassigned-modal-count-badge');
+      const countText = `${window.unassignedPapers.length} ${window.unassignedPapers.length === 1 ? 'Paper' : 'Papers'}`;
+      if (countBadge) countBadge.textContent = countText;
+      if (modalCountBadge) modalCountBadge.textContent = countText;
+
+      // 4. Immediately trigger live render without waiting for setTimeout or network fetch
+      if (typeof window.renderClusters === 'function') window.renderClusters();
+      if (typeof window.applyFilters === 'function') window.applyFilters();
+      if (typeof window.renderUnassignedBox === 'function') window.renderUnassignedBox();
+      if (typeof window.renderKeywordsHub === 'function') window.renderKeywordsHub();
+      if (typeof window.highlightClusterCard === 'function') window.highlightClusterCard(cId);
+
+      // 5. Broadcast live sync to other tabs/windows
+      broadcastPaperTransfer({
+        type: 'paper_transferred',
+        paperId: paperId,
+        clusterId: cId,
+        clusterName: clusterName,
+        screeningDecision: 'included'
+      });
+
+      // 6. Complete animation & sync backend data in background
+      setTimeout(async () => {
+        if (card) card.remove();
+        if (row) row.remove();
+        renderUnassignedModalContent();
+        if (typeof window.loadClusters === 'function') await window.loadClusters();
+        if (typeof window.loadPapers === 'function') await window.loadPapers();
+        if (typeof window.loadStats === 'function') await window.loadStats();
+        if (typeof window.loadSynthesisInsights === 'function') await window.loadSynthesisInsights();
+      }, 300);
+    } else {
+      if (card) card.classList.remove('paper-vanish-animating');
+      if (row) row.classList.remove('paper-vanish-animating');
+      const err = await res.json().catch(() => ({}));
+      showToast(err.error || 'Failed to assign cluster', 'error');
+    }
+  } catch (err) {
+    if (card) card.classList.remove('paper-vanish-animating');
+    if (row) row.classList.remove('paper-vanish-animating');
+    showToast('Failed to assign cluster', 'error');
+  }
+};
+
 window.assignSingleUnassignedPaper = async function (paperId) {
   const sel = document.getElementById(`assign-sel-${paperId}`);
   if (!sel || !sel.value) {
@@ -992,6 +1243,7 @@ window.assignSingleUnassignedPaper = async function (paperId) {
   const clusterId = parseInt(sel.value, 10);
   const targetCluster = (allClusters || []).find(c => c.id === clusterId);
   const clusterName = targetCluster ? (targetCluster.name || 'Selected Cluster') : 'Selected Cluster';
+  const clusterColor = targetCluster ? (targetCluster.color || 'var(--accent-primary)') : 'var(--accent-primary)';
 
   // 1. Trigger live visual vanish animation on the specific card and table row
   const cardElem = document.querySelector(`.unassigned-hub-card[data-paper-id="${paperId}"]`);
@@ -1014,13 +1266,30 @@ window.assignSingleUnassignedPaper = async function (paperId) {
       });
 
       // Update in-memory state immediately
+      let oldClusterId = null;
       if (window.allPapers) {
         const p = window.allPapers.find(x => x.id === paperId);
-        if (p) p.cluster_id = clusterId;
+        if (p) {
+          oldClusterId = p.cluster_id;
+          p.cluster_id = clusterId;
+          p.cluster_name = clusterName;
+          p.cluster_color = clusterColor;
+          p.screening_decision = 'included';
+        }
       }
       window.unassignedPapers = (window.allPapers || []).filter(p => !p.cluster_id);
 
       showToast(`Assigned paper to "${clusterName}" successfully!`, 'success');
+
+      // Update cluster counts immediately in memory
+      if (Array.isArray(window.allClusters)) {
+        const cl = window.allClusters.find(c => c.id === clusterId);
+        if (cl) cl.paper_count = (cl.paper_count || 0) + 1;
+        if (oldClusterId) {
+          const oldCl = window.allClusters.find(c => c.id === oldClusterId);
+          if (oldCl) oldCl.paper_count = Math.max(0, (oldCl.paper_count || 1) - 1);
+        }
+      }
 
       // Update counter badges live
       const countBadge = document.getElementById('unassigned-count-badge');
@@ -1029,12 +1298,25 @@ window.assignSingleUnassignedPaper = async function (paperId) {
       if (countBadge) countBadge.textContent = countText;
       if (modalCountBadge) modalCountBadge.textContent = countText;
 
-      // Animate cluster highlight
+      // Animate cluster highlight & render immediately
+      if (typeof window.renderClusters === 'function') window.renderClusters();
+      if (typeof window.applyFilters === 'function') window.applyFilters();
+      if (typeof window.renderUnassignedBox === 'function') window.renderUnassignedBox();
+      if (typeof window.renderKeywordsHub === 'function') window.renderKeywordsHub();
       if (typeof window.highlightClusterCard === 'function') {
         window.highlightClusterCard(clusterId);
       }
 
-      // Smooth DOM removal and live sync
+      // Broadcast live sync to other tabs/windows
+      broadcastPaperTransfer({
+        type: 'paper_transferred',
+        paperId: paperId,
+        clusterId: clusterId,
+        clusterName: clusterName,
+        screeningDecision: 'included'
+      });
+
+      // Smooth DOM removal and live sync in background
       setTimeout(async () => {
         targetElems.forEach(el => el.remove());
         renderUnassignedModalContent();
@@ -1159,12 +1441,24 @@ window.submitBulkUnassignedMove = async function () {
       targetElems.forEach(el => el.classList.add('paper-vanished'));
 
       // Update in memory
+      const clusterColor = targetCluster ? (targetCluster.color || 'var(--accent-primary)') : 'var(--accent-primary)';
       if (window.allPapers) {
         window.allPapers.forEach(p => {
-          if (checked.includes(p.id)) p.cluster_id = clusterId;
+          if (checked.includes(p.id)) {
+            p.cluster_id = clusterId;
+            p.cluster_name = clusterName;
+            p.cluster_color = clusterColor;
+            p.screening_decision = 'included';
+          }
         });
       }
       window.unassignedPapers = (window.allPapers || []).filter(p => !p.cluster_id);
+
+      // Immediately update cluster counts in allClusters
+      if (Array.isArray(window.allClusters)) {
+        const cl = window.allClusters.find(c => c.id === clusterId);
+        if (cl) cl.paper_count = (cl.paper_count || 0) + checked.length;
+      }
 
       showToast(`Transferred ${checked.length} papers to "${clusterName}"!`, 'success');
 
@@ -1175,12 +1469,25 @@ window.submitBulkUnassignedMove = async function () {
       if (countBadge) countBadge.textContent = countText;
       if (modalCountBadge) modalCountBadge.textContent = countText;
 
-      // Animate cluster highlight
+      // Animate cluster highlight & render immediately
+      if (typeof window.renderClusters === 'function') window.renderClusters();
+      if (typeof window.applyFilters === 'function') window.applyFilters();
+      if (typeof window.renderUnassignedBox === 'function') window.renderUnassignedBox();
+      if (typeof window.renderKeywordsHub === 'function') window.renderKeywordsHub();
       if (typeof window.highlightClusterCard === 'function') {
         window.highlightClusterCard(clusterId);
       }
 
-      // Smooth DOM removal and live sync
+      // Broadcast live sync to other tabs/windows
+      broadcastPaperTransfer({
+        type: 'paper_transferred',
+        paperIds: checked,
+        clusterId: clusterId,
+        clusterName: clusterName,
+        screeningDecision: 'included'
+      });
+
+      // Smooth DOM removal and live sync in background
       setTimeout(async () => {
         targetElems.forEach(el => el.remove());
         renderUnassignedModalContent();
@@ -1341,15 +1648,15 @@ window.applyFilters = function () {
   // 6. Sort by SI if requested
   if (window.siSortOrder === 'desc') {
     filtered.sort((a, b) => {
-      const sA = a.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(a.id) : a.id);
-      const sB = b.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(b.id) : b.id);
-      return Number(sB) - Number(sA);
+      const sA = (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(a) : (a.serial_no || a.id));
+      const sB = (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(b) : (b.serial_no || b.id));
+      return String(sB).localeCompare(String(sA), undefined, { numeric: true, sensitivity: 'base' });
     });
   } else if (window.siSortOrder === 'asc') {
     filtered.sort((a, b) => {
-      const sA = a.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(a.id) : a.id);
-      const sB = b.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(b.id) : b.id);
-      return Number(sA) - Number(sB);
+      const sA = (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(a) : (a.serial_no || a.id));
+      const sB = (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(b) : (b.serial_no || b.id));
+      return String(sA).localeCompare(String(sB), undefined, { numeric: true, sensitivity: 'base' });
     });
   }
 
@@ -1767,3 +2074,80 @@ window.addEventListener('resize', () => {
     }
   }, 150);
 });
+
+// ==========================================
+// CROSS-TAB / CROSS-WINDOW LIVE SYNC
+// (Updates Workspace instantly when papers are transferred from /review or other windows)
+// ==========================================
+function handleLiteratureReviewSync(data) {
+  if (!data || !data.type) return;
+  const currentPid = (typeof activeProjectId !== 'undefined' && activeProjectId)
+    ? activeProjectId
+    : (window.activeProjectId || 1);
+  if (data.projectId && String(data.projectId) !== String(currentPid)) return;
+
+  if (data.type === 'paper_transferred' || data.type === 'paper_updated') {
+    // 1. Immediately update in-memory paper if present
+    const paperIds = data.paperIds || (data.paperId ? [data.paperId] : []);
+    if (Array.isArray(window.allPapers) && paperIds.length > 0) {
+      window.allPapers.forEach(p => {
+        if (paperIds.includes(p.id)) {
+          if (data.clusterId !== undefined) p.cluster_id = data.clusterId ? parseInt(data.clusterId, 10) : null;
+          if (data.clusterName) p.cluster_name = data.clusterName;
+          if (data.screeningDecision) p.screening_decision = data.screeningDecision;
+          if (data.title) p.title = data.title;
+          if (data.domain) p.domain = data.domain;
+          if (data.keywords) p.keywords = data.keywords;
+          if (data.custom_columns) {
+            p.custom_columns = Object.assign({}, p.custom_columns || {}, data.custom_columns);
+          }
+        }
+      });
+      window.unassignedPapers = window.allPapers.filter(p => !p.cluster_id);
+    }
+
+    // 2. Render live UI immediately
+    if (typeof window.renderClusters === 'function') window.renderClusters();
+    if (typeof window.applyFilters === 'function') window.applyFilters();
+    if (typeof window.renderMasterMatrix === 'function') {
+      window.renderMasterMatrix(window.lastRenderedPapers || window.allPapers || []);
+    }
+    if (typeof window.renderUnassignedBox === 'function') window.renderUnassignedBox();
+    if (typeof window.renderUnassignedModalContent === 'function') window.renderUnassignedModalContent();
+    if (typeof window.renderKeywordsHub === 'function') window.renderKeywordsHub();
+    if (data.clusterId && typeof window.highlightClusterCard === 'function') {
+      window.highlightClusterCard(data.clusterId);
+    }
+
+    // 3. Sync from server to guarantee 100% data integrity
+    if (typeof window.loadPapers === 'function') window.loadPapers();
+    if (typeof window.loadClusters === 'function') window.loadClusters();
+    if (typeof window.loadStats === 'function') window.loadStats();
+    if (typeof window.loadSynthesisInsights === 'function') window.loadSynthesisInsights();
+  }
+
+  if (data.type === 'column_renamed' || data.type === 'column_deleted' || data.type === 'column_added') {
+    if (typeof window.loadDynamicColumns === 'function') window.loadDynamicColumns();
+    if (typeof window.loadPapers === 'function') window.loadPapers();
+  }
+}
+
+try {
+  const syncChannel = new BroadcastChannel('literature_review_sync');
+  syncChannel.onmessage = (e) => handleLiteratureReviewSync(e.data);
+} catch (_) {}
+
+window.addEventListener('storage', (e) => {
+  if (e.key === 'literature_review_sync_event' && e.newValue) {
+    try {
+      handleLiteratureReviewSync(JSON.parse(e.newValue));
+    } catch (_) {}
+  }
+});
+
+window.addEventListener('focus', () => {
+  // Re-sync when switching back to workspace tab from review or other tabs
+  if (typeof window.loadPapers === 'function') window.loadPapers();
+  if (typeof window.loadClusters === 'function') window.loadClusters();
+});
+

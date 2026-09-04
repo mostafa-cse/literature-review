@@ -28,7 +28,7 @@ router.get('/clusters', (req, res) => {
       query += ` WHERE c.project_id = ? `;
       params.push(project_id);
     }
-    query += ` GROUP BY c.id ORDER BY c.id ASC`;
+    query += ` GROUP BY c.id ORDER BY COALESCE(c.position, c.id) ASC, c.id ASC`;
 
     const clusters = db.prepare(query).all(...params);
     res.json(clusters);
@@ -72,12 +72,61 @@ router.post('/clusters', (req, res) => {
       }
     }
 
-    const result = db.prepare('INSERT INTO clusters (project_id, name, description, color) VALUES (?, ?, ?, ?)')
-      .run(pid, name, description || '', clr);
+    const maxPosRow = db.prepare('SELECT MAX(position) as maxPos FROM clusters WHERE project_id = ?').get(pid);
+    const nextPos = (maxPosRow && maxPosRow.maxPos !== null && maxPosRow.maxPos !== undefined) ? Number(maxPosRow.maxPos) + 1 : 1;
+
+    const result = db.prepare('INSERT INTO clusters (project_id, name, description, color, position) VALUES (?, ?, ?, ?, ?)')
+      .run(pid, name, description || '', clr, nextPos);
     const clusterId = result.lastInsertRowid;
+
+    // Inherit project's dynamic columns schema if existing
+    const existingCols = db.prepare(`
+      SELECT DISTINCT dc.column_name, dc.col_type
+      FROM dynamic_columns dc
+      JOIN clusters c ON c.id = dc.cluster_id
+      WHERE c.project_id = ? AND dc.parent_column_id IS NULL
+    `).all(pid);
+    if (existingCols.length > 0) {
+      const insertCol = db.prepare('INSERT INTO dynamic_columns (cluster_id, column_name, parent_column_id, col_type) VALUES (?, ?, NULL, ?)');
+      for (const col of existingCols) {
+        insertCol.run(clusterId, col.column_name, col.col_type || 'text');
+      }
+    }
 
     const newCluster = db.prepare('SELECT * FROM clusters WHERE id = ?').get(clusterId);
     res.status(201).json(newCluster);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Reorder clusters sequence (Owner, Editor)
+router.put('/clusters/reorder', authenticateToken, (req, res) => {
+  try {
+    const { project_id, cluster_ids } = req.body;
+    if (!project_id || !Array.isArray(cluster_ids) || cluster_ids.length === 0) {
+      return res.status(400).json({ error: 'project_id and a valid cluster_ids array are required' });
+    }
+
+    const db = getDb();
+    const pid = parseInt(project_id, 10);
+    const role = getProjectRole(req.user.id, pid);
+    if (!['owner', 'editor'].includes(role) && req.user.role !== 'admin') {
+      return res.status(403).json({ error: `Access Denied. Role '${role}' cannot reorder clusters.` });
+    }
+
+    db.exec('BEGIN TRANSACTION;');
+    try {
+      const updateStmt = db.prepare('UPDATE clusters SET position = ? WHERE id = ? AND project_id = ?');
+      cluster_ids.forEach((cid, idx) => {
+        updateStmt.run(idx + 1, cid, pid);
+      });
+      db.exec('COMMIT;');
+      res.json({ success: true, message: 'Clusters reordered successfully', reordered: cluster_ids.length });
+    } catch (e) {
+      db.exec('ROLLBACK;');
+      throw e;
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

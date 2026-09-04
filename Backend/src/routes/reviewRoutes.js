@@ -157,4 +157,163 @@ router.post('/papers/:id/screening', authenticateToken, (req, res) => {
   }
 });
 
+// ==========================================
+// 3. PAPER PDF TEXT HIGHLIGHTS & EXCERPTS
+// ==========================================
+
+// GET /api/papers/:id/highlights - Retrieve all highlights for a paper
+router.get('/papers/:id/highlights', (req, res) => {
+  const paperId = req.params.id;
+  const db = getDb();
+
+  try {
+    const highlights = db.prepare(`
+      SELECT id, paper_id, user_id, user_name, user_role, page_number, color, color_label, selected_text, quads_json, note, created_at
+      FROM paper_highlights
+      WHERE paper_id = ?
+      ORDER BY page_number ASC, id ASC
+    `).all(paperId);
+
+    // Parse quads_json safely
+    const parsed = highlights.map(h => {
+      let rects = [];
+      try {
+        rects = h.quads_json ? JSON.parse(h.quads_json) : [];
+      } catch (e) {
+        rects = [];
+      }
+      return {
+        ...h,
+        rects
+      };
+    });
+
+    res.json({ highlights: parsed });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve highlights: ' + err.message });
+  }
+});
+
+// POST /api/papers/:id/highlights - Save new highlight (Authenticated or Optional Auth)
+router.post('/papers/:id/highlights', (req, res) => {
+  const paperId = req.params.id;
+  const { page_number, color, color_label, selected_text, rects, quads_json, note } = req.body;
+  const db = getDb();
+
+  if (!selected_text || !selected_text.trim()) {
+    return res.status(400).json({ error: 'Selected text is required.' });
+  }
+
+  const pageNum = parseInt(page_number || '1', 10);
+  const finalColor = color || '#fef08a';
+  const finalLabel = color_label || 'Key Point';
+  const quadsString = typeof rects === 'object' ? JSON.stringify(rects) : (quads_json || '[]');
+
+  try {
+    const paper = db.prepare("SELECT id, project_id, title FROM papers WHERE id = ?").get(paperId);
+    if (!paper) return res.status(404).json({ error: 'Paper not found.' });
+
+    let userId = null;
+    let userName = 'Researcher';
+    let userRole = 'reviewer';
+
+    // Check optional token header if present
+    const authHeader = req.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'litsphere_jwt_secret_dev_key');
+        if (decoded && decoded.id) {
+          userId = decoded.id;
+          userName = decoded.name || 'Researcher';
+          userRole = getProjectRole(userId, paper.project_id) || 'reviewer';
+          if (userRole === 'viewer') {
+            return res.status(403).json({ error: 'Viewers have read-only access and cannot save highlights.' });
+          }
+        }
+      } catch (tokenErr) {
+        // Continue with guest/default role
+      }
+    }
+
+    const result = db.prepare(`
+      INSERT INTO paper_highlights (paper_id, user_id, user_name, user_role, page_number, color, color_label, selected_text, quads_json, note)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(paperId, userId, userName, userRole, pageNum, finalColor, finalLabel, selected_text.trim(), quadsString, note || null);
+
+    const newHighlight = db.prepare("SELECT * FROM paper_highlights WHERE id = ?").get(result.lastInsertRowid);
+    let parsedRects = [];
+    try { parsedRects = JSON.parse(newHighlight.quads_json || '[]'); } catch (e) {}
+
+    res.status(201).json({
+      message: 'Highlight saved successfully.',
+      highlight: {
+        ...newHighlight,
+        rects: parsedRects
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save highlight: ' + err.message });
+  }
+});
+
+// PUT /api/papers/highlights/:highlightId - Update color or note of highlight
+const handleUpdateHighlight = (req, res) => {
+  const highlightId = req.params.highlightId;
+  const { color, color_label, note } = req.body;
+  const db = getDb();
+
+  try {
+    const existing = db.prepare("SELECT * FROM paper_highlights WHERE id = ?").get(highlightId);
+    if (!existing) return res.status(404).json({ error: 'Highlight not found.' });
+
+    const newColor = color !== undefined ? color : existing.color;
+    const newLabel = color_label !== undefined ? color_label : existing.color_label;
+    const newNote = note !== undefined ? note : existing.note;
+
+    db.prepare(`
+      UPDATE paper_highlights
+      SET color = ?, color_label = ?, note = ?
+      WHERE id = ?
+    `).run(newColor, newLabel, newNote, highlightId);
+
+    const updated = db.prepare("SELECT * FROM paper_highlights WHERE id = ?").get(highlightId);
+    let parsedRects = [];
+    try { parsedRects = JSON.parse(updated.quads_json || '[]'); } catch (e) {}
+
+    res.json({
+      message: 'Highlight updated successfully.',
+      highlight: {
+        ...updated,
+        rects: parsedRects
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update highlight: ' + err.message });
+  }
+};
+
+router.put('/papers/highlights/:highlightId', handleUpdateHighlight);
+router.put('/highlights/:highlightId', handleUpdateHighlight);
+
+// DELETE /api/papers/highlights/:highlightId - Delete highlight
+const handleDeleteHighlight = (req, res) => {
+  const highlightId = req.params.highlightId;
+  const db = getDb();
+
+  try {
+    const existing = db.prepare("SELECT * FROM paper_highlights WHERE id = ?").get(highlightId);
+    if (!existing) return res.status(404).json({ error: 'Highlight not found.' });
+
+    db.prepare("DELETE FROM paper_highlights WHERE id = ?").run(highlightId);
+    res.json({ message: 'Highlight deleted successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete highlight: ' + err.message });
+  }
+};
+
+router.delete('/papers/highlights/:highlightId', handleDeleteHighlight);
+router.delete('/highlights/:highlightId', handleDeleteHighlight);
+
 module.exports = router;
