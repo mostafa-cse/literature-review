@@ -54,7 +54,16 @@ window.renderCards = function(papers) {
           <div class="meta-tag-group">
             <span class="domain-tag" style="font-family:var(--font-mono); font-weight:700; color:var(--accent-primary); background:rgba(56,189,248,0.12); border-color:rgba(56,189,248,0.3);" title="Static Paper Reference Number">#${p.serial_no || (typeof window.getPaperSerialNo === 'function' ? window.getPaperSerialNo(p.id) : '')}</span>
             <span class="subfamily-tag" style="background:${cl ? cl.color + '22' : 'var(--accent-muted)'}; color:${clusterColor}">${clusterName}</span>
-            <span class="domain-tag">${p.domain && p.domain !== '-' ? p.domain : 'General'}</span>
+            ${(() => {
+              const doms = (p.domain && p.domain !== '-')
+                ? p.domain.split(/[,;/]+/).map(d => d.trim()).filter(Boolean)
+                : ['General'];
+              const curDom = (window.currentDomain || '').toLowerCase().trim();
+              return doms.map(d => {
+                const isSel = curDom && curDom !== 'all' && curDom === d.toLowerCase();
+                return `<span class="domain-tag ${isSel ? 'active' : ''}" onclick="event.stopPropagation(); if (typeof window.toggleDomainFilter === 'function') window.toggleDomainFilter('${escapeHtml(d)}');" title="Filter by Domain: ${escapeHtml(d)}">${escapeHtml(d)}</span>`;
+              }).join('');
+            })()}
             ${p.year && p.year !== '-' ? `<span class="domain-tag" style="font-family:var(--font-mono); font-weight:700;">${p.year}</span>` : ''}
           </div>
           <span class="status-badge status-${statusVal}" ${canModify ? `onclick="cyclePaperStatus(${p.id}, '${statusVal}', event)" style="cursor:pointer;" title="Click to cycle reading status"` : `style="cursor:default;" title="Reading Status: ${statusVal.replace('_', ' ')}"`}>${statusVal.replace('_', ' ')}</span>

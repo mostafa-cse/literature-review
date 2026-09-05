@@ -49,7 +49,8 @@
     <h1 class="hero-title" id="project-title">Literature Survey on <span style="color: var(--accent-gold);">Literature
         Survey</span></h1>
     <div class="hero-desc-wrapper">
-      <p class="hero-desc" id="project-description">Comprehensive systematic literature review, multi-level taxonomy benchmarking, and master matrix synthesis.</p>
+      <p class="hero-desc" id="project-description">Comprehensive systematic literature review, multi-level taxonomy
+        benchmarking, and master matrix synthesis.</p>
       <button type="button" class="hero-desc-toggle" id="desc-read-more-btn" onclick="window.toggleHeroDesc()"
         aria-expanded="false" style="display:none;">
         Read more
@@ -80,8 +81,7 @@
       <div class="workspace-action-buttons">
         <span id="workspace-role-badge" class="role-badge-pill role-owner"
           style="font-size: 0.78rem; font-weight: 700;">OWNER</span>
-        <button type="button" class="action-btn" id="btn-open-team" onclick="openTeamModal()"
-          title="Team Member">
+        <button type="button" class="action-btn" id="btn-open-team" onclick="openTeamModal()" title="Collaborate on Survey">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -89,10 +89,9 @@
             <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
             <path d="M16 3.13a4 4 0 0 1 0 7.75" />
           </svg>
-          <span>Team Member</span>
+          <span>Collaborate</span>
         </button>
-        <button type="button" class="action-btn" id="btn-share-project" onclick="openShareModal()"
-          title="Share">
+        <button type="button" class="action-btn" id="btn-share-project" onclick="openShareModal()" title="Share">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
             <circle cx="18" cy="5" r="3" />
@@ -103,8 +102,7 @@
           </svg>
           <span>Share</span>
         </button>
-        <button type="button" class="action-btn" id="btn-open-export" onclick="openExportModal()"
-          title="Export">
+        <button type="button" class="action-btn" id="btn-open-export" onclick="openExportModal()" title="Export">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -251,7 +249,8 @@
             <span class="unassigned-card-heading">Unassigned Papers</span>
             <span id="unassigned-count-badge" class="unassigned-badge">0 Papers</span>
           </div>
-          <p class="unassigned-card-subtext">Review unassigned literature, perform PRISMA screening, and transfer into taxonomy clusters.</p>
+          <p class="unassigned-card-subtext">Review unassigned literature, perform PRISMA screening, and transfer into
+            taxonomy clusters.</p>
         </div>
       </div>
       <div class="unassigned-card-right">
@@ -267,16 +266,34 @@
     <div class="section-title-row">
       <div style="display: flex; align-items: center; gap: 0.75rem;">
         <h2 class="section-title">Research Taxonomy Clusters</h2>
-        <span id="clusters-count-badge" class="unassigned-badge" style="background: rgba(56,189,248,0.12); color: #38bdf8; border: 1px solid rgba(56,189,248,0.28);">0 Clusters</span>
+        <span id="clusters-count-badge" class="unassigned-badge"
+          style="background: rgba(56,189,248,0.12); color: #38bdf8; border: 1px solid rgba(56,189,248,0.28);">0
+          Clusters</span>
       </div>
       <div class="clusters-header-controls">
         <div class="clusters-view-switcher" role="tablist" aria-label="Taxonomy Clusters View Mode">
-          <button type="button" class="clusters-view-btn active" id="btn-clusters-view-cards" onclick="switchClustersView('cards')" title="Cards Grid View">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          <button type="button" class="clusters-view-btn active" id="btn-clusters-view-cards"
+            onclick="switchClustersView('cards')" title="Cards Grid View">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
             <span>Cards</span>
           </button>
-          <button type="button" class="clusters-view-btn" id="btn-clusters-view-table" onclick="switchClustersView('table')" title="Tabular Matrix View">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+          <button type="button" class="clusters-view-btn" id="btn-clusters-view-table"
+            onclick="switchClustersView('table')" title="Tabular Matrix View">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
             <span>Table</span>
           </button>
         </div>
@@ -294,8 +311,12 @@
       <div class="keywords-title-left">
         <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
           <h2 class="section-title">Research Keywords &amp; Topic Filtering</h2>
-          <span id="keywords-count-badge" class="unassigned-badge" style="background: rgba(212,175,55,0.12); color: var(--accent-gold); border: 1px solid rgba(212,175,55,0.3);">0 Keywords</span>
-          <span id="keywords-active-count-badge" class="unassigned-badge" style="display: none; background: rgba(56,189,248,0.12); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3);">0 Active</span>
+          <span id="keywords-count-badge" class="unassigned-badge"
+            style="background: rgba(212,175,55,0.12); color: var(--accent-gold); border: 1px solid rgba(212,175,55,0.3);">0
+            Keywords</span>
+          <span id="keywords-active-count-badge" class="unassigned-badge"
+            style="display: none; background: rgba(56,189,248,0.12); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3);">0
+            Active</span>
         </div>
         <p class="keywords-section-subtitle" id="keywords-section-subtitle">
           Interactive multi-topic filtering across systematic survey literature and taxonomy benchmark categories.
@@ -305,38 +326,42 @@
       <div class="keywords-header-controls">
         <!-- Quick search keywords input -->
         <div class="keywords-search-box" id="keywords-search-box">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="kw-search-icon">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round" class="kw-search-icon">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <input type="text" id="keywords-search-input" class="kw-search-input" placeholder="Search keywords..." oninput="filterKeywordChips(this.value)" autocomplete="off">
-          <button type="button" class="kw-search-clear" id="btn-clear-kw-search" onclick="clearKeywordSearch()" title="Clear keyword search" style="display: none;">✕</button>
+          <input type="text" id="keywords-search-input" class="kw-search-input" placeholder="Search keywords..."
+            oninput="filterKeywordChips(this.value)" autocomplete="off">
+          <button type="button" class="kw-search-clear" id="btn-clear-kw-search" onclick="clearKeywordSearch()"
+            title="Clear keyword search" style="display: none;">✕</button>
         </div>
 
         <!-- Filter Mode Toggle (Any / All) -->
         <div class="keywords-mode-toggle" id="keywords-mode-toggle" role="group" aria-label="Keyword Filter Logic">
-          <button type="button" class="kw-mode-btn active" id="kw-mode-btn-any" onclick="setKeywordFilterMode('any')" title="Match ANY selected keyword (Logical OR)">
+          <button type="button" class="kw-mode-btn active" id="kw-mode-btn-any" onclick="setKeywordFilterMode('any')"
+            title="Match ANY selected keyword (Logical OR)">
             Any (OR)
           </button>
-          <button type="button" class="kw-mode-btn" id="kw-mode-btn-all" onclick="setKeywordFilterMode('all')" title="Match ALL selected keywords (Logical AND)">
+          <button type="button" class="kw-mode-btn" id="kw-mode-btn-all" onclick="setKeywordFilterMode('all')"
+            title="Match ALL selected keywords (Logical AND)">
             All (AND)
           </button>
         </div>
 
-        <button type="button" class="action-btn gold" id="btn-open-add-keyword" onclick="openAddKeywordModal()" style="font-size: 0.82rem; padding: 0.38rem 0.95rem;">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.2rem;">
+        <button type="button" class="kw-expand-header-pill" id="btn-kw-expand-header" onclick="toggleKeywordsChipsExpansion()" style="display: none;" title="Toggle full keywords / default 2 lines">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" id="kw-expand-header-icon"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          <span id="kw-expand-header-text">Show Full</span>
+        </button>
+
+        <button type="button" class="action-btn gold" id="btn-open-add-keyword" onclick="openAddKeywordModal()"
+          style="font-size: 0.82rem; padding: 0.38rem 0.95rem;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.2rem;">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
           Add Keyword
-        </button>
-
-        <!-- Collapse / Expand Toggle Button -->
-        <button type="button" class="keywords-collapse-toggle-btn" id="btn-toggle-keywords-collapse" onclick="toggleKeywordsSectionCollapse()" aria-expanded="true" title="Collapse or expand keywords filtering section">
-          <span id="keywords-collapse-label">Collapse</span>
-          <svg id="keywords-collapse-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="18 15 12 9 6 15"></polyline>
-          </svg>
         </button>
       </div>
     </div>
@@ -351,7 +376,8 @@
           <span class="active-kw-title">ACTIVE TOPIC FILTERS:</span>
         </div>
         <div id="active-keywords-tags" class="active-kw-pills-container"></div>
-        <button type="button" class="mini-btn danger active-kw-clear-btn" onclick="clearKeywordFilters()" title="Clear all active keyword filters">
+        <button type="button" class="mini-btn danger active-kw-clear-btn" onclick="clearKeywordFilters()"
+          title="Clear all active keyword filters">
           ✕ Reset Filters
         </button>
       </div>
@@ -359,6 +385,19 @@
       <!-- Keyword Chips Container -->
       <div class="keywords-chips-container" id="keywords-chips-container">
         <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Keyword Chips Expand / Show Full Button -->
+      <div class="keywords-chips-expand-wrapper" id="keywords-chips-expand-wrapper" style="display: none;">
+        <button type="button" class="keywords-chips-expand-btn" id="btn-keywords-chips-expand" onclick="toggleKeywordsChipsExpansion()" title="Toggle full keywords / default 2 lines">
+          <span class="kw-expand-btn-icon">
+            <svg id="keywords-chips-expand-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </span>
+          <span id="keywords-chips-expand-label">Show Full Keywords</span>
+          <span class="kw-expand-badge" id="keywords-chips-expand-badge">+0 more</span>
+        </button>
       </div>
     </div>
   </section>
@@ -423,25 +462,34 @@
     <div class="table-container" id="table-container">
       <div class="matrix-toolbar">
         <div class="matrix-hint">
-          <span><strong>Excel Freeze &amp; Inline Edit:</strong> Frozen Paper Title &amp; Headers. Double-click any cell
-            to edit inline. Changes auto-save on Enter/Blur.</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; color: var(--accent-primary); opacity: 0.85;">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          <span>Double-click any cell to edit inline. Changes auto-save on Enter/Blur.</span>
         </div>
-        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+        <div class="matrix-toolbar-actions">
           <div class="matrix-view-select-wrapper" title="Select matrix column visibility mode">
             <span class="matrix-view-select-icon">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                 <line x1="9" y1="3" x2="9" y2="21"></line>
               </svg>
             </span>
-            <select id="matrix-column-view-select" class="matrix-column-view-select" onchange="window.setMatrixColumnViewMode(this.value)" title="Choose which columns to display in the Master Matrix">
+            <select id="matrix-column-view-select" class="matrix-column-view-select"
+              onchange="window.setMatrixColumnViewMode(this.value)"
+              title="Choose which columns to display in the Master Matrix">
               <option value="all">All Columns</option>
               <option value="custom">Custom Columns Only</option>
               <option value="custom_pure">Pure Custom (Hide Title)</option>
               <option value="metadata">Metadata Only</option>
             </select>
           </div>
-          <button type="button" class="mini-btn matrix-filter-toggle-btn" id="btn-toggle-metadata-visibility" onclick="window.toggleMetadataColumnsVisibility()" title="Click to toggle: Show Custom Columns Only vs All Columns">
+          <button type="button" class="mini-btn matrix-filter-toggle-btn" id="btn-toggle-metadata-visibility"
+            onclick="window.toggleMetadataColumnsVisibility()"
+            title="Click to toggle: Show Custom Columns Only vs All Columns">
             <span id="metadata-toggle-btn-label">Show Custom Only</span>
           </button>
           <button type="button" class="mini-btn" id="matrix-btn-add-col" onclick="openAddColumnModal()"
@@ -450,6 +498,14 @@
           <button type="button" class="mini-btn" id="matrix-btn-split-col" onclick="openSplitColumnModal()"
             style="border-color: rgba(56, 189, 248, 0.4); color: var(--accent-primary); font-weight: 600;">+ Split
             Column</button>
+          <button type="button" class="mini-btn" id="btn-matrix-toggle-all-expand"
+            onclick="window.toggleAllColumnsExpand()"
+            title="Toggle between compact 2-line clamp and full expanded view for all columns">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -1px; margin-right: 3px;">
+              <polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+            <span id="matrix-expand-all-label">Expand All Columns</span>
+          </button>
           <button type="button" class="mini-btn" id="matrix-btn-open-export" onclick="openExportModal()">Export (.xlsx /
             .csv)</button>
         </div>
@@ -463,9 +519,9 @@
       </div>
     </div>
 
-    <!-- CLUSTER INSIGHTS & UNIQUE VALUE SUMMARY (Phase 5 #9) -->
+    <!-- CLUSTER SUMMERY (Phase 5 #9) -->
     <section class="cluster-summary-section" id="cluster-summary-section"
-      aria-label="Cluster Unique Value Summary and Insights"></section>
+      aria-label="Cluster Summery"></section>
   </main>
   <!-- Enhanced Multi-Column Academic Footer (Auto-rendered by /js/core/footer.js) -->
   <footer id="site-footer"></footer>
@@ -770,11 +826,11 @@
           <label class="form-label" for="team-invite-email">
             Invite Research Collaborator
           </label>
-          <span>Must have an active LitSphere account</span>
+          <span>Must have an active LitSphere account (invite by email or username)</span>
         </div>
         <div class="team-add-member-controls">
-          <input type="email" class="form-input" id="team-invite-email" placeholder="colleague@university.edu"
-            autocomplete="off" spellcheck="false">
+          <input type="text" class="form-input" id="team-invite-email" placeholder="colleague@university.edu or username"
+            autocomplete="off" spellcheck="false" onkeydown="if(event.key==='Enter'){event.preventDefault(); submitInviteCollaborator();}">
           <select class="form-select" id="team-invite-role" aria-label="Select collaborator role">
             <option value="editor">Editor (Co-Author)</option>
             <option value="reviewer">Reviewer (Advisor)</option>
@@ -889,7 +945,9 @@
             <textarea class="form-textarea" id="setting-survey-desc" rows="4"
               placeholder="Detailed summary of literature review objectives, scope, methodology, and benchmark parameters. Supports markdown (**bold**, *italic*, bullets) and multiple paragraphs."
               style="resize: vertical; min-height: 95px; line-height: 1.5; font-family: inherit;"></textarea>
-            <span style="font-size: 0.78rem; color: var(--text-tertiary); margin-top: 0.25rem; display: block;">Supports markdown (**bold**, *italic*, bullets) and multi-line paragraphs. Displays with line breaks and expandable "Read more".</span>
+            <span style="font-size: 0.78rem; color: var(--text-tertiary); margin-top: 0.25rem; display: block;">Supports
+              markdown (**bold**, *italic*, bullets) and multi-line paragraphs. Displays with line breaks and expandable
+              "Read more".</span>
           </div>
 
           <div
@@ -1444,7 +1502,8 @@
                   stroke-linecap="round" stroke-linejoin="round">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                   <polyline points="14 2 14 8 20 8" />
-                </svg></div>
+                </svg>
+              </div>
               <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 0.2rem;"
                 id="add-paper-dropzone-label">
                 Click to Browse PDF or Drag &amp; Drop File Here
@@ -1500,7 +1559,8 @@
               stroke-linecap="round" stroke-linejoin="round">
               <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
               <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-            </svg></div>
+            </svg>
+          </div>
           <div style="font-weight: 700; font-size: 1.05rem; color: var(--text-primary); margin-bottom: 0.25rem;">Drag
             &amp; Drop Multiple Research PDFs</div>
           <div style="font-size: 0.84rem; color: var(--text-tertiary); margin-bottom: 0.85rem;">Batch auto-extracts
@@ -1782,7 +1842,8 @@
               <h3 class="modal-title" style="margin: 0; font-size: 1.25rem;">Unassigned Papers</h3>
               <span id="unassigned-modal-count-badge" class="unassigned-badge">0 Papers</span>
             </div>
-            <div class="unassigned-modal-subtitle">Review unassigned literature, perform PRISMA screening, or transfer to taxonomy clusters</div>
+            <div class="unassigned-modal-subtitle">Review unassigned literature, perform PRISMA screening, or transfer
+              to taxonomy clusters</div>
           </div>
         </div>
 
@@ -1918,12 +1979,17 @@
   </div>
 
   <!-- ADD KEYWORD MODAL -->
-  <div class="modal-overlay" id="add-keyword-modal-overlay" onclick="if(event.target===this) closeModal('add-keyword-modal-overlay')">
+  <div class="modal-overlay" id="add-keyword-modal-overlay"
+    onclick="if(event.target===this) closeModal('add-keyword-modal-overlay')">
     <div class="modal-card" style="max-width: 520px;" onclick="event.stopPropagation()">
       <div class="modal-header">
         <div style="display: flex; align-items: center; gap: 0.6rem;">
           <div style="color: var(--accent-gold); display: flex; align-items: center;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+              <line x1="7" y1="7" x2="7.01" y2="7"></line>
+            </svg>
           </div>
           <h3 class="modal-title">Add Research Keyword</h3>
         </div>
@@ -1935,16 +2001,20 @@
       <form onsubmit="submitAddKeyword(event)">
         <div class="form-group" style="margin-bottom: 1.1rem;">
           <label class="form-label" style="font-size: 0.85rem; font-weight: 700;">Keyword / Topic Name *</label>
-          <input type="text" id="new-keyword-input" class="form-input" placeholder="e.g. Graph Neural Networks, Zero-Shot, Attention" required autocomplete="off">
+          <input type="text" id="new-keyword-input" class="form-input"
+            placeholder="e.g. Graph Neural Networks, Zero-Shot, Attention" required autocomplete="off">
         </div>
         <div class="form-group" style="margin-bottom: 1.25rem;">
-          <label class="form-label" style="font-size: 0.85rem; font-weight: 700;">Assign to Specific Paper (Optional)</label>
+          <label class="form-label" style="font-size: 0.85rem; font-weight: 700;">Assign to Specific Paper
+            (Optional)</label>
           <select id="new-keyword-paper-select" class="form-input">
             <option value="">-- Apply to Survey Keywords Hub (All Papers) --</option>
           </select>
         </div>
-        <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 0.65rem; border-top: 1px solid var(--border-base); padding-top: 1rem; margin-top: 1rem;">
-          <button type="button" class="action-btn" onclick="closeModal('add-keyword-modal-overlay')" style="background: var(--bg-surface-raised); color: var(--text-secondary);">Cancel</button>
+        <div class="modal-actions"
+          style="display: flex; justify-content: flex-end; gap: 0.65rem; border-top: 1px solid var(--border-base); padding-top: 1rem; margin-top: 1rem;">
+          <button type="button" class="action-btn" onclick="closeModal('add-keyword-modal-overlay')"
+            style="background: var(--bg-surface-raised); color: var(--text-secondary);">Cancel</button>
           <button type="submit" class="action-btn gold" style="font-weight: 700;">Save Keyword</button>
         </div>
       </form>
@@ -2059,19 +2129,24 @@
       <!-- Empty state when no columns exist to split -->
       <div id="split-col-empty-state" style="display: none; text-align: center; padding: 1.75rem 1rem;">
         <div style="margin-bottom: 0.65rem; color: var(--accent-amber); display: flex; justify-content: center;">
-          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"></circle>
             <line x1="12" y1="8" x2="12" y2="12"></line>
             <line x1="12" y1="16" x2="12.01" y2="16"></line>
           </svg>
         </div>
-        <div style="font-weight: 700; font-size: 1.05rem; color: var(--text-primary); margin-bottom: 0.35rem;">No Customizable Columns Found</div>
-        <p style="font-size: 0.85rem; color: var(--text-secondary); max-width: 400px; margin: 0 auto 1.25rem; line-height: 1.5;">
-          You need at least one custom taxonomy extraction column in this matrix before you can split it into structured sub-headers.
+        <div style="font-weight: 700; font-size: 1.05rem; color: var(--text-primary); margin-bottom: 0.35rem;">No
+          Customizable Columns Found</div>
+        <p
+          style="font-size: 0.85rem; color: var(--text-secondary); max-width: 400px; margin: 0 auto 1.25rem; line-height: 1.5;">
+          You need at least one custom taxonomy extraction column in this matrix before you can split it into structured
+          sub-headers.
         </p>
         <div style="display: flex; justify-content: center; gap: 0.65rem;">
           <button type="button" class="mini-btn" onclick="closeModal('split-column-modal')">Close</button>
-          <button type="button" class="action-btn gold mini-btn" onclick="closeModal('split-column-modal'); openAddColumnModal();">+ Add Column Now</button>
+          <button type="button" class="action-btn gold mini-btn"
+            onclick="closeModal('split-column-modal'); openAddColumnModal();">+ Add Column Now</button>
         </div>
       </div>
 
@@ -2143,6 +2218,7 @@
   <script src="/js/workspace/reader.js?v=3.2"></script>
   <script src="/js/workspace/comments.js?v=3.2"></script>
   <script src="/js/workspace/columns.js?v=3.2"></script>
+  <script src="/vendor/xlsx.full.min.js"></script>
   <script src="/js/workspace/synthesis.js?v=3.2"></script>
   <script src="/js/workspace/summary.js?v=3.2"></script>
   <script src="/js/workspace/export.js?v=3.2"></script>
@@ -2150,4 +2226,5 @@
   <script src="/js/workspace/settings.js?v=3.2"></script>
   <script src="/js/workspace/main.js?v=3.2"></script>
 </body>
+
 </html>

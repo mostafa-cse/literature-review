@@ -145,6 +145,15 @@ app.get(['/admin', '/admin-dashboard', '/control-center'], (req, res) => {
   res.redirect('/workspace');
 });
 
+// Interactive SQLite Database Architecture & Schema Explorer Route
+app.get(['/db', '/database', '/db-explorer', '/schema', '/db-schema'], (req, res) => {
+  const dbFile = path.join(frontendDir, 'db.html');
+  if (fs.existsSync(dbFile)) {
+    return res.sendFile(dbFile);
+  }
+  res.redirect('/admin');
+});
+
 // Standalone Authentication (Login / Register) Page Route
 app.get(['/login', '/signin', '/register', '/signup', '/auth'], (req, res) => {
   const authFile = path.join(frontendDir, 'auth.html');

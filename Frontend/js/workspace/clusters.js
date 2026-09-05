@@ -8,7 +8,7 @@ window.clustersViewMode = 'cards'; // 'cards' | 'table'
 let draggedClusterId = null;
 window._isClusterDragging = false;
 
-window.handleClusterDragStart = function(event, clusterId) {
+window.handleClusterDragStart = function (event, clusterId) {
   if (event.target.closest('button, a, input, select, textarea, .kw-tag')) {
     event.preventDefault();
     return;
@@ -25,20 +25,20 @@ window.handleClusterDragStart = function(event, clusterId) {
   }
 };
 
-window.handleClusterDragOver = function(event) {
+window.handleClusterDragOver = function (event) {
   event.preventDefault();
   if (event.dataTransfer) {
     event.dataTransfer.dropEffect = 'move';
   }
 };
 
-window.handleClusterDragEnter = function(event, el) {
+window.handleClusterDragEnter = function (event, el) {
   if (el && !el.classList.contains('is-dragging')) {
     el.classList.add('drag-over');
   }
 };
 
-window.handleClusterDragLeave = function(event, el) {
+window.handleClusterDragLeave = function (event, el) {
   if (el) {
     const rect = el.getBoundingClientRect();
     const x = event.clientX;
@@ -49,7 +49,7 @@ window.handleClusterDragLeave = function(event, el) {
   }
 };
 
-window.handleClusterDrop = function(event, targetClusterId) {
+window.handleClusterDrop = function (event, targetClusterId) {
   event.preventDefault();
   event.stopPropagation();
   document.querySelectorAll('.cluster-card, .clusters-table-row').forEach(el => {
@@ -73,7 +73,7 @@ window.handleClusterDrop = function(event, targetClusterId) {
   window.saveClustersOrder(allClusters.map(c => c.id));
 };
 
-window.handleClusterDragEnd = function(event) {
+window.handleClusterDragEnd = function (event) {
   document.querySelectorAll('.cluster-card, .clusters-table-row').forEach(el => {
     el.classList.remove('drag-over', 'is-dragging');
   });
@@ -81,7 +81,7 @@ window.handleClusterDragEnd = function(event) {
   setTimeout(() => { window._isClusterDragging = false; }, 150);
 };
 
-window.moveClusterPosition = function(clusterId, direction) {
+window.moveClusterPosition = function (clusterId, direction) {
   if (!Array.isArray(allClusters) || allClusters.length < 2) return;
   const idx = allClusters.findIndex(c => String(c.id) === String(clusterId));
   if (idx === -1) return;
@@ -95,7 +95,7 @@ window.moveClusterPosition = function(clusterId, direction) {
   window.saveClustersOrder(allClusters.map(c => c.id));
 };
 
-window.saveClustersOrder = async function(clusterIds) {
+window.saveClustersOrder = async function (clusterIds) {
   // Optimistically re-render to reflect new sequence instantly
   renderClusters();
   populateClusterDropdowns();
@@ -124,10 +124,10 @@ window.saveClustersOrder = async function(clusterIds) {
   }
 };
 
-window.switchClustersView = function(mode) {
+window.switchClustersView = function (mode) {
   window.clustersViewMode = mode || 'cards';
   const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
-  try { localStorage.setItem(`clusters_view_mode_${pid}`, window.clustersViewMode); } catch (_) {}
+  try { localStorage.setItem(`clusters_view_mode_${pid}`, window.clustersViewMode); } catch (_) { }
   const btnCards = document.getElementById('btn-clusters-view-cards');
   const btnTable = document.getElementById('btn-clusters-view-table');
   if (btnCards) btnCards.classList.toggle('active', window.clustersViewMode === 'cards');
@@ -135,7 +135,7 @@ window.switchClustersView = function(mode) {
   renderClusters();
 };
 
-window.loadClusters = async function() {
+window.loadClusters = async function () {
   try {
     const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
     const savedMode = localStorage.getItem(`clusters_view_mode_${pid}`);
@@ -157,7 +157,7 @@ window.loadClusters = async function() {
   }
 };
 
-window.renderClusters = function() {
+window.renderClusters = function () {
   const container = document.getElementById('clusters-grid');
   const countBadge = document.getElementById('clusters-count-badge');
   if (countBadge && Array.isArray(allClusters)) {
@@ -209,35 +209,35 @@ window.renderClusters = function() {
           </thead>
           <tbody>
             ${allClusters.map((c, idx) => {
-              const clusterColor = c.color || 'var(--accent-primary)';
-              const matchingPapers = (Array.isArray(window.allPapers) && window.allPapers.length > 0)
-                ? window.allPapers.filter(p => String(p.cluster_id) === String(c.id))
-                : null;
-              const totalPapers = matchingPapers !== null ? matchingPapers.length : (c.paper_count || 0);
-              const readPapers = matchingPapers !== null ? matchingPapers.filter(p => p.status === 'read').length : (c.read_count || 0);
-              const unreadPapers = (c.unread_count !== undefined && matchingPapers === null)
-                ? c.unread_count
-                : (totalPapers - readPapers > 0 ? totalPapers - readPapers : 0);
-              const columnsCount = c.column_count || 0;
-              let keywordsCount = c.keyword_count || 0;
-              if (matchingPapers !== null && matchingPapers.length > 0) {
-                const kwSet = new Set();
-                matchingPapers.forEach(p => {
-                  if (Array.isArray(p.keywords)) {
-                    p.keywords.forEach(k => {
-                      if (k && typeof k === 'string') {
-                        const clean = k.replace(/^#/, '').trim();
-                        if (clean) kwSet.add(clean.toLowerCase());
-                      }
-                    });
-                  }
-                });
-                if (kwSet.size > 0 && !keywordsCount) keywordsCount = kwSet.size;
+      const clusterColor = c.color || 'var(--accent-primary)';
+      const matchingPapers = (Array.isArray(window.allPapers) && window.allPapers.length > 0)
+        ? window.allPapers.filter(p => String(p.cluster_id) === String(c.id))
+        : null;
+      const totalPapers = matchingPapers !== null ? matchingPapers.length : (c.paper_count || 0);
+      const readPapers = matchingPapers !== null ? matchingPapers.filter(p => p.status === 'read').length : (c.read_count || 0);
+      const unreadPapers = (c.unread_count !== undefined && matchingPapers === null)
+        ? c.unread_count
+        : (totalPapers - readPapers > 0 ? totalPapers - readPapers : 0);
+      const columnsCount = c.column_count || 0;
+      let keywordsCount = c.keyword_count || 0;
+      if (matchingPapers !== null && matchingPapers.length > 0) {
+        const kwSet = new Set();
+        matchingPapers.forEach(p => {
+          if (Array.isArray(p.keywords)) {
+            p.keywords.forEach(k => {
+              if (k && typeof k === 'string') {
+                const clean = k.replace(/^#/, '').trim();
+                if (clean) kwSet.add(clean.toLowerCase());
               }
-              const readPct = totalPapers > 0 ? Math.round((readPapers / totalPapers) * 100) : 0;
-              const isActive = String(c.id) === String(currentClusterId);
+            });
+          }
+        });
+        if (kwSet.size > 0 && !keywordsCount) keywordsCount = kwSet.size;
+      }
+      const readPct = totalPapers > 0 ? Math.round((readPapers / totalPapers) * 100) : 0;
+      const isActive = String(c.id) === String(currentClusterId);
 
-              return `
+      return `
                 <tr class="clusters-table-row ${isActive ? 'active-row' : ''}"
                     data-cluster-id="${c.id}"
                     ${canEdit ? `draggable="true" ondragstart="window.handleClusterDragStart(event, ${c.id})" ondragover="window.handleClusterDragOver(event)" ondragenter="window.handleClusterDragEnter(event, this)" ondragleave="window.handleClusterDragLeave(event, this)" ondrop="window.handleClusterDrop(event, ${c.id})" ondragend="window.handleClusterDragEnd(event)"` : ''}
@@ -304,7 +304,7 @@ window.renderClusters = function() {
                   </td>
                 </tr>
               `;
-            }).join('')}
+    }).join('')}
           </tbody>
         </table>
       </div>
@@ -439,10 +439,10 @@ window.renderClusters = function() {
   }
 };
 
-window.highlightClusterCard = function(clusterId) {
-  const card = document.querySelector(`.cluster-card[data-cluster-id="${clusterId}"]`) || 
-               document.getElementById(`cluster-card-${clusterId}`) ||
-               document.querySelector(`.clusters-table-row[data-cluster-id="${clusterId}"]`);
+window.highlightClusterCard = function (clusterId) {
+  const card = document.querySelector(`.cluster-card[data-cluster-id="${clusterId}"]`) ||
+    document.getElementById(`cluster-card-${clusterId}`) ||
+    document.querySelector(`.clusters-table-row[data-cluster-id="${clusterId}"]`);
   if (card) {
     card.classList.remove('cluster-card-pulse-assigned');
     void card.offsetWidth;
@@ -453,7 +453,7 @@ window.highlightClusterCard = function(clusterId) {
   }
 };
 
-window.populateClusterDropdowns = function() {
+window.populateClusterDropdowns = function () {
   const selects = [
     document.getElementById('add-paper-cluster'),
     document.getElementById('paper-cluster-select'),
@@ -470,7 +470,7 @@ window.populateClusterDropdowns = function() {
     const isFilterOrExport = sel.id === 'filter-cluster' || sel.id === 'filter-cluster-select' || sel.id === 'export-cluster-select';
     const isUpload = sel.id === 'add-paper-cluster' || sel.id === 'paper-cluster-select' || sel.id === 'upload-target-cluster';
     const curVal = sel.value;
-    
+
     let defaultHtml = '<option value="">-- Select Cluster --</option>';
     if (isFilterOrExport) defaultHtml = '<option value="all">All Clusters (Entire Workspace)</option>';
     if (isUpload) defaultHtml = '<option value="unassigned">Unassigned (Organize Later)</option>';
@@ -509,7 +509,7 @@ window.populateClusterDropdowns = function() {
   });
 };
 
-window.openCreateClusterModal = function() {
+window.openCreateClusterModal = function () {
   if (['reviewer', 'viewer'].includes(currentProjectRole)) {
     showToast(`[Read-Only] Role '${currentProjectRole.toUpperCase()}' cannot create clusters.`, 'info');
     return;
@@ -532,7 +532,7 @@ window.openCreateClusterModal = function() {
   openModal('cluster-modal-overlay');
 };
 
-window.editCluster = function(id) {
+window.editCluster = function (id) {
   if (['reviewer', 'viewer'].includes(currentProjectRole)) {
     showToast(`[Read-Only] Role '${currentProjectRole.toUpperCase()}' cannot edit clusters.`, 'info');
     return;
@@ -558,7 +558,7 @@ window.editCluster = function(id) {
   openModal('cluster-modal-overlay');
 };
 
-window.submitClusterForm = async function(e) {
+window.submitClusterForm = async function (e) {
   if (e) e.preventDefault();
   const idInput = document.getElementById('modal-cluster-id') || document.getElementById('cluster-id-input');
   const nameInput = document.getElementById('modal-cluster-name') || document.getElementById('cluster-name-input');
@@ -605,7 +605,7 @@ window.submitClusterForm = async function(e) {
       }
       try {
         if (typeof loadSynthesisInsights === 'function') await loadSynthesisInsights();
-      } catch (sye) {}
+      } catch (sye) { }
     } else {
       const errData = await res.json().catch(() => ({}));
       throw new Error(errData.error || (await res.text()) || 'Failed to save cluster');
@@ -615,7 +615,7 @@ window.submitClusterForm = async function(e) {
   }
 };
 
-window.deleteCluster = async function(id, skipConfirm = false) {
+window.deleteCluster = async function (id, skipConfirm = false) {
   const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'owner') || 'viewer').toLowerCase();
   if (['reviewer', 'viewer'].includes(role)) {
     showToast(`[Read-Only] Role '${role.toUpperCase()}' cannot delete clusters.`, 'info');
@@ -742,7 +742,7 @@ window.deleteCluster = async function(id, skipConfirm = false) {
       try {
         const parsed = JSON.parse(errText);
         if (parsed.error) msg = parsed.error;
-      } catch (e) {}
+      } catch (e) { }
       throw new Error(msg || 'Failed to delete cluster');
     }
   } catch (err) {
@@ -750,14 +750,14 @@ window.deleteCluster = async function(id, skipConfirm = false) {
   }
 };
 
-window.setClusterColor = function(hex) {
+window.setClusterColor = function (hex) {
   const colorInput = document.getElementById('modal-cluster-color');
   const hexInput = document.getElementById('modal-cluster-color-hex');
   if (colorInput) colorInput.value = hex;
   if (hexInput) hexInput.value = hex;
 };
 
-window.openClusterSettingsMasterModal = function(clusterId, initialTab = 'edit') {
+window.openClusterSettingsMasterModal = function (clusterId, initialTab = 'edit') {
   const c = allClusters.find(item => String(item.id) === String(clusterId)) || (allClusters[0] || null);
   if (!c) {
     showToast('Cluster not found', 'warning');
@@ -798,7 +798,7 @@ window.openClusterSettingsMasterModal = function(clusterId, initialTab = 'edit')
   openModal('cluster-settings-modal-overlay');
 };
 
-window.switchClusterSettingsTab = function(tabName) {
+window.switchClusterSettingsTab = function (tabName) {
   const tabBtns = document.querySelectorAll('.csettings-tab-btn');
   tabBtns.forEach(btn => {
     if (btn.dataset.ctab === tabName) {
@@ -818,14 +818,14 @@ window.switchClusterSettingsTab = function(tabName) {
   });
 };
 
-window.setClusterSettingsColor = function(hex) {
+window.setClusterSettingsColor = function (hex) {
   const colorInput = document.getElementById('csetting-cluster-color');
   const hexInput = document.getElementById('csetting-cluster-color-hex');
   if (colorInput) colorInput.value = hex;
   if (hexInput) hexInput.value = hex;
 };
 
-window.submitClusterSettingsForm = async function(e) {
+window.submitClusterSettingsForm = async function (e) {
   if (e) e.preventDefault();
   if (['reviewer', 'viewer'].includes(currentProjectRole)) {
     showToast(`[Read-Only] Role '${currentProjectRole.toUpperCase()}' cannot edit clusters.`, 'info');
@@ -886,7 +886,7 @@ window.submitClusterSettingsForm = async function(e) {
   }
 };
 
-window.submitDeleteCurrentClusterFromSettings = async function() {
+window.submitDeleteCurrentClusterFromSettings = async function () {
   const idInput = document.getElementById('csetting-cluster-id');
   const id = idInput ? idInput.value : window.currentClusterId;
   if (!id) return;
@@ -895,7 +895,7 @@ window.submitDeleteCurrentClusterFromSettings = async function() {
   await window.deleteCluster(parseInt(id, 10), true);
 };
 
-window.exploreCluster = async function(clusterId) {
+window.exploreCluster = async function (clusterId) {
   if (window._isClusterDragging) return;
   currentClusterId = String(clusterId);
   window.currentClusterId = currentClusterId;
@@ -958,7 +958,7 @@ window.exploreCluster = async function(clusterId) {
   if (typeof renderKeywordsHub === 'function') renderKeywordsHub();
   if (typeof applyFilters === 'function') applyFilters();
   if (typeof loadSynthesisInsights === 'function') loadSynthesisInsights();
-  
+
   const mainView = document.querySelector('main');
   if (mainView) {
     mainView.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -967,7 +967,7 @@ window.exploreCluster = async function(clusterId) {
 
 window.selectCluster = window.exploreCluster;
 
-window.clearClusterFocus = async function() {
+window.clearClusterFocus = async function () {
   currentClusterId = 'all';
   window.currentClusterId = 'all';
   const filterSel = document.getElementById('filter-cluster') || document.getElementById('filter-cluster-select');

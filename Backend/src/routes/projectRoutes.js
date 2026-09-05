@@ -31,8 +31,9 @@ router.get('/projects', (req, res) => {
                  (SELECT COUNT(*) FROM project_members WHERE project_id = p.id) as member_count,
                  (SELECT COUNT(*) FROM dynamic_columns WHERE cluster_id IN (SELECT id FROM clusters WHERE project_id = p.id)) as dynamic_col_count,
                  COALESCE(
-                   (SELECT role FROM project_members WHERE project_id = p.id AND user_id = ?),
-                   CASE WHEN p.owner_id = ? THEN 'owner' ELSE 'viewer' END
+                   CASE WHEN p.owner_id = ? THEN 'owner' ELSE NULL END,
+                   (SELECT CASE WHEN role = 'owner' THEN 'editor' ELSE role END FROM project_members WHERE project_id = p.id AND user_id = ?),
+                   'viewer'
                  ) as user_role
           FROM projects p
           LEFT JOIN users u ON u.id = p.owner_id
@@ -54,8 +55,9 @@ router.get('/projects', (req, res) => {
                  (SELECT COUNT(*) FROM project_members WHERE project_id = p.id) as member_count,
                  (SELECT COUNT(*) FROM dynamic_columns WHERE cluster_id IN (SELECT id FROM clusters WHERE project_id = p.id)) as dynamic_col_count,
                  COALESCE(
-                   (SELECT role FROM project_members WHERE project_id = p.id AND user_id = ?),
-                   CASE WHEN p.owner_id = ? THEN 'owner' ELSE 'viewer' END
+                   CASE WHEN p.owner_id = ? THEN 'owner' ELSE NULL END,
+                   (SELECT CASE WHEN role = 'owner' THEN 'editor' ELSE role END FROM project_members WHERE project_id = p.id AND user_id = ?),
+                   'viewer'
                  ) as user_role
           FROM projects p
           LEFT JOIN users u ON u.id = p.owner_id

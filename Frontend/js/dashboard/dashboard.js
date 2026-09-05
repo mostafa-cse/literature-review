@@ -135,8 +135,22 @@ window.loadSurveys = async function() {
     if (!res.ok) throw new Error('Failed to load surveys');
     const raw = await res.json();
 
+    let currentUserId = null;
+    try {
+      const u = JSON.parse(localStorage.getItem('litsphere_user') || '{}');
+      currentUserId = u.id || null;
+    } catch(e) {}
+
     // Normalise: API returns `user_role`, frontend filter reads `current_user_role`
-    allSurveys = raw.map(p => ({ ...p, current_user_role: p.user_role || p.current_user_role || 'owner' }));
+    allSurveys = raw.map(p => {
+      let role = (p.user_role || p.current_user_role || '').toLowerCase();
+      if (currentUserId && p.owner_id && Number(p.owner_id) !== Number(currentUserId) && role === 'owner') {
+        role = 'editor';
+      } else if (!role) {
+        role = (currentUserId && p.owner_id && Number(p.owner_id) === Number(currentUserId)) ? 'owner' : 'viewer';
+      }
+      return { ...p, current_user_role: role };
+    });
 
     updateTabCounts();
     applySurveyFilters();
@@ -342,18 +356,19 @@ function renderSurveysGrid(surveys, searchVal) {
         <div class="survey-card-top">
           <div class="survey-card-badge-group">
             <span class="role-badge-pill role-${role}">${role.toUpperCase()}</span>
+            ${!isOwner && p.owner_name ? `
+              <span class="survey-owner-chip" title="Survey Owner: ${escapeHtml(p.owner_name)}" style="font-size:0.75rem; color:var(--text-secondary); background:var(--bg-surface-raised); border:1px solid var(--border-base); border-radius:4px; padding:0.18rem 0.5rem; display:inline-flex; align-items:center; gap:0.25rem;">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                By ${escapeHtml(p.owner_name)}
+              </span>
+            ` : ''}
             ${formattedDate ? `<span class="survey-date-chip" title="Created date"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>${formattedDate}</span>` : ''}
           </div>
-          <div class="survey-action-group" onclick="event.stopPropagation()">
-            ${canModify ? `
-              <button class="mini-btn" onclick="openEditSurveyModal(${p.id}, decodeURIComponent('${encodeURIComponent(p.name)}'), decodeURIComponent('${encodeURIComponent(p.description || '')}'), decodeURIComponent('${encodeURIComponent(p.domain || '')}'))" title="Edit Survey Metadata"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>Edit</button>
-            ` : ''}
-            <button class="mini-btn" onclick="exportSurveyExcel(${p.id})" title="Export Master Matrix (.xlsx)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Export</button>
-            ${isOwner ? `<button class="mini-btn danger" onclick="deleteSurvey(${p.id}, decodeURIComponent('${encodeURIComponent(p.name)}'))" title="Delete Survey"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>` : ''}
-            ${!canModify ? `
+          ${!canModify ? `
+            <div class="survey-action-group" onclick="event.stopPropagation()">
               <span class="shared-view-tag" style="font-size:0.75rem; color:var(--text-tertiary); font-family:'JetBrains Mono',monospace; padding:0.2rem 0.5rem; background:var(--bg-surface-raised); border-radius:4px; border:1px solid var(--border-base);">Read-Only</span>
-            ` : ''}
-          </div>
+            </div>
+          ` : ''}
         </div>
 
         <h3 class="survey-title" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</h3>
@@ -473,7 +488,12 @@ function renderSurveysTable(surveys, searchVal) {
           </div>
         </td>
         <td>
-          <span class="role-badge-pill role-${role}">${role.toUpperCase()}</span>
+          <div style="display: flex; flex-direction: column; gap: 0.25rem; align-items: flex-start;">
+            <span class="role-badge-pill role-${role}">${role.toUpperCase()}</span>
+            ${!isOwner && p.owner_name ? `
+              <span style="font-size:0.72rem; color:var(--text-tertiary); white-space:nowrap;">By ${escapeHtml(p.owner_name)}</span>
+            ` : ''}
+          </div>
         </td>
         <td>
           <span class="table-metric-badge" title="${p.cluster_count || 0} Taxonomy Clusters">

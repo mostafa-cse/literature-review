@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Database Architecture &amp; Schema Explorer • LitSphere</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cellipse cx='12' cy='5' rx='9' ry='3'/%3E%3Cpath d='M21 12c0 1.66-4 3-9 3s-9-1.34-9-3'/%3E%3Cpath d='M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5'/%3E%3C/svg%3E">
+
+  <!-- Typography & Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/navbar.css">
+  <link rel="stylesheet" href="/css/toast.css">
+
+  <style>
+    :root {
+      --db-sidebar-w: 320px;
+      --db-header-h: 70px;
+      --code-bg: rgba(15, 23, 42, 0.95);
+      --code-border: rgba(255, 255, 255, 0.1);
+    }
+
+    [data-theme="light"] {
+      --code-bg: #f8fafc;
+      --code-border: rgba(0, 0, 0, 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg-primary, #0b0f19);
+      color: var(--text-primary, #f1f5f9);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Top Explorer Header */
+    .db-header {
+      height: var(--db-header-h);
+      background: var(--card-bg, rgba(15, 23, 42, 0.85));
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .db-header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .db-brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(6, 182, 212, 0.2));
+      border: 1px solid rgba(212, 175, 55, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-gold, #d4af37);
+    }
+
+    .db-title-area h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .db-title-area p {
+      font-size: 0.78rem;
+      color: var(--text-secondary, #94a3b8);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .db-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #10b981;
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .db-status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulseDot 2s infinite;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    .db-header-right {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .db-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.45rem 0.85rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      text-decoration: none;
+    }
+
+    .db-btn-primary {
+      background: linear-gradient(135deg, #d4af37, #b8860b);
+      color: #000;
+      font-weight: 700;
+    }
+    .db-btn-primary:hover {
+      box-shadow: 0 4px 12px rgba(212, 175, 55, 0.35);
+      transform: translateY(-1px);
+    }
+
+    .db-btn-secondary {
+      background: var(--bg-secondary, rgba(30, 41, 59, 0.7));
+      color: var(--text-primary, #f1f5f9);
+      border-color: var(--border-color, rgba(255, 255, 255, 0.12));
+    }
+    .db-btn-secondary:hover {
+      background: rgba(51, 65, 85, 0.8);
+      border-color: rgba(212, 175, 55, 0.4);
+    }
+
+    /* Main Container Layout */
+    .db-main-layout {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - var(--db-header-h));
+      overflow: hidden;
+    }
+
+    /* Left Sidebar: Tables List */
+    .db-sidebar {
+      width: var(--db-sidebar-w);
+      background: var(--bg-secondary, rgba(15, 23, 42, 0.6));
+      border-right: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .db-sidebar-search {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
+    }
+
+    .db-search-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .db-search-input-wrap svg {
+      position: absolute;
+      left: 0.75rem;
+      color: var(--text-secondary, #94a3b8);
+      pointer-events: none;
+    }
+
+    .db-search-input {
+      width: 100%;
+      background: var(--card-bg, rgba(2, 6, 23, 0.6));
+      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem 0.5rem 2.2rem;
+      color: var(--text-primary, #f1f5f9);
+      font-size: 0.82rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .db-search-input:focus {
+      border-color: var(--accent-gold, #d4af37);
+      box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.15);
+    }
+
+    .db-tables-meta {
+      padding: 0.5rem 1rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary, #94a3b8);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.1);
+    }
+
+    .db-tables-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .db-table-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 0.75rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+      user-select: none;
+    }
+
+    .db-table-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .db-table-item.active {
+      background: rgba(212, 175, 55, 0.12);
+      border-color: rgba(212, 175, 55, 0.4);
+      color: var(--accent-gold, #d4af37);
+    }
+
+    .db-table-info {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      overflow: hidden;
+    }
+
+    .db-table-icon {
+      color: var(--text-secondary, #94a3b8);
+      flex-shrink: 0;
+    }
+
+    .db-table-item.active .db-table-icon {
+      color: var(--accent-gold, #d4af37);
+    }
+
+    .db-table-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .db-table-badges {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      flex-shrink: 0;
+    }
+
+    .db-badge-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.15rem 0.45rem;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-secondary, #94a3b8);
+    }
+
+    .db-table-item.active .db-badge-count {
+      background: rgba(212, 175, 55, 0.2);
+      color: var(--accent-gold, #d4af37);
+    }
+
+    /* Right Main Content Panel */
+    .db-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      background: var(--bg-primary, #0b0f19);
+    }
+
+    .db-content-header {
+      padding: 1.25rem 1.75rem 0 1.75rem;
+      background: var(--card-bg, rgba(15, 23, 42, 0.4));
+      border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+    }
+
+    .db-content-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .db-content-title-left {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .db-content-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--text-primary, #f1f5f9);
+    }
+
+    .db-meta-pills {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .db-pill {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-secondary, #cbd5e1);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .db-pill-gold {
+      background: rgba(212, 175, 55, 0.15);
+      border-color: rgba(212, 175, 55, 0.35);
+      color: var(--accent-gold, #d4af37);
+    }
+
+    /* Content Tabs */
+    .db-tabs {
+      display: flex;
+      gap: 0.5rem;
+      border-bottom: 1px solid transparent;
+    }
+
+    .db-tab-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.65rem 1.1rem;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      color: var(--text-secondary, #94a3b8);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .db-tab-btn:hover {
+      color: var(--text-primary, #f1f5f9);
+    }
+
+    .db-tab-btn.active {
+      color: var(--accent-gold, #d4af37);
+      border-bottom-color: var(--accent-gold, #d4af37);
+    }
+
+    /* Tab Content View */
+    .db-tab-pane {
+      display: none;
+      padding: 1.5rem 1.75rem;
+      flex: 1;
+    }
+
+    .db-tab-pane.active {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* Schema Table */
+    .db-table-responsive {
+      overflow-x: auto;
+      background: var(--card-bg, rgba(15, 23, 42, 0.6));
+      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .db-schema-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      text-align: left;
+    }
+
+    .db-schema-table th {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 0.75rem 1rem;
+      font-weight: 700;
+      color: var(--text-secondary, #94a3b8);
+      border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+      text-transform: uppercase;
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+    }
+
+    .db-schema-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text-primary, #f1f5f9);
+      vertical-align: middle;
+    }
+
+    .db-schema-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .type-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      background: rgba(6, 182, 212, 0.15);
+      color: #06b6d4;
+      border: 1px solid rgba(6, 182, 212, 0.3);
+    }
+
+    .pk-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      background: rgba(212, 175, 55, 0.2);
+      color: var(--accent-gold, #d4af37);
+      border: 1px solid rgba(212, 175, 55, 0.4);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .fk-badge {
+      font-size: 0.72rem;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      background: rgba(168, 85, 247, 0.15);
+      color: #c084fc;
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .null-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.1);
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+    }
+
+    /* SQL DDL Box */
+    .db-sql-box {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      position: relative;
+    }
+
+    .db-sql-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+    }
+
+    .db-sql-header span {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary, #94a3b8);
+    }
+
+    pre.sql-code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      color: #38bdf8;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* Data Browser Controls */
+    .db-data-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .db-data-search {
+      flex: 1;
+      max-width: 400px;
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .db-data-search input {
+      width: 100%;
+      background: var(--card-bg, rgba(2, 6, 23, 0.6));
+      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem 0.5rem 2.2rem;
+      color: var(--text-primary, #f1f5f9);
+      font-size: 0.82rem;
+      outline: none;
+    }
+
+    .db-data-search svg {
+      position: absolute;
+      left: 0.75rem;
+      color: var(--text-secondary, #94a3b8);
+    }
+
+    .db-pagination {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.82rem;
+      color: var(--text-secondary, #94a3b8);
+    }
+
+    /* SQL Console */
+    .db-console-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .db-query-editor {
+      width: 100%;
+      min-height: 120px;
+      background: var(--code-bg);
+      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+      border-radius: 10px;
+      padding: 1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88rem;
+      color: #a5f3fc;
+      outline: none;
+      resize: vertical;
+    }
+    .db-query-editor:focus {
+      border-color: var(--accent-gold, #d4af37);
+      box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
+    }
+
+    .db-query-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .db-query-presets {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .preset-chip {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      padding: 0.2rem 0.55rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      color: var(--text-secondary, #cbd5e1);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .preset-chip:hover {
+      background: rgba(212, 175, 55, 0.15);
+      border-color: rgba(212, 175, 55, 0.3);
+      color: var(--accent-gold, #d4af37);
+    }
+
+    /* Auth Banner / Modal */
+    .db-auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 1rem;
+    }
+
+    .db-auth-card {
+      background: var(--bg-secondary, #1e293b);
+      border: 1px solid rgba(212, 175, 55, 0.4);
+      border-radius: 16px;
+      padding: 2rem;
+      max-width: 460px;
+      width: 100%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      text-align: center;
+    }
+
+    .db-auth-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      background: rgba(212, 175, 55, 0.15);
+      color: var(--accent-gold, #d4af37);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.25rem auto;
+    }
+
+    .db-auth-card h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .db-auth-card p {
+      font-size: 0.85rem;
+      color: var(--text-secondary, #94a3b8);
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+
+    .db-auth-input {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      padding: 0.65rem 0.85rem;
+      color: #fff;
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+      outline: none;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.1);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(212, 175, 55, 0.4);
+    }
+  </style>
+
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('litsphere_theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- Top Explorer Header -->
+  <header class="db-header">
+    <div class="db-header-left">
+      <div class="db-brand-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <ellipse cx="12" cy="5" rx="9" ry="3"/>
+          <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+          <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+        </svg>
+      </div>
+      <div class="db-title-area">
+        <h1>
+          <span>SQLite Database Explorer</span>
+          <span class="db-status-pill" id="db-health-pill">
+            <span class="db-status-dot"></span>
+            <span id="db-health-text">Connected</span>
+          </span>
+        </h1>
+        <p id="db-meta-subtitle">literature.db • WAL Journal • <span id="db-total-tables-count">16</span> Tables • <span id="db-total-rows-count">0</span> Total Rows</p>
+      </div>
+    </div>
+
+    <div class="db-header-right">
+      <button type="button" class="db-btn db-btn-secondary" onclick="exportFullSchemaJson()" title="Export entire database schema structure as JSON">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span>Export JSON</span>
+      </button>
+      <button type="button" class="db-btn db-btn-secondary" onclick="exportFullDdlSql()" title="Export complete SQL DDL schema">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        <span>Export SQL DDL</span>
+      </button>
+      <button type="button" class="db-btn db-btn-secondary" onclick="toggleTheme()" id="theme-toggle-btn" title="Toggle Light/Dark Theme">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button>
+      <a href="/workspace" class="db-btn db-btn-primary" title="Return to Literature Review Workspace">
+        <span>Open Workspace</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <div class="db-main-layout">
+    <!-- Left Sidebar: Tables List -->
+    <aside class="db-sidebar">
+      <div class="db-sidebar-search">
+        <div class="db-search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="table-search-input" class="db-search-input" placeholder="Search 16 tables..." oninput="filterTablesList(this.value)">
+        </div>
+      </div>
+
+      <div class="db-tables-meta">
+        <span>SQLite Schema Tables</span>
+        <span id="showing-tables-badge">16 Tables</span>
+      </div>
+
+      <div class="db-tables-list" id="tables-list-container">
+        <!-- Tables populated via JS -->
+        <div style="padding: 1.5rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">Loading tables...</div>
+      </div>
+    </aside>
+
+    <!-- Main Detail Content -->
+    <main class="db-content">
+      <!-- Active Table Header Bar -->
+      <div class="db-content-header">
+        <div class="db-content-title-row">
+          <div class="db-content-title-left">
+            <h2 class="db-content-title" id="active-table-name">--</h2>
+            <div class="db-meta-pills" id="active-table-meta-pills">
+              <span class="db-pill db-pill-gold" id="pill-row-count">0 Rows</span>
+              <span class="db-pill" id="pill-col-count">0 Columns</span>
+              <span class="db-pill" id="pill-fk-count">0 Foreign Keys</span>
+            </div>
+          </div>
+          <div>
+            <button type="button" class="db-btn db-btn-secondary" onclick="refreshActiveTableData()" title="Reload data for this table">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              <span>Refresh</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs for Active Table -->
+        <div class="db-tabs" role="tablist">
+          <button type="button" class="db-tab-btn active" data-tab="schema" onclick="switchDbTab('schema')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span>Schema &amp; Columns</span>
+          </button>
+          <button type="button" class="db-tab-btn" data-tab="data" onclick="switchDbTab('data')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+            <span>Browse Data Rows</span>
+          </button>
+          <button type="button" class="db-tab-btn" data-tab="ddl" onclick="switchDbTab('ddl')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            <span>DDL SQL Definition</span>
+          </button>
+          <button type="button" class="db-tab-btn" data-tab="sql" onclick="switchDbTab('sql')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <span>SQL Query Console</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- TAB 1: Schema & Columns -->
+      <div class="db-tab-pane active" id="pane-schema">
+        <div class="db-table-responsive">
+          <table class="db-schema-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">#</th>
+                <th>Column Name</th>
+                <th>Data Type</th>
+                <th>Constraints</th>
+                <th>Default Value</th>
+                <th>Relationships / Foreign Keys</th>
+              </tr>
+            </thead>
+            <tbody id="schema-columns-body">
+              <!-- Populated via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 2: Browse Data Rows -->
+      <div class="db-tab-pane" id="pane-data">
+        <div class="db-data-controls">
+          <div class="db-data-search">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="table-data-search" placeholder="Search rows in this table..." oninput="debounceTableDataSearch(this.value)">
+          </div>
+
+          <div class="db-pagination">
+            <button type="button" class="db-btn db-btn-secondary" id="btn-prev-page" onclick="changeDataPage(-1)" style="padding: 0.35rem 0.65rem;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <span id="data-page-indicator">Page 1 of 1</span>
+            <button type="button" class="db-btn db-btn-secondary" id="btn-next-page" onclick="changeDataPage(1)" style="padding: 0.35rem 0.65rem;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="db-table-responsive" style="max-height: 580px;">
+          <table class="db-schema-table" id="data-rows-table">
+            <thead id="data-rows-head">
+              <!-- Headers populated via JS -->
+            </thead>
+            <tbody id="data-rows-body">
+              <!-- Rows populated via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 3: DDL SQL -->
+      <div class="db-tab-pane" id="pane-ddl">
+        <div class="db-sql-box">
+          <div class="db-sql-header">
+            <span>SQLite Table Definition (CREATE TABLE DDL)</span>
+            <button type="button" class="db-btn db-btn-secondary" onclick="copyDdlCode()" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span>Copy SQL</span>
+            </button>
+          </div>
+          <pre class="sql-code" id="ddl-sql-code">-- Loading DDL SQL...</pre>
+        </div>
+      </div>
+
+      <!-- TAB 4: SQL Query Console -->
+      <div class="db-tab-pane" id="pane-sql">
+        <div class="db-console-wrap">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Execute Read-Only SQL Query (SELECT, PRAGMA, EXPLAIN)</label>
+            <div class="db-query-presets">
+              <span style="font-size: 0.72rem; color: var(--text-secondary);">Presets:</span>
+              <span class="preset-chip" onclick="setQueryPreset('count')">COUNT(*)</span>
+              <span class="preset-chip" onclick="setQueryPreset('sample')">SELECT 10</span>
+              <span class="preset-chip" onclick="setQueryPreset('pragma')">PRAGMA table_info</span>
+              <span class="preset-chip" onclick="setQueryPreset('papers_cluster')">Papers by Cluster</span>
+            </div>
+          </div>
+
+          <textarea id="sql-query-input" class="db-query-editor" spellcheck="false" placeholder="SELECT * FROM papers LIMIT 25;"></textarea>
+
+          <div class="db-query-actions">
+            <span style="font-size: 0.75rem; color: var(--text-secondary);">Shortcut: <kbd style="background: rgba(255,255,255,0.1); padding: 0.1rem 0.35rem; border-radius: 4px;">Ctrl+Enter</kbd> or <kbd style="background: rgba(255,255,255,0.1); padding: 0.1rem 0.35rem; border-radius: 4px;">Cmd+Enter</kbd></span>
+            <button type="button" class="db-btn db-btn-primary" onclick="executeSqlQuery()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span>Run SQL Query</span>
+            </button>
+          </div>
+
+          <div id="query-result-meta" style="display: none; font-size: 0.78rem; font-family: 'JetBrains Mono', monospace; color: #10b981; padding: 0.4rem 0.8rem; background: rgba(16, 185, 129, 0.1); border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.25);">
+            Execution time: 0ms • 0 rows returned
+          </div>
+
+          <div class="db-table-responsive" id="query-result-container" style="display: none; max-height: 400px;">
+            <table class="db-schema-table" id="query-result-table">
+              <thead id="query-result-head"></thead>
+              <tbody id="query-result-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Authentication Connect Modal (If unauthenticated) -->
+  <div class="db-auth-overlay" id="db-auth-modal">
+    <div class="db-auth-card">
+      <div class="db-auth-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </div>
+      <h2>Database Access Authentication</h2>
+      <p>The SQLite introspection API is protected by administrator authentication. Connect directly using your active local session or enter your admin credentials.</p>
+
+      <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <button type="button" class="db-btn db-btn-primary" onclick="quickConnectLocalhostAdmin()" style="justify-content: center; padding: 0.75rem;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Connect as Local Administrator</span>
+        </button>
+
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0; color: var(--text-secondary); font-size: 0.75rem;">
+          <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.1);"></div>
+          <span>OR PASTE JWT TOKEN</span>
+          <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.1);"></div>
+        </div>
+
+        <input type="text" id="manual-jwt-input" class="db-auth-input" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+        <button type="button" class="db-btn db-btn-secondary" onclick="applyManualToken()" style="justify-content: center;">
+          <span>Apply Token &amp; Connect</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let dbSchemaData = null;
+    let activeTableName = null;
+    let activeTablePage = 1;
+    let activeTableSearch = '';
+    let searchDebounceTimer = null;
+
+    // Toast utility
+    function showToast(message, type = 'info') {
+      let toast = document.getElementById('db-toast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'db-toast';
+        toast.style.cssText = `
+          position: fixed;
+          bottom: 24px;
+          right: 24px;
+          padding: 12px 20px;
+          background: #1e293b;
+          border: 1px solid rgba(212, 175, 55, 0.4);
+          color: #f1f5f9;
+          border-radius: 10px;
+          font-size: 0.85rem;
+          font-weight: 600;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+          z-index: 9999;
+          transition: all 0.3s ease;
+          opacity: 0;
+          transform: translateY(10px);
+        `;
+        document.body.appendChild(toast);
+      }
+      toast.textContent = message;
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateY(0)';
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+      }, 3000);
+    }
+
+    // Token Resolution
+    function getAuthToken() {
+      // 1. URL Query parameter ?token=
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('token')) {
+        localStorage.setItem('litsphere_auth_token', urlParams.get('token'));
+        return urlParams.get('token');
+      }
+      // 2. LocalStorage tokens
+      return localStorage.getItem('litsphere_auth_token') || 
+             localStorage.getItem('token') || 
+             sessionStorage.getItem('token');
+    }
+
+    async function fetchWithAuth(url, options = {}) {
+      const token = getAuthToken();
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(url, { ...options, headers });
+      if (response.status === 401 || response.status === 403) {
+        // Show auth modal
+        document.getElementById('db-auth-modal').style.display = 'flex';
+        throw new Error('Unauthorized');
+      }
+      return response;
+    }
+
+    // Initialize Schema
+    async function loadDatabaseSchema() {
+      try {
+        const res = await fetchWithAuth('/api/admin/db-schema');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        dbSchemaData = data;
+        renderDatabaseMetadata(data);
+        renderTablesList(data.tables);
+
+        // Select first table or papers by default
+        const defaultTable = data.tables.find(t => t.table_name === 'papers') || data.tables[0];
+        if (defaultTable) {
+          selectActiveTable(defaultTable.table_name);
+        }
+      } catch (err) {
+        console.warn('Failed to load database schema:', err);
+      }
+    }
+
+    function renderDatabaseMetadata(data) {
+      document.getElementById('db-total-tables-count').textContent = data.total_tables || data.tables.length;
+      document.getElementById('db-total-rows-count').textContent = (data.total_rows || 0).toLocaleString();
+      document.getElementById('showing-tables-badge').textContent = `${data.tables.length} Tables`;
+    }
+
+    function renderTablesList(tables) {
+      const container = document.getElementById('tables-list-container');
+      if (!tables || tables.length === 0) {
+        container.innerHTML = '<div style="padding: 1.5rem; text-align: center; color: var(--text-secondary);">No tables found.</div>';
+        return;
+      }
+
+      container.innerHTML = tables.map(t => `
+        <div class="db-table-item ${t.table_name === activeTableName ? 'active' : ''}" 
+             data-table="${t.table_name}" 
+             onclick="selectActiveTable('${t.table_name}')">
+          <div class="db-table-info">
+            <svg class="db-table-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <path d="M3 9h18"/>
+              <path d="M9 21V9"/>
+            </svg>
+            <span class="db-table-name" title="${t.table_name}">${t.table_name}</span>
+          </div>
+          <div class="db-table-badges">
+            <span class="db-badge-count" title="${t.row_count} records">${t.row_count > 999 ? (t.row_count/1000).toFixed(1) + 'k' : t.row_count}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function filterTablesList(query) {
+      if (!dbSchemaData) return;
+      const q = (query || '').trim().toLowerCase();
+      const filtered = dbSchemaData.tables.filter(t => t.table_name.toLowerCase().includes(q));
+      renderTablesList(filtered);
+      document.getElementById('showing-tables-badge').textContent = `${filtered.length} Tables`;
+    }
+
+    function selectActiveTable(tableName) {
+      if (!dbSchemaData) return;
+      const table = dbSchemaData.tables.find(t => t.table_name === tableName);
+      if (!table) return;
+
+      activeTableName = tableName;
+      activeTablePage = 1;
+      activeTableSearch = '';
+      document.getElementById('table-data-search').value = '';
+
+      // Highlight sidebar
+      document.querySelectorAll('.db-table-item').forEach(el => {
+        el.classList.toggle('active', el.dataset.table === tableName);
+      });
+
+      // Update Header
+      document.getElementById('active-table-name').textContent = tableName;
+      document.getElementById('pill-row-count').textContent = `${(table.row_count || 0).toLocaleString()} Rows`;
+      document.getElementById('pill-col-count').textContent = `${table.columns.length} Columns`;
+      document.getElementById('pill-fk-count').textContent = `${table.foreign_keys.length} Foreign Keys`;
+
+      // Render Schema Tab
+      renderTableSchema(table);
+
+      // Render DDL Tab
+      document.getElementById('ddl-sql-code').textContent = table.ddl_sql || `-- No DDL found for ${tableName}`;
+
+      // Set default query in SQL console
+      document.getElementById('sql-query-input').value = `SELECT * FROM ${tableName} LIMIT 50;`;
+
+      // Load Data Rows Tab
+      loadTableDataRows();
+    }
+
+    function renderTableSchema(table) {
+      const tbody = document.getElementById('schema-columns-body');
+      tbody.innerHTML = table.columns.map((col, idx) => {
+        // Check foreign key
+        const fk = table.foreign_keys.find(f => f.from === col.name);
+        const fkHtml = fk ? `
+          <span class="fk-badge" title="References ${fk.table}(${fk.to})">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            &rarr; ${fk.table}(${fk.to})
+          </span>
+        ` : '<span style="color: var(--text-secondary); opacity: 0.4;">&mdash;</span>';
+
+        const pkHtml = col.pk ? `
+          <span class="pk-badge">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 2l-2 2m-1.5 1.5L10 13l-4 4-4-4 4-4 7.5-7.5z"/><circle cx="15.5" cy="8.5" r="2.5"/></svg>
+            PRIMARY KEY
+          </span>
+        ` : '';
+
+        const notNullHtml = col.notnull ? '<span class="null-badge">NOT NULL</span>' : '<span style="color: var(--text-secondary); opacity: 0.6;">NULL</span>';
+
+        return `
+          <tr>
+            <td style="font-family: 'JetBrains Mono', monospace; color: var(--text-secondary);">${idx + 1}</td>
+            <td style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #f8fafc;">
+              ${col.name}
+            </td>
+            <td>
+              <span class="type-badge">${col.type || 'TEXT'}</span>
+            </td>
+            <td>
+              <div style="display: flex; gap: 0.4rem; align-items: center;">
+                ${pkHtml}
+                ${notNullHtml}
+              </div>
+            </td>
+            <td style="font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: #cbd5e1;">
+              ${col.default_value !== null ? `<code>${col.default_value}</code>` : '<span style="color: var(--text-secondary); opacity: 0.4;">NULL</span>'}
+            </td>
+            <td>${fkHtml}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Load Live Table Data
+    async function loadTableDataRows() {
+      if (!activeTableName) return;
+      const thead = document.getElementById('data-rows-head');
+      const tbody = document.getElementById('data-rows-body');
+      tbody.innerHTML = '<tr><td colspan="100" style="text-align: center; padding: 2rem; color: var(--text-secondary);">Loading table rows...</td></tr>';
+
+      try {
+        const queryParams = new URLSearchParams({
+          page: activeTablePage,
+          limit: 50,
+          search: activeTableSearch
+        });
+        const res = await fetchWithAuth(`/api/admin/db-table/${activeTableName}?${queryParams}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const result = await res.json();
+
+        // Render Table Headers
+        thead.innerHTML = `<tr>${result.columns.map(c => `
+          <th>
+            <div>${c.name}</div>
+            <div style="font-size: 0.65rem; color: #06b6d4; font-weight: 500; font-family: 'JetBrains Mono', monospace;">${c.type || 'TEXT'}</div>
+          </th>
+        `).join('')}</tr>`;
+
+        // Render Table Rows
+        if (!result.rows || result.rows.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="100" style="text-align: center; padding: 2rem; color: var(--text-secondary);">No records found matching query.</td></tr>';
+        } else {
+          tbody.innerHTML = result.rows.map(row => `
+            <tr>
+              ${result.columns.map(c => {
+                const val = row[c.name];
+                let displayVal = val;
+                if (val === null || val === undefined) {
+                  displayVal = '<span style="color: var(--text-secondary); opacity: 0.4; font-style: italic;">NULL</span>';
+                } else if (typeof val === 'object') {
+                  displayVal = JSON.stringify(val);
+                } else if (typeof val === 'string' && val.length > 80) {
+                  displayVal = `<span title="${escapeHtml(val)}">${escapeHtml(val.slice(0, 75))}...</span>`;
+                } else {
+                  displayVal = escapeHtml(String(val));
+                }
+                return `<td style="font-family: 'JetBrains Mono', monospace; font-size: 0.78rem;">${displayVal}</td>`;
+              }).join('')}
+            </tr>
+          `).join('');
+        }
+
+        // Pagination Controls
+        document.getElementById('data-page-indicator').textContent = `Page ${result.page} of ${Math.max(1, result.total_pages)} (${result.total_rows} rows)`;
+        document.getElementById('btn-prev-page').disabled = result.page <= 1;
+        document.getElementById('btn-next-page').disabled = result.page >= result.total_pages;
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="100" style="text-align: center; padding: 2rem; color: #ef4444;">Failed to load rows: ${err.message}</td></tr>`;
+      }
+    }
+
+    function changeDataPage(delta) {
+      activeTablePage = Math.max(1, activeTablePage + delta);
+      loadTableDataRows();
+    }
+
+    function debounceTableDataSearch(query) {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(() => {
+        activeTableSearch = query;
+        activeTablePage = 1;
+        loadTableDataRows();
+      }, 300);
+    }
+
+    function refreshActiveTableData() {
+      if (activeTableName) {
+        loadTableDataRows();
+        showToast(`Refreshed ${activeTableName}`);
+      }
+    }
+
+    // Tab Switching
+    function switchDbTab(tabName) {
+      document.querySelectorAll('.db-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabName);
+      });
+      document.querySelectorAll('.db-tab-pane').forEach(pane => {
+        pane.classList.toggle('active', pane.id === `pane-${tabName}`);
+      });
+    }
+
+    // SQL Console Execution
+    async function executeSqlQuery() {
+      const query = document.getElementById('sql-query-input').value;
+      if (!query || !query.trim()) {
+        showToast('Please enter an SQL query', 'warning');
+        return;
+      }
+
+      const metaBox = document.getElementById('query-result-meta');
+      const tableBox = document.getElementById('query-result-container');
+      const thead = document.getElementById('query-result-head');
+      const tbody = document.getElementById('query-result-body');
+
+      metaBox.style.display = 'block';
+      metaBox.textContent = 'Executing query on SQLite WAL database...';
+      metaBox.style.color = '#38bdf8';
+
+      try {
+        const res = await fetchWithAuth('/api/admin/db-query', {
+          method: 'POST',
+          body: JSON.stringify({ query: query.trim() })
+        });
+        const result = await res.json();
+        if (!res.ok) {
+          throw new Error(result.error || 'SQL Query failed');
+        }
+
+        metaBox.style.color = '#10b981';
+        metaBox.textContent = `⚡ Executed in ${result.execution_time_ms}ms • ${result.row_count} rows returned`;
+        tableBox.style.display = 'block';
+
+        if (result.columns.length === 0 || result.rows.length === 0) {
+          thead.innerHTML = '<tr><th>Result</th></tr>';
+          tbody.innerHTML = '<tr><td style="color: var(--text-secondary); text-align: center; padding: 1.5rem;">Query executed successfully. 0 rows returned.</td></tr>';
+          return;
+        }
+
+        thead.innerHTML = `<tr>${result.columns.map(c => `<th>${escapeHtml(c)}</th>`).join('')}</tr>`;
+        tbody.innerHTML = result.rows.map(row => `
+          <tr>
+            ${result.columns.map(c => `<td style="font-family: 'JetBrains Mono', monospace; font-size: 0.78rem;">${escapeHtml(String(row[c] ?? 'NULL'))}</td>`).join('')}
+          </tr>
+        `).join('');
+      } catch (err) {
+        metaBox.style.color = '#ef4444';
+        metaBox.textContent = `❌ ${err.message}`;
+        tableBox.style.display = 'none';
+      }
+    }
+
+    // SQL Presets
+    function setQueryPreset(preset) {
+      const editor = document.getElementById('sql-query-input');
+      const t = activeTableName || 'papers';
+      switch (preset) {
+        case 'count':
+          editor.value = `SELECT COUNT(*) AS total_${t} FROM ${t};`;
+          break;
+        case 'sample':
+          editor.value = `SELECT * FROM ${t} LIMIT 10;`;
+          break;
+        case 'pragma':
+          editor.value = `PRAGMA table_info(${t});`;
+          break;
+        case 'papers_cluster':
+          editor.value = `SELECT p.cluster_id, c.name AS cluster_name, COUNT(p.id) AS paper_count 
+FROM papers p 
+LEFT JOIN clusters c ON p.cluster_id = c.id 
+GROUP BY p.cluster_id;`;
+          break;
+      }
+      executeSqlQuery();
+    }
+
+    // Keybindings for Query Run
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        if (document.activeElement === document.getElementById('sql-query-input')) {
+          e.preventDefault();
+          executeSqlQuery();
+        }
+      }
+    });
+
+    // Copy DDL Code
+    function copyDdlCode() {
+      const ddl = document.getElementById('ddl-sql-code').textContent;
+      navigator.clipboard.writeText(ddl).then(() => {
+        showToast('DDL SQL copied to clipboard');
+      });
+    }
+
+    // Full Schema Export
+    function exportFullSchemaJson() {
+      if (!dbSchemaData) return;
+      const blob = new Blob([JSON.stringify(dbSchemaData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `literature_db_schema_${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Schema JSON downloaded');
+    }
+
+    function exportFullDdlSql() {
+      if (!dbSchemaData || !dbSchemaData.tables) return;
+      const allDdl = dbSchemaData.tables.map(t => `-- Table: ${t.table_name} (${t.row_count} rows)\n${t.ddl_sql};\n`).join('\n');
+      const blob = new Blob([allDdl], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `literature_db_ddl_${Date.now()}.sql`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Schema SQL DDL downloaded');
+    }
+
+    // Auth Modal Handlers
+    async function quickConnectLocalhostAdmin() {
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'mostafakamal.cse2022@gmail.com', password: 'password123' })
+        });
+        const data = await res.json();
+        if (data.token) {
+          localStorage.setItem('litsphere_auth_token', data.token);
+          document.getElementById('db-auth-modal').style.display = 'none';
+          showToast('Connected as Administrator');
+          loadDatabaseSchema();
+          return;
+        }
+      } catch (e) {}
+
+      // Fallback: try default admin
+      try {
+        const res2 = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'admin@litsphere.ac', password: 'AdminPassword2026!' })
+        });
+        const data2 = await res2.json();
+        if (data2.token) {
+          localStorage.setItem('litsphere_auth_token', data2.token);
+          document.getElementById('db-auth-modal').style.display = 'none';
+          showToast('Connected as Administrator');
+          loadDatabaseSchema();
+          return;
+        }
+      } catch (e) {}
+
+      showToast('Please paste a valid admin token manually.', 'warning');
+    }
+
+    function applyManualToken() {
+      const token = document.getElementById('manual-jwt-input').value.trim();
+      if (!token) {
+        showToast('Please enter a token', 'warning');
+        return;
+      }
+      localStorage.setItem('litsphere_auth_token', token);
+      document.getElementById('db-auth-modal').style.display = 'none';
+      showToast('Token applied');
+      loadDatabaseSchema();
+    }
+
+    // Utility
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'dark';
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('litsphere_theme', next);
+      showToast(`Switched to ${next} theme`);
+    }
+
+    // Boot
+    window.addEventListener('DOMContentLoaded', () => {
+      loadDatabaseSchema();
+    });
+  </script>
+</body>
+</html>

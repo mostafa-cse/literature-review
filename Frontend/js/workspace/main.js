@@ -401,57 +401,90 @@ window.clearKeywordSearch = function () {
 };
 
 window.toggleKeywordsSectionCollapse = function () {
-  const sec = document.getElementById('keywords-section');
-  if (!sec) return;
-  const isNowCollapsed = sec.classList.toggle('is-collapsed');
-  const btn = document.getElementById('btn-toggle-keywords-collapse');
-  const label = document.getElementById('keywords-collapse-label');
-
-  if (label) {
-    label.textContent = isNowCollapsed ? 'Expand' : 'Collapse';
-  }
-  if (btn) {
-    btn.setAttribute('aria-expanded', !isNowCollapsed);
-    btn.title = isNowCollapsed ? 'Expand Research Keywords & Topic Filtering' : 'Collapse Research Keywords & Topic Filtering';
-  }
-
-  const pid = (typeof activeProjectId !== 'undefined' && activeProjectId)
-    ? activeProjectId
-    : (new URLSearchParams(window.location.search).get('project') || 1);
-  try {
-    localStorage.setItem(`keywords_section_collapsed_${pid}`, isNowCollapsed ? '1' : '0');
-  } catch (_) {}
+  // Deprecated: Keywords section now uses 2-line clamp with Show Full / Show Less toggle
 };
 
 window.restoreKeywordsSectionCollapseState = function () {
   const sec = document.getElementById('keywords-section');
-  if (!sec) return;
-  const pid = (typeof activeProjectId !== 'undefined' && activeProjectId)
-    ? activeProjectId
-    : (new URLSearchParams(window.location.search).get('project') || 1);
-  let isCollapsed = false;
-  try {
-    isCollapsed = localStorage.getItem(`keywords_section_collapsed_${pid}`) === '1';
-  } catch (_) {}
+  if (sec) sec.classList.remove('is-collapsed');
+};
 
-  if (isCollapsed) {
-    sec.classList.add('is-collapsed');
-    const label = document.getElementById('keywords-collapse-label');
-    const btn = document.getElementById('btn-toggle-keywords-collapse');
-    if (label) label.textContent = 'Expand';
-    if (btn) {
-      btn.setAttribute('aria-expanded', 'false');
-      btn.title = 'Expand Research Keywords & Topic Filtering';
+window.toggleKeywordsChipsExpansion = function () {
+  window.isKeywordsExpanded = !window.isKeywordsExpanded;
+  window.updateKeywordsExpandState();
+  if (!window.isKeywordsExpanded) {
+    const sec = document.getElementById('keywords-section');
+    if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+};
+
+window.updateKeywordsExpandState = function () {
+  const container = document.getElementById('keywords-chips-container');
+  const expandWrapper = document.getElementById('keywords-chips-expand-wrapper');
+  const expandBtn = document.getElementById('btn-keywords-chips-expand');
+  const expandLabel = document.getElementById('keywords-chips-expand-label');
+  const expandIcon = document.getElementById('keywords-chips-expand-icon');
+  const expandBadge = document.getElementById('keywords-chips-expand-badge');
+  const headerExpandBtn = document.getElementById('btn-kw-expand-header');
+  const headerExpandText = document.getElementById('kw-expand-header-text');
+  const headerExpandIcon = document.getElementById('kw-expand-header-icon');
+
+  if (!container) return;
+
+  const isExpanded = window.isKeywordsExpanded === true;
+  container.classList.toggle('expanded', isExpanded);
+
+  // Measure content scrollHeight
+  const fullHeight = container.scrollHeight;
+  const isOverflowing = fullHeight > 82;
+
+  container.classList.toggle('has-overflow', isOverflowing);
+
+  if (isOverflowing) {
+    if (expandWrapper) expandWrapper.style.display = 'flex';
+    if (headerExpandBtn) {
+      headerExpandBtn.style.display = 'inline-flex';
+      headerExpandBtn.classList.toggle('expanded', isExpanded);
+      if (headerExpandText) {
+        headerExpandText.textContent = isExpanded ? 'Show Less' : 'Show Full';
+      }
+      if (headerExpandIcon) {
+        headerExpandIcon.innerHTML = isExpanded
+          ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>'
+          : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+      }
+    }
+
+    if (expandBtn) {
+      expandBtn.classList.toggle('expanded', isExpanded);
+      expandBtn.title = isExpanded ? 'Show less (default 2 lines of keywords)' : 'Show all keywords';
+    }
+    if (expandLabel) {
+      expandLabel.textContent = isExpanded ? 'Show Less' : 'Show Full Keywords';
+    }
+    if (expandIcon) {
+      expandIcon.innerHTML = isExpanded
+        ? '<polyline points="18 15 12 9 6 15"></polyline>'
+        : '<polyline points="6 9 12 15 18 9"></polyline>';
+    }
+    if (expandBadge) {
+      if (isExpanded) {
+        expandBadge.style.display = 'none';
+      } else {
+        const chips = container.querySelectorAll('.kw-chip');
+        const cRect = container.getBoundingClientRect();
+        const hiddenCount = Array.from(chips).filter(c => c.getBoundingClientRect().top - cRect.top > 50).length;
+        if (hiddenCount > 0) {
+          expandBadge.textContent = `+${hiddenCount} more`;
+          expandBadge.style.display = 'inline-block';
+        } else {
+          expandBadge.style.display = 'none';
+        }
+      }
     }
   } else {
-    sec.classList.remove('is-collapsed');
-    const label = document.getElementById('keywords-collapse-label');
-    const btn = document.getElementById('btn-toggle-keywords-collapse');
-    if (label) label.textContent = 'Collapse';
-    if (btn) {
-      btn.setAttribute('aria-expanded', 'true');
-      btn.title = 'Collapse Research Keywords & Topic Filtering';
-    }
+    if (expandWrapper) expandWrapper.style.display = 'none';
+    if (headerExpandBtn) headerExpandBtn.style.display = 'none';
   }
 };
 
@@ -593,6 +626,7 @@ window.renderKeywordsHub = function () {
         <button type="button" class="mini-btn gold" onclick="openAddKeywordModal()" style="font-size: 0.76rem; padding: 0.2rem 0.55rem; font-weight: 700;">+ Add First Keyword</button>
       </div>
     `;
+    if (typeof window.updateKeywordsExpandState === 'function') window.updateKeywordsExpandState();
     return;
   }
 
@@ -610,6 +644,7 @@ window.renderKeywordsHub = function () {
         <button type="button" class="mini-btn gold" onclick="openAddKeywordModal()" style="font-size: 0.74rem; padding: 0.18rem 0.5rem;">+ Add as Keyword</button>
       </div>
     `;
+    if (typeof window.updateKeywordsExpandState === 'function') window.updateKeywordsExpandState();
     return;
   }
 
@@ -634,6 +669,11 @@ window.renderKeywordsHub = function () {
   });
 
   container.innerHTML = html;
+  requestAnimationFrame(() => {
+    if (typeof window.updateKeywordsExpandState === 'function') {
+      window.updateKeywordsExpandState();
+    }
+  });
 };
 
 window.toggleKeywordFilter = function (kw) {
@@ -654,6 +694,43 @@ window.toggleKeywordFilter = function (kw) {
 window.clearKeywordFilters = function () {
   window.selectedKeywords.clear();
   renderKeywordsHub();
+  applyFilters();
+};
+
+window.toggleDomainFilter = function (domainName) {
+  const domainFilter = document.getElementById('filter-domain');
+  if (!domainName || domainName.toLowerCase() === 'all') {
+    currentDomain = 'all';
+    window.currentDomain = 'all';
+    if (domainFilter) domainFilter.value = 'all';
+  } else {
+    const cleanDomain = domainName.trim();
+    if (currentDomain && currentDomain.toLowerCase() === cleanDomain.toLowerCase()) {
+      currentDomain = 'all';
+      window.currentDomain = 'all';
+      if (domainFilter) domainFilter.value = 'all';
+    } else {
+      currentDomain = cleanDomain;
+      window.currentDomain = cleanDomain;
+      if (domainFilter) {
+        let found = false;
+        for (let i = 0; i < domainFilter.options.length; i++) {
+          if (domainFilter.options[i].value.toLowerCase() === cleanDomain.toLowerCase()) {
+            domainFilter.selectedIndex = i;
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          const opt = document.createElement('option');
+          opt.value = cleanDomain;
+          opt.textContent = cleanDomain;
+          domainFilter.appendChild(opt);
+          domainFilter.value = cleanDomain;
+        }
+      }
+    }
+  }
   applyFilters();
 };
 
@@ -1964,6 +2041,13 @@ function bindWorkspaceEventListeners() {
       window.location.href = url.toString();
     });
   }
+
+  // Window Resize: re-evaluate keywords expand clamp
+  window.addEventListener('resize', () => {
+    if (typeof window.updateKeywordsExpandState === 'function') {
+      window.updateKeywordsExpandState();
+    }
+  });
 }
 
 // Bootstrap when DOM is ready

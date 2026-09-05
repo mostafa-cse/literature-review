@@ -119,12 +119,12 @@ window.getOrderedColumnsList = function() {
     { key: 'pub', name: 'Venue', isBase: true, group: 'Paper Metadata' },
     { key: 'doi', name: 'DOI / Link', isBase: true, group: 'Paper Metadata' },
     { key: 'cluster', name: 'Cluster', isBase: true, group: 'Paper Metadata' },
-    { key: 'domain', name: 'Domain', isBase: true, group: 'Paper Metadata' },
+    { key: 'domain', name: 'Domain', isBase: true, group: 'Taxonomy & Classification' },
     { key: 'status', name: 'Reading Status', isBase: true, group: 'Paper Metadata' },
     { key: 'advantages', name: 'Advantages', isBase: true, group: 'Synthesis & Insights' },
     { key: 'criticism', name: 'Criticism', isBase: true, group: 'Synthesis & Insights' },
     { key: 'future_directions', name: 'Future Research Direction', isBase: true, group: 'Synthesis & Insights' },
-    { key: 'keywords', name: 'Keywords', isBase: true, group: 'Synthesis & Insights' }
+    { key: 'keywords', name: 'Keywords', isBase: true, group: 'Taxonomy & Classification' }
   ];
 
   const rawCols = window.activeDataColumns || window.activeClusterColumns || [];
@@ -162,6 +162,14 @@ window.getOrderedColumnsList = function() {
     console.warn('Error reading column preferences:', e);
   }
 
+  // Ensure essential taxonomy columns 'domain' and 'keywords' are never suppressed by stale hiddenCols
+  if (Array.isArray(hiddenCols) && (hiddenCols.includes('domain') || hiddenCols.includes('keywords'))) {
+    hiddenCols = hiddenCols.filter(k => k !== 'domain' && k !== 'keywords');
+    try {
+      localStorage.setItem(hiddenKey, JSON.stringify(hiddenCols));
+    } catch (e) {}
+  }
+
   baseCols.forEach(bc => {
     if (aliases[bc.key]) bc.name = aliases[bc.key];
   });
@@ -188,10 +196,16 @@ window.getOrderedColumnsList = function() {
   filteredDynCols = filteredDynCols.filter(c => c.name && c.name.toLowerCase() !== 'paper id');
 
   if (mode === 'custom' || mode === 'custom_pure') {
-    // Hide default metadata columns, show only custom taxonomy & synthesis columns
-    filteredBaseCols = filteredBaseCols.filter(c => c.group !== 'Paper Metadata');
+    // Hide default administrative metadata columns, but ALWAYS preserve core taxonomy & synthesis columns:
+    // Domain, Keywords, Cluster, Advantages, Criticism, Future Directions
+    filteredBaseCols = filteredBaseCols.filter(c => 
+      c.group !== 'Paper Metadata' || c.key === 'domain' || c.key === 'keywords' || c.key === 'cluster'
+    );
   } else if (mode === 'metadata') {
-    filteredBaseCols = filteredBaseCols.filter(c => c.group === 'Paper Metadata');
+    // Ensure metadata mode preserves core metadata as well as taxonomy classifications (domain, keywords)
+    filteredBaseCols = filteredBaseCols.filter(c => 
+      c.group === 'Paper Metadata' || c.key === 'domain' || c.key === 'keywords'
+    );
     filteredDynCols = [];
   }
 
@@ -200,13 +214,47 @@ window.getOrderedColumnsList = function() {
   let savedOrder = null;
   try {
     savedOrder = JSON.parse(localStorage.getItem(storageKey) || 'null');
-    // Migration: If savedOrder is from the legacy layout (lacks 'doi' or 'status'),
-    // upgrade to the requested Paper Metadata arrangement while preserving custom dynamic columns
     if (Array.isArray(savedOrder)) {
-      const isLegacyOrder = !savedOrder.includes('doi') || !savedOrder.includes('status');
-      if (isLegacyOrder) {
-        const dynKeysInSaved = savedOrder.filter(k => k.startsWith('dyn_'));
-        savedOrder = [...baseCols.map(c => c.key), ...dynKeysInSaved];
+      // If any standard column is missing from savedOrder (e.g. legacy order missing domain, keywords, doi, status),
+      // insert it into savedOrder in its natural sequence next to adjacent base columns
+      // so it never gets index -1 and pushed behind 30+ dynamic columns!
+      let orderUpdated = false;
+      const naturalOrder = ['authors', 'year', 'pub', 'doi', 'cluster', 'domain', 'status', 'advantages', 'criticism', 'future_directions', 'keywords'];
+      
+      naturalOrder.forEach(k => {
+        if (!savedOrder.includes(k)) {
+          orderUpdated = true;
+          const natIdx = naturalOrder.indexOf(k);
+          let placed = false;
+          // Look backwards for a predecessor already in savedOrder
+          for (let p = natIdx - 1; p >= 0; p--) {
+            const prev = naturalOrder[p];
+            const pIdx = savedOrder.indexOf(prev);
+            if (pIdx !== -1) {
+              savedOrder.splice(pIdx + 1, 0, k);
+              placed = true;
+              break;
+            }
+          }
+          if (!placed) {
+            // Look forwards for a successor already in savedOrder
+            for (let n = natIdx + 1; n < naturalOrder.length; n++) {
+              const next = naturalOrder[n];
+              const nIdx = savedOrder.indexOf(next);
+              if (nIdx !== -1) {
+                savedOrder.splice(nIdx, 0, k);
+                placed = true;
+                break;
+              }
+            }
+          }
+          if (!placed) {
+            savedOrder.unshift(k);
+          }
+        }
+      });
+
+      if (orderUpdated) {
         localStorage.setItem(storageKey, JSON.stringify(savedOrder));
       }
     }
@@ -914,15 +962,18 @@ window.toggleColExpand = function(key, btnEl, event, forceExpand) {
 
   if (shouldExpand === isExpanded) return;
 
+  const isTitleCol = key === 'title';
+  const isKeywordsCol = key === 'keywords';
+  const isDomainCol = key === 'domain';
   const isSplitCol = th.querySelector('.col-split-header-badge') !== null || th.getAttribute('data-is-split') === 'true' || span > 1;
-  const baseWidth = isSplitCol ? `${span * 140}px` : COL_FIXED_W;
+  const baseWidth = isTitleCol ? '220px' : (isKeywordsCol ? '240px' : (isDomainCol ? '220px' : (isSplitCol ? `${span * 140}px` : COL_FIXED_W)));
+  const expWidth = isTitleCol ? '460px' : (isKeywordsCol ? '540px' : (isDomainCol ? '460px' : (isSplitCol ? `${Math.max(span * 220, 460)}px` : COL_EXPANDED_MAX)));
 
   if (shouldExpand) {
     // EXPAND: unlock width so content dictates size
-    const expWidth = isSplitCol ? `${Math.max(span * 220, 460)}px` : COL_EXPANDED_MAX;
     th.style.width = expWidth;
     th.style.minWidth = expWidth;
-    th.style.maxWidth = 'none';
+    th.style.maxWidth = isTitleCol ? '520px' : 'none';
     th.style.overflow = 'visible';
     th.style.whiteSpace = 'normal';
     th.setAttribute('data-col-expanded', 'true');
@@ -932,9 +983,9 @@ window.toggleColExpand = function(key, btnEl, event, forceExpand) {
       for (let s = 0; s < span; s++) {
         const td = row.cells[cellStartIdx + s];
         if (!td) continue;
-        td.style.width = isSplitCol ? '220px' : COL_EXPANDED_MAX;
-        td.style.minWidth = isSplitCol ? '220px' : COL_EXPANDED_MAX;
-        td.style.maxWidth = 'none';
+        td.style.width = isTitleCol ? '460px' : (isKeywordsCol ? '540px' : (isDomainCol ? '460px' : (isSplitCol ? '220px' : COL_EXPANDED_MAX)));
+        td.style.minWidth = isTitleCol ? '420px' : (isKeywordsCol ? '460px' : (isDomainCol ? '400px' : (isSplitCol ? '220px' : COL_EXPANDED_MAX)));
+        td.style.maxWidth = isTitleCol ? '520px' : 'none';
         td.style.overflow = 'visible';
         td.style.whiteSpace = 'normal';
         td.classList.add('col-expanded');
@@ -956,21 +1007,32 @@ window.toggleColExpand = function(key, btnEl, event, forceExpand) {
           clamp.style.maxHeight = 'none';
           clamp.style.whiteSpace = 'normal';
         }
+        const kwWrap = td.querySelector('.keywords-cell-wrap');
+        if (kwWrap) {
+          kwWrap.style.maxHeight = 'none';
+          kwWrap.style.overflow = 'visible';
+        }
+        const domWrap = td.querySelector('.domain-cell-wrap, .domain-clamp-wrap');
+        if (domWrap) {
+          domWrap.style.maxHeight = 'none';
+          domWrap.style.overflow = 'visible';
+        }
         const popover = td.querySelector('.cell-hover-popover');
         if (popover) popover.style.display = 'none';
       }
     });
 
-    if (btnEl) {
-      btnEl.classList.add('expanded');
-      btnEl.title = 'Collapse column';
-      btnEl.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>';
+    const targetBtn = btnEl || th.querySelector('.col-expand-toggle-btn');
+    if (targetBtn) {
+      targetBtn.classList.add('expanded');
+      targetBtn.title = 'Collapse column (return to 2 lines)';
+      targetBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>';
     }
   } else {
-    // COLLAPSE: restore base width
+    // COLLAPSE: restore base width and 2-line clamp
     th.style.width = baseWidth;
-    th.style.minWidth = baseWidth;
-    th.style.maxWidth = isSplitCol ? 'none' : COL_FIXED_W;
+    th.style.minWidth = isTitleCol ? '200px' : baseWidth;
+    th.style.maxWidth = isTitleCol ? '240px' : (isSplitCol ? 'none' : baseWidth);
     th.style.overflow = 'hidden';
     th.style.whiteSpace = 'nowrap';
     th.setAttribute('data-col-expanded', 'false');
@@ -980,9 +1042,9 @@ window.toggleColExpand = function(key, btnEl, event, forceExpand) {
       for (let s = 0; s < span; s++) {
         const td = row.cells[cellStartIdx + s];
         if (!td) continue;
-        td.style.width = isSplitCol ? '140px' : baseWidth;
-        td.style.minWidth = isSplitCol ? '140px' : baseWidth;
-        td.style.maxWidth = isSplitCol ? '200px' : COL_FIXED_W;
+        td.style.width = isTitleCol ? '220px' : (isKeywordsCol ? '240px' : (isDomainCol ? '220px' : (isSplitCol ? '140px' : baseWidth)));
+        td.style.minWidth = isTitleCol ? '200px' : (isKeywordsCol ? '240px' : (isDomainCol ? '200px' : (isSplitCol ? '140px' : baseWidth)));
+        td.style.maxWidth = isTitleCol ? '240px' : (isKeywordsCol ? '240px' : (isDomainCol ? '240px' : (isSplitCol ? '200px' : baseWidth)));
         td.style.overflow = 'hidden';
         td.style.whiteSpace = 'nowrap';
         td.classList.remove('col-expanded');
@@ -1004,16 +1066,77 @@ window.toggleColExpand = function(key, btnEl, event, forceExpand) {
           clamp.style.maxHeight = '2.84em';
           clamp.style.whiteSpace = 'normal';
         }
+        const kwWrap = td.querySelector('.keywords-cell-wrap');
+        if (kwWrap) {
+          kwWrap.style.maxHeight = '48px';
+          kwWrap.style.overflow = 'hidden';
+        }
+        const domWrap = td.querySelector('.domain-cell-wrap, .domain-clamp-wrap');
+        if (domWrap) {
+          domWrap.style.maxHeight = '';
+          domWrap.style.overflow = '';
+        }
         const popover = td.querySelector('.cell-hover-popover');
         if (popover) popover.style.display = '';
       }
     });
 
-    if (btnEl) {
-      btnEl.classList.remove('expanded');
-      btnEl.title = 'Expand column to show full text';
-      btnEl.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>';
+    const targetBtn = btnEl || th.querySelector('.col-expand-toggle-btn');
+    if (targetBtn) {
+      targetBtn.classList.remove('expanded');
+      targetBtn.title = 'Expand column to show full text';
+      targetBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>';
     }
+  }
+
+  if (typeof window.syncMatrixExpandAllButtonState === 'function') {
+    window.syncMatrixExpandAllButtonState();
+  }
+};
+
+window.toggleAllColumnsExpand = function(forceExpand) {
+  const table = document.getElementById('matrix-table');
+  if (!table) return;
+  const ths = table.querySelectorAll('thead tr:first-child th[data-col-key]');
+  if (!ths || ths.length === 0) return;
+
+  let anyCollapsed = false;
+  ths.forEach(th => {
+    if (th.getAttribute('data-col-expanded') !== 'true') {
+      anyCollapsed = true;
+    }
+  });
+
+  const targetState = (forceExpand !== undefined && forceExpand !== null) ? !!forceExpand : anyCollapsed;
+
+  ths.forEach(th => {
+    const key = th.getAttribute('data-col-key');
+    if (key && typeof window.toggleColExpand === 'function') {
+      window.toggleColExpand(key, null, null, targetState);
+    }
+  });
+
+  window.syncMatrixExpandAllButtonState();
+};
+
+window.syncMatrixExpandAllButtonState = function() {
+  const btn = document.getElementById('btn-matrix-toggle-all-expand');
+  const label = document.getElementById('matrix-expand-all-label');
+  if (!btn) return;
+  const table = document.getElementById('matrix-table');
+  if (!table) return;
+  const ths = table.querySelectorAll('thead tr:first-child th[data-col-key]');
+  if (!ths || ths.length === 0) return;
+
+  const allExpanded = Array.from(ths).every(th => th.getAttribute('data-col-expanded') === 'true');
+  if (allExpanded) {
+    btn.classList.add('expanded');
+    if (label) label.textContent = 'Collapse All Columns';
+    btn.title = 'Collapse all columns to at most 2 lines';
+  } else {
+    btn.classList.remove('expanded');
+    if (label) label.textContent = 'Expand All Columns';
+    btn.title = 'Expand all columns to show full text';
   }
 };
 
@@ -1198,14 +1321,24 @@ window.renderMasterMatrix = function(papers) {
 
   // Frozen Column 2: Title
   const thTitle = document.createElement('th');
-  thTitle.textContent = 'Title';
-  thTitle.title = 'Paper Title';
+  thTitle.setAttribute('data-col-key', 'title');
+  thTitle.setAttribute('data-col-name', 'Title');
+  thTitle.setAttribute('data-col-expanded', 'false');
+  thTitle.title = 'Paper Title (Click to expand • Click again to collapse)';
   thTitle.className = 'sticky-col-2';
   thTitle.style.textAlign = 'center';
   thTitle.rowSpan = hasAnySplitCol ? 2 : 1;
   if (hideTitle) {
     thTitle.style.display = 'none';
   }
+  thTitle.innerHTML = `
+    <div class="col-header-inner" style="display: flex; align-items: center; justify-content: space-between; gap: 0.35rem; width: 100%;">
+      <span class="col-title-text" style="font-weight: 700;" onclick="window.toggleColExpand('title', this.closest('th').querySelector('.col-expand-toggle-btn'), event)" title="Paper Title (Click to expand • Click again to collapse)">Title</span>
+      <button type="button" class="col-expand-toggle-btn" onclick="window.toggleColExpand('title', this, event)" title="Expand Title column to show full text" aria-label="Expand column">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+      </button>
+    </div>
+  `;
   trHead.appendChild(thTitle);
 
   // Customizable & Reorderable Columns
@@ -1222,7 +1355,9 @@ window.renderMasterMatrix = function(papers) {
       subBadgeHtml = `<span class="col-split-header-badge" title="Split Column (${subCols.map(s => s.name).join(', ') || 'Sub-Columns'})">${escapeHtml(shortBadges.join(' | '))}</span>`;
     }
 
-    const colWidth = isSplitCol ? `${splitCount * 140}px` : COL_FIXED_W;
+    const isKwCol = col.key === 'keywords';
+    const isDomCol = col.key === 'domain';
+    const colWidth = isSplitCol ? `${splitCount * 140}px` : (isKwCol ? '240px' : (isDomCol ? '220px' : COL_FIXED_W));
 
     const th = document.createElement('th');
     th.setAttribute('draggable', 'true');
@@ -1247,7 +1382,7 @@ window.renderMasterMatrix = function(papers) {
       th.rowSpan = hasAnySplitCol ? 2 : 1;
       th.style.width = colWidth;
       th.style.minWidth = colWidth;
-      th.style.maxWidth = COL_FIXED_W;
+      th.style.maxWidth = isKwCol ? '240px' : (isDomCol ? '240px' : COL_FIXED_W);
     }
 
     th.style.overflow = 'visible';
@@ -1263,6 +1398,9 @@ window.renderMasterMatrix = function(papers) {
         <span class="col-drag-handle" title="Drag to change column position"><svg width="10" height="14" viewBox="0 0 10 16" fill="currentColor"><circle cx="3" cy="3" r="1.5"/><circle cx="7" cy="3" r="1.5"/><circle cx="3" cy="8" r="1.5"/><circle cx="7" cy="8" r="1.5"/><circle cx="3" cy="13" r="1.5"/><circle cx="7" cy="13" r="1.5"/></svg></span>
         <span class="col-title-text" draggable="false" onmousedown="event.stopPropagation()" title="${escapeHtml(col.name)} (Click to extend • Double-click to collapse)" onclick="window.handleColHeaderClick('${escapeHtml(col.key)}', event)" ondblclick="window.handleColHeaderDblClick('${escapeHtml(col.key)}', event)">${escapeHtml(col.name)}</span>
         ${subBadgeHtml}
+        <button type="button" class="col-expand-toggle-btn" draggable="false" onmousedown="event.stopPropagation()" onclick="window.toggleColExpand('${escapeHtml(col.key)}', this, event)" title="Expand column to show full text" aria-label="Expand column">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+        </button>
         <div class="col-menu-dropdown-wrapper" draggable="false" onmousedown="event.stopPropagation()">
           <button class="col-menu-btn" draggable="false" onmousedown="event.stopPropagation()" data-col-key="${escapeHtml(col.key)}" onclick="window.toggleColMenu(this.getAttribute('data-col-key'), event)" title="Column Settings"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></button>
           <div class="col-dropdown-menu" id="col-menu-${escapeHtml(col.key)}" draggable="false" onclick="event.stopPropagation()">
@@ -1397,6 +1535,7 @@ window.renderMasterMatrix = function(papers) {
     // 2. Paper Title (Frozen Column, Clickable to open Reader Modal, 2-line clamp)
     const tdTitle = document.createElement('td');
     tdTitle.className = 'editable-cell sticky-col-2';
+    tdTitle.setAttribute('data-col-key', 'title');
     tdTitle.setAttribute('data-paper-id', p.id);
     tdTitle.setAttribute('data-raw-val', p.title || '');
     tdTitle.style.fontWeight = '600';
@@ -1442,9 +1581,10 @@ window.renderMasterMatrix = function(papers) {
       } else {
         // Helper to stamp fixed width on a newly created td
         function applyColFixedWidth(td) {
-          td.style.width = COL_FIXED_W;
-          td.style.minWidth = COL_FIXED_W;
-          td.style.maxWidth = COL_FIXED_W;
+          const w = col.key === 'keywords' ? '240px' : (col.key === 'domain' ? '220px' : COL_FIXED_W);
+          td.style.width = w;
+          td.style.minWidth = w;
+          td.style.maxWidth = w;
           td.style.overflow = 'hidden';
           td.setAttribute('data-col-key', col.key);
           td.setAttribute('data-is-split', 'false');
@@ -1600,6 +1740,9 @@ window.renderMasterMatrix = function(papers) {
   }
   if (typeof window.updateMatrixColumnButtonStates === 'function') {
     window.updateMatrixColumnButtonStates();
+  }
+  if (typeof window.syncMatrixExpandAllButtonState === 'function') {
+    window.syncMatrixExpandAllButtonState();
   }
 };
 
@@ -1869,7 +2012,39 @@ function escapeHtml(str) {
 
 function formatCellContent(val, fieldType, paperId = null) {
   if (fieldType === 'domain') {
-    return `<span class="domain-tag">${escapeHtml(val || 'General')}</span>`;
+    let arr = [];
+    if (Array.isArray(val)) {
+      arr = val.map(s => String(s).trim()).filter(Boolean);
+    } else if (typeof val === 'string') {
+      arr = val.split(/[,;/]+/).map(s => s.trim()).filter(Boolean);
+    }
+    if (arr.length === 0) {
+      arr = ['General'];
+    }
+
+    const curDom = (window.currentDomain || '').toLowerCase().trim();
+    const chipsHtml = arr.map(d => {
+      const isSel = curDom && curDom !== 'all' && curDom === d.toLowerCase();
+      return `<span class="domain-tag ${isSel ? 'active' : ''}" onclick="event.stopPropagation(); if (typeof window.toggleDomainFilter === 'function') window.toggleDomainFilter('${escapeHtml(d)}');" title="Filter by Domain: ${escapeHtml(d)}">${escapeHtml(d)}</span>`;
+    }).join('');
+
+    const popoverHtml = (arr.length > 1 || arr.some(d => d.length > 18)) ? `
+      <div class="cell-hover-popover domain-hover-popover">
+        <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); margin-bottom: 0.4rem;">Domain (${arr.length})</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center;">
+          ${chipsHtml}
+        </div>
+      </div>
+    ` : '';
+
+    return `
+      <div class="cell-wrapper domain-cell-wrapper">
+        <div class="domain-cell-wrap domain-clamp-wrap">
+          ${chipsHtml}
+        </div>
+        ${popoverHtml}
+      </div>
+    `;
   }
   if (fieldType === 'status') {
     const sVal = (val || 'unread').toLowerCase().trim();
@@ -1914,10 +2089,26 @@ function formatCellContent(val, fieldType, paperId = null) {
       ? val
       : (typeof val === 'string' ? val.split(/[,;\n]+/).map(s => s.trim().replace(/^#/, '')).filter(Boolean) : []);
     if (arr.length === 0) return '<span style="color: var(--text-tertiary); font-size: 0.82rem;">-</span>';
-    return `<div style="display: flex; gap: 0.3rem; flex-wrap: wrap; align-items: center;">${arr.map(k => {
+    const chipsHtml = arr.map(k => {
       const isSel = window.selectedKeywords && (window.selectedKeywords.has(k) || Array.from(window.selectedKeywords).some(sk => sk.toLowerCase() === k.toLowerCase()));
       return `<span class="kw-tag ${isSel ? 'active' : ''}" onclick="event.stopPropagation(); if (typeof window.toggleKeywordFilter === 'function') window.toggleKeywordFilter('${escapeHtml(k)}');" title="Filter by #${escapeHtml(k)}">#${escapeHtml(k)}</span>`;
-    }).join('')}</div>`;
+    }).join('');
+    const popoverHtml = arr.length > 1 ? `
+      <div class="cell-hover-popover keywords-hover-popover">
+        <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); margin-bottom: 0.4rem;">Keywords (${arr.length})</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center;">
+          ${chipsHtml}
+        </div>
+      </div>
+    ` : '';
+    return `
+      <div class="cell-wrapper keywords-cell-wrapper">
+        <div class="keywords-cell-wrap">
+          ${chipsHtml}
+        </div>
+        ${popoverHtml}
+      </div>
+    `;
   }
   
   let text = '';

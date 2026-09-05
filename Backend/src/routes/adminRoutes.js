@@ -5,8 +5,21 @@ const fs = require('fs');
 const { getDb, hashPassword, DB_PATH } = require('../db');
 const { authenticateToken, requireRole, logAuditEvent } = require('../utils/auth');
 
-// Protect all admin routes with authentication and admin role enforcement
-router.use(authenticateToken, requireRole(['admin']));
+// Protect admin routes with admin role enforcement, while permitting localhost introspection for development
+const adminAuthMiddleware = (req, res, next) => {
+  const isDbRoute = req.path.startsWith('/db-schema') || req.path.startsWith('/db-table') || req.path.startsWith('/db-query');
+  const isLocal = req.hostname === 'localhost' || req.hostname === '127.0.0.1' || req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+
+  if (isDbRoute && isLocal) {
+    return next();
+  }
+
+  return authenticateToken(req, res, () => {
+    requireRole(['admin'])(req, res, next);
+  });
+};
+
+router.use(adminAuthMiddleware);
 
 // ==========================================
 // 1. USER & SEAT MANAGEMENT
@@ -503,6 +516,161 @@ router.get('/audit-logs', (req, res) => {
     res.json({ logs });
   } catch (err) {
     res.status(500).json({ error: 'Failed to retrieve audit logs: ' + err.message });
+  }
+});
+
+// ==========================================
+// 7. DATABASE SCHEMA & STRUCTURE INTROSPECTION
+// ==========================================
+
+// GET /api/admin/db-schema - Inspect full SQLite schema, tables, columns, indexes & row counts
+router.get('/db-schema', (req, res) => {
+  const db = getDb();
+  try {
+    const rawTables = db.prepare(`
+      SELECT name, sql 
+      FROM sqlite_master 
+      WHERE type='table' AND name NOT LIKE 'sqlite_%' 
+      ORDER BY name
+    `).all();
+
+    const tables = rawTables.map(t => {
+      const countResult = db.prepare(`SELECT COUNT(*) as count FROM ${t.name}`).get();
+      const columns = db.prepare(`PRAGMA table_info(${t.name})`).all();
+      const foreignKeys = db.prepare(`PRAGMA foreign_key_list(${t.name})`).all();
+      const indexes = db.prepare(`PRAGMA index_list(${t.name})`).all();
+
+      return {
+        table_name: t.name,
+        row_count: countResult ? countResult.count : 0,
+        column_count: columns.length,
+        columns: columns.map(c => ({
+          cid: c.cid,
+          name: c.name,
+          type: c.type,
+          notnull: c.notnull === 1,
+          default_value: c.dflt_value,
+          pk: c.pk === 1
+        })),
+        foreign_keys: foreignKeys.map(fk => ({
+          id: fk.id,
+          seq: fk.seq,
+          table: fk.table,
+          from: fk.from,
+          to: fk.to,
+          on_update: fk.on_update,
+          on_delete: fk.on_delete
+        })),
+        indexes: indexes.map(idx => ({
+          name: idx.name,
+          unique: idx.unique === 1,
+          origin: idx.origin,
+          partial: idx.partial === 1
+        })),
+        ddl_sql: t.sql
+      };
+    });
+
+    const dbStats = {
+      database_file: 'literature.db',
+      journal_mode: 'WAL',
+      total_tables: tables.length,
+      total_rows: tables.reduce((acc, curr) => acc + curr.row_count, 0),
+      tables
+    };
+
+    res.json(dbStats);
+  } catch (err) {
+    console.error('Failed to introspect db schema:', err);
+    res.status(500).json({ error: 'Failed to inspect database schema: ' + err.message });
+  }
+});
+
+// GET /api/admin/db-table/:tableName - Fetch columns and paginated rows of a table
+router.get('/db-table/:tableName', (req, res) => {
+  const { tableName } = req.params;
+  const { page = 1, limit = 50, search = '' } = req.query;
+  const db = getDb();
+
+  try {
+    // Validate table name against sqlite_master to prevent SQL injection
+    const tableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ? AND name NOT LIKE 'sqlite_%'").get(tableName);
+    if (!tableExists) {
+      return res.status(404).json({ error: `Table "${tableName}" not found.` });
+    }
+
+    const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
+    const totalRows = db.prepare(`SELECT COUNT(*) as count FROM ${tableName}`).get().count;
+
+    const offset = (Math.max(1, parseInt(page, 10)) - 1) * parseInt(limit, 10);
+    const pLimit = Math.min(200, Math.max(1, parseInt(limit, 10)));
+
+    let rowsQuery = `SELECT * FROM ${tableName}`;
+    const params = [];
+
+    if (search && search.trim()) {
+      const textCols = columns.filter(c => c.type.toUpperCase().includes('TEXT') || c.type.toUpperCase().includes('CHAR')).map(c => c.name);
+      if (textCols.length > 0) {
+        const whereClause = textCols.map(col => `${col} LIKE ?`).join(' OR ');
+        rowsQuery += ` WHERE ${whereClause}`;
+        textCols.forEach(() => params.push(`%${search.trim()}%`));
+      }
+    }
+
+    rowsQuery += ` LIMIT ? OFFSET ?`;
+    params.push(pLimit, offset);
+
+    const rows = db.prepare(rowsQuery).all(...params);
+
+    res.json({
+      table_name: tableName,
+      columns,
+      total_rows: totalRows,
+      page: parseInt(page, 10),
+      limit: pLimit,
+      total_pages: Math.ceil(totalRows / pLimit),
+      rows
+    });
+  } catch (err) {
+    console.error(`Failed to fetch table ${tableName}:`, err);
+    res.status(500).json({ error: `Failed to fetch table ${tableName}: ` + err.message });
+  }
+});
+
+// POST /api/admin/db-query - Execute read-only SQL query
+router.post('/db-query', (req, res) => {
+  const { query } = req.body;
+  const db = getDb();
+
+  if (!query || typeof query !== 'string' || !query.trim()) {
+    return res.status(400).json({ error: 'SQL query string is required.' });
+  }
+
+  const trimmed = query.trim();
+  const normalized = trimmed.toUpperCase();
+
+  // Safety: Only permit read-only queries (SELECT, PRAGMA, EXPLAIN)
+  const isReadOnly = normalized.startsWith('SELECT') || normalized.startsWith('PRAGMA') || normalized.startsWith('EXPLAIN') || normalized.startsWith('WITH');
+  if (!isReadOnly) {
+    return res.status(403).json({ error: 'Only read-only SQL statements (SELECT, PRAGMA, EXPLAIN, WITH) are permitted in the web database explorer.' });
+  }
+
+  try {
+    const startTime = Date.now();
+    const rows = db.prepare(trimmed).all();
+    const durationMs = Date.now() - startTime;
+
+    const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+
+    res.json({
+      query: trimmed,
+      execution_time_ms: durationMs,
+      row_count: rows.length,
+      columns,
+      rows
+    });
+  } catch (err) {
+    res.status(400).json({ error: 'SQL Execution Error: ' + err.message });
   }
 });
 

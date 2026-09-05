@@ -66,19 +66,19 @@ window.loadTeamMembers = async function() {
       const isYou = currentUserId === owner.id;
       html += `
         <div class="team-member-card owner-card">
-          <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <div style="display: flex; align-items: center; gap: 0.75rem; min-width: 0; flex: 1;">
             <div class="team-avatar-circle owner-avatar">${ownerInitials}</div>
-            <div>
+            <div class="team-member-info">
               <div style="display: flex; align-items: center; gap: 0.45rem;">
                 <span style="font-weight: 700; font-size: 0.94rem; color: var(--text-primary);">${escapeHtml(owner.name || 'Project Owner')}</span>
                 ${isYou ? '<span style="font-size: 0.72rem; color: var(--accent-gold); font-weight: 700; font-family: var(--font-mono);">(You)</span>' : ''}
               </div>
-              <div style="font-size: 0.78rem; color: var(--text-tertiary); font-family: var(--font-mono); margin-top: 0.1rem;">
+              <div class="team-member-email-line">
                 ${escapeHtml(owner.email || '')} ${owner.institution ? `• <span style="color:var(--text-secondary);">${escapeHtml(owner.institution)}</span>` : ''}
               </div>
             </div>
           </div>
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
             <span class="role-badge-pill role-owner">OWNER</span>
           </div>
         </div>
@@ -102,20 +102,20 @@ window.loadTeamMembers = async function() {
 
         html += `
           <div class="team-member-card">
-            <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem; min-width: 0; flex: 1;">
               <div class="team-avatar-circle">${initials}</div>
-              <div>
+              <div class="team-member-info">
                 <div style="display: flex; align-items: center; gap: 0.45rem;">
                   <span style="font-weight: 600; font-size: 0.92rem; color: var(--text-primary);">${escapeHtml(m.name || 'Researcher')}</span>
                   ${isYou ? '<span style="font-size: 0.72rem; color: var(--accent-primary); font-weight: 700; font-family: var(--font-mono);">(You)</span>' : ''}
                 </div>
-                <div style="font-size: 0.78rem; color: var(--text-tertiary); font-family: var(--font-mono); margin-top: 0.1rem;">
+                <div class="team-member-email-line">
                   ${escapeHtml(m.email || '')} ${m.institution ? `• <span style="color:var(--text-secondary);">${escapeHtml(m.institution)}</span>` : ''}
                 </div>
               </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 0.6rem;">
-              ${isOwner ? `
+            <div style="display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0;">
+              ${isOwner && !isYou ? `
                 <select class="team-member-select-role" onchange="updateCollaboratorRole(${m.user_id}, this.value)">
                   <option value="editor" ${role === 'editor' ? 'selected' : ''}>Editor (Co-Author)</option>
                   <option value="reviewer" ${role === 'reviewer' ? 'selected' : ''}>Reviewer (Advisor)</option>
@@ -124,9 +124,11 @@ window.loadTeamMembers = async function() {
                 <button class="mini-btn danger" style="padding: 0.3rem 0.6rem; font-size: 0.78rem;" onclick="removeCollaborator(${m.user_id}, '${escapeHtml(m.name || m.email)}')" title="Remove Collaborator">
                   Remove
                 </button>
+              ` : isYou ? `
+                <span class="role-badge-pill role-${role}">${role.toUpperCase()}</span>
+                <button class="mini-btn danger" style="padding: 0.25rem 0.55rem; font-size: 0.75rem;" onclick="removeCollaborator(${m.user_id}, 'yourself')">Leave</button>
               ` : `
                 <span class="role-badge-pill role-${role}">${role.toUpperCase()}</span>
-                ${isYou ? `<button class="mini-btn danger" style="padding: 0.25rem 0.55rem; font-size: 0.75rem;" onclick="removeCollaborator(${m.user_id}, 'yourself')">Leave</button>` : ''}
               `}
             </div>
           </div>
@@ -145,24 +147,19 @@ window.submitInviteCollaborator = async function(e) {
   const emailInput = document.getElementById('team-invite-email');
   const roleSelect = document.getElementById('team-invite-role');
 
-  const email = emailInput ? emailInput.value.trim().toLowerCase() : '';
+  const email = emailInput ? emailInput.value.trim() : '';
   const role = roleSelect ? roleSelect.value : 'editor';
 
   if (!email) {
-    showToast('Please enter a collaborator email address', 'warning');
+    showToast('Please enter a collaborator email address or username', 'warning');
     if (emailInput) emailInput.focus();
     return;
   }
 
-  // Basic email pattern check
-  if (!email.includes('@') || !email.includes('.')) {
-    showToast('Please enter a valid email address (e.g. colleague@university.ac)', 'warning');
-    if (emailInput) emailInput.focus();
-    return;
-  }
+  const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
 
   try {
-    const res = await fetch(`/api/projects/${activeProjectId}/members`, {
+    const res = await fetch(`/api/projects/${pid}/members`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({ email, role })
@@ -183,8 +180,9 @@ window.submitInviteCollaborator = async function(e) {
 };
 
 window.updateCollaboratorRole = async function(userId, newRole) {
+  const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
   try {
-    const res = await fetch(`/api/projects/${activeProjectId}/members/${userId}`, {
+    const res = await fetch(`/api/projects/${pid}/members/${userId}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify({ role: newRole })
@@ -203,8 +201,9 @@ window.updateCollaboratorRole = async function(userId, newRole) {
 
 window.removeCollaborator = async function(userId, memberName = 'this collaborator') {
   if (!confirm(`Are you sure you want to remove ${memberName} from this project?`)) return;
+  const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
   try {
-    const res = await fetch(`/api/projects/${activeProjectId}/members/${userId}`, {
+    const res = await fetch(`/api/projects/${pid}/members/${userId}`, {
       method: 'DELETE',
       headers: getAuthHeaders()
     });

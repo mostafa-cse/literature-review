@@ -78,10 +78,13 @@ function recalculateUserStorage(userId) {
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'] || req.headers['x-auth-token'];
-  const token = authHeader ? (authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim()) : null;
+  let token = authHeader ? (authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim()) : null;
+  if (!token && req.query && req.query.token) {
+    token = String(req.query.token).trim();
+  }
 
   if (!token) {
-    return res.status(401).json({ error: 'Authentication required. Please sign in.' });
+    return res.status(401).json({ error: 'Authentication required. Please sign in or provide a valid token.' });
   }
 
   const payload = verifyToken(token);
@@ -216,7 +219,9 @@ function getProjectRole(userId, projectId) {
 
     // 3. Check project_members table
     const member = db.prepare("SELECT role FROM project_members WHERE project_id = ? AND user_id = ?").get(projectId, userId);
-    if (member && member.role) return member.role;
+    if (member && member.role) {
+      return member.role === 'owner' ? 'editor' : member.role;
+    }
 
     return 'viewer';
   } catch (err) {
