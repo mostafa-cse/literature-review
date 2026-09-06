@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: litsphere-backend
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install
+    startCommand: node Backend/server.js
+    envVars:
+      - key: NODE_VERSION
+        value: 22.14.0
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000

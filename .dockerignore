@@ -1,0 +1,11 @@
+node_modules
+.git
+.gitignore
+.DS_Store
+*.log
+scratch/
+.venv/
+slide_previews/
+LitSphere_Literature_Review_System_Presentation.pptx
+literature.db-shm
+literature.db-wal

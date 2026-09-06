@@ -1,0 +1,55 @@
+{
+  "version": 2,
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/", "destination": "/Frontend/home.html" },
+    { "source": "/home", "destination": "/Frontend/home.html" },
+    { "source": "/overview", "destination": "/Frontend/home.html" },
+    { "source": "/workspace", "destination": "/Frontend/workspace.html" },
+    { "source": "/app", "destination": "/Frontend/workspace.html" },
+    { "source": "/matrix", "destination": "/Frontend/workspace.html" },
+    { "source": "/dashboard", "destination": "/Frontend/dashboard.html" },
+    { "source": "/surveys", "destination": "/Frontend/dashboard.html" },
+    { "source": "/projects", "destination": "/Frontend/dashboard.html" },
+    { "source": "/review", "destination": "/Frontend/review.html" },
+    { "source": "/reader", "destination": "/Frontend/review.html" },
+    { "source": "/paper-preview", "destination": "/Frontend/review.html" },
+    { "source": "/review-react", "destination": "/Frontend/review_react.html" },
+    { "source": "/react-review", "destination": "/Frontend/review_react.html" },
+    { "source": "/admin", "destination": "/Frontend/admin.html" },
+    { "source": "/admin-dashboard", "destination": "/Frontend/admin.html" },
+    { "source": "/control-center", "destination": "/Frontend/admin.html" },
+    { "source": "/db", "destination": "/Frontend/db.html" },
+    { "source": "/database", "destination": "/Frontend/db.html" },
+    { "source": "/db-explorer", "destination": "/Frontend/db.html" },
+    { "source": "/schema", "destination": "/Frontend/db.html" },
+    { "source": "/login", "destination": "/Frontend/auth.html" },
+    { "source": "/auth", "destination": "/Frontend/auth.html" },
+    { "source": "/signin", "destination": "/Frontend/auth.html" },
+    { "source": "/register", "destination": "/Frontend/auth.html" },
+    { "source": "/profile", "destination": "/Frontend/profile.html" },
+    { "source": "/settings", "destination": "/Frontend/profile.html" },
+    { "source": "/account", "destination": "/Frontend/profile.html" },
+    { "source": "/about", "destination": "/Frontend/about.html" },
+    { "source": "/about-us", "destination": "/Frontend/about.html" },
+    { "source": "/features", "destination": "/Frontend/about.html" },
+    { "source": "/shared/:token", "destination": "/Frontend/workspace.html" },
+    { "source": "/api/:path*", "destination": "https://litsphere-backend.onrender.com/api/:path*" },
+    { "source": "/uploads/:path*", "destination": "https://litsphere-backend.onrender.com/uploads/:path*" }
+  ],
+  "headers": [
+    {
+      "source": "/Frontend/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" }
+      ]
+    }
+  ]
+}

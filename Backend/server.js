@@ -32,7 +32,8 @@ app.use('/api', reviewRoutes);
 app.use('/api', checkMaintenanceMode, apiRoutes);
 
 // Static uploads directory & dedicated PDF file serving endpoint
-const backendUploads = path.join(__dirname, 'uploads');
+const isVercel = Boolean(process.env.VERCEL);
+const backendUploads = isVercel ? path.join('/tmp', 'uploads') : path.join(__dirname, 'uploads');
 if (!fs.existsSync(backendUploads)) {
   fs.mkdirSync(backendUploads, { recursive: true });
 }

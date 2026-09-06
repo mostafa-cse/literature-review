@@ -5,7 +5,34 @@ const crypto = require('crypto');
 
 const rootDb = path.join(__dirname, '..', '..', 'literature.db');
 const backendDb = path.join(__dirname, '..', 'literature.db');
-const DB_PATH = process.env.DB_PATH || (fs.existsSync(rootDb) ? rootDb : backendDb);
+const seedDb = path.join(__dirname, '..', 'literature-seed.db');
+
+let DB_PATH = process.env.DB_PATH;
+if (!DB_PATH) {
+  if (fs.existsSync(rootDb)) {
+    DB_PATH = rootDb;
+  } else if (fs.existsSync(backendDb)) {
+    DB_PATH = backendDb;
+  } else {
+    DB_PATH = backendDb;
+  }
+}
+
+// Ensure target directory exists (for mounted volumes like /data/literature.db or custom DB_PATH)
+const dbDir = path.dirname(DB_PATH);
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
+// If destination DB does not exist yet but seed DB is present, copy seed DB over
+if (!fs.existsSync(DB_PATH) && fs.existsSync(seedDb)) {
+  try {
+    console.log(`[Database] First run detected. Initializing database from seed: ${DB_PATH}`);
+    fs.copyFileSync(seedDb, DB_PATH);
+  } catch (seedErr) {
+    console.warn('[Database] Seed copy warning:', seedErr.message);
+  }
+}
 
 let dbInstance = null;
 

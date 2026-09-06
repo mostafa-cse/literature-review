@@ -1,0 +1,84 @@
+[build]
+  publish = "Frontend"
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://litsphere-backend.onrender.com/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/uploads/*"
+  to = "https://litsphere-backend.onrender.com/uploads/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/"
+  to = "/home.html"
+  status = 200
+
+[[redirects]]
+  from = "/home"
+  to = "/home.html"
+  status = 200
+
+[[redirects]]
+  from = "/overview"
+  to = "/home.html"
+  status = 200
+
+[[redirects]]
+  from = "/workspace"
+  to = "/workspace.html"
+  status = 200
+
+[[redirects]]
+  from = "/app"
+  to = "/workspace.html"
+  status = 200
+
+[[redirects]]
+  from = "/dashboard"
+  to = "/dashboard.html"
+  status = 200
+
+[[redirects]]
+  from = "/review"
+  to = "/review.html"
+  status = 200
+
+[[redirects]]
+  from = "/review-react"
+  to = "/review_react.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin"
+  to = "/admin.html"
+  status = 200
+
+[[redirects]]
+  from = "/db"
+  to = "/db.html"
+  status = 200
+
+[[redirects]]
+  from = "/login"
+  to = "/auth.html"
+  status = 200
+
+[[redirects]]
+  from = "/auth"
+  to = "/auth.html"
+  status = 200
+
+[[redirects]]
+  from = "/profile"
+  to = "/profile.html"
+  status = 200
+
+[[redirects]]
+  from = "/about"
+  to = "/about.html"
+  status = 200
