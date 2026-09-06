@@ -1,14 +1,673 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="refresh" content="0; url=home.html">
-  <title>LitSphere — Literature Review System</title>
+  <meta name="description" content="LitSphere — Intelligent Literature Review &amp; Systematic Survey Workbench. Built for Master Thesis, PRISMA 2020 Reviews, and Academic Lab Benchmarking.">
+  <title>LitSphere — Intelligent Literature Review &amp; Research Discovery Platform</title>
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20'/%3E%3Cpath d='M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'/%3E%3C/svg%3E">
+  
+  <!-- Academic Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Core Modular Stylesheets -->
+  <link rel="stylesheet" href="/css/navbar.css">
+  <link rel="stylesheet" href="/css/footer.css">
+  <link rel="stylesheet" href="/css/home.css?v=2.2">
+
+  <!-- KaTeX for live LaTeX math rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+
+  <!-- Early Theme Preloader -->
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('litsphere_theme') || 
+                         localStorage.getItem('lr_platform_theme') || 
+                         (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
 </head>
 <body>
+
+
+  <!-- Ambient Hero Constellation Particles Canvas -->
+  <canvas id="hero-canvas"></canvas>
+
+  <!-- Universal Academic Navbar -->
+  <header class="site-header" id="site-header"></header>
+
+  <!-- ========================================================================
+       1. HERO SECTION
+       ======================================================================== -->
+  <section class="hero-section" id="overview">
+    <div class="container">
+      
+      <div class="hero-pill-badge">
+        <span>✦</span>
+        <span>ACADEMIC INTELLIGENCE PLATFORM</span>
+        <span>•</span>
+        <span>SYSTEMATIC BENCHMARKING ENGINE</span>
+      </div>
+
+      <h1 class="hero-heading">
+        Software purpose-built for how research literature is 
+        <span class="gold-gradient" id="flipper-word">benchmarked.</span>
+      </h1>
+
+      <p class="hero-subtitle">
+        LitSphere replaces fragmented spreadsheets and lost PDFs with an integrated systematic review workbench. Ingest papers via PDF & CrossRef DOI, synthesize math in split-screen KaTeX viewers, manage blind PRISMA 2020 appraisal, and generate multi-level thesis benchmark tables in seconds.
+      </p>
+
+      <div class="hero-actions-bar">
+        <a href="/dashboard?action=new" class="btn-primary-hero" id="btn-hero-new-survey">
+          <span>Start with New Survey</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </a>
+        <a href="#interactive-suite" class="btn-secondary-hero">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span>Test-Drive Interactive Suite</span>
+        </a>
+      </div>
+
+      <div class="telemetry-strip">
+        <div class="telemetry-strip-item">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span>SQLite WAL Sub-Millisecond Speed</span>
+        </div>
+        <div class="telemetry-strip-item">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span>PRISMA 2020 Blind Screening</span>
+        </div>
+        <div class="telemetry-strip-item">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span>4-Tier Academic RBAC</span>
+        </div>
+        <div class="telemetry-strip-item">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span>SheetJS Multi-Level Excel Exports</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       2. INTERACTIVE SUITE: LIVE BENCHMARK MATRIX WORKBENCH
+       ======================================================================== -->
+  <section class="interactive-section" id="interactive-suite">
+    <div class="container">
+      
+      <div class="text-center">
+        <span class="section-eyebrow">Interactive View 01 • Test Drive</span>
+        <h2 class="section-headline">High-Density Benchmark Matrix Playground</h2>
+        <p class="section-subtext center-block">
+          Experience LitSphere's live matrix: click any cell below to edit in-place, observe instant SQLite WAL commit pulses, switch between academic domains, and filter by taxonomy clusters.
+        </p>
+      </div>
+
+      <div class="matrix-playground-card glow-card">
+        <div class="matrix-playground-header">
+          <div class="matrix-dataset-tabs" id="matrix-dataset-tabs">
+            <!-- Dynamic dataset tabs rendered via homeInteractive.js -->
+          </div>
+          <div style="font-size: 0.84rem; font-family: var(--font-mono); color: var(--accent-emerald); display: flex; align-items: center; gap: 6px;">
+            <span style="width: 8px; height: 8px; background: var(--accent-emerald); border-radius: 50%; display: inline-block; box-shadow: 0 0 8px var(--accent-emerald);"></span>
+            <span>Click any cell to edit inline</span>
+          </div>
+        </div>
+
+        <div class="matrix-cluster-pills-bar" id="matrix-cluster-pills">
+          <!-- Dynamic cluster filter pills rendered via homeInteractive.js -->
+        </div>
+
+        <div class="matrix-table-wrap">
+          <table class="matrix-table-playground">
+            <thead>
+              <tr>
+                <th style="width: 50px; text-align: center;">#</th>
+                <th style="min-width: 260px;">Research Paper Title</th>
+                <th style="min-width: 170px;">Taxonomy Cluster</th>
+                <th style="width: 80px; text-align: center;">Year</th>
+                <th style="min-width: 190px;">Computational Complexity</th>
+                <th style="min-width: 180px;">Benchmark Datasets</th>
+                <th style="width: 110px; text-align: center;">PRISMA Status</th>
+              </tr>
+            </thead>
+            <tbody id="matrix-playground-tbody">
+              <!-- Dynamically rendered rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       3. INTERACTIVE SUITE: SPLIT-SCREEN READER & LATEX MATH SANDBOX
+       ======================================================================== -->
+  <section class="interactive-section">
+    <div class="container">
+      
+      <div class="text-center">
+        <span class="section-eyebrow">Interactive View 02 • Split-Screen Reader</span>
+        <h2 class="section-headline">Interactive Manuscript Highlighter &amp; LaTeX Sandbox</h2>
+        <p class="section-subtext center-block">
+          Experience how LitSphere bridges deep reading with mathematical extraction. Select highlighters to annotate manuscript passages, and type LaTeX formulas to watch KaTeX render equations instantly.
+        </p>
+      </div>
+
+      <div class="sandbox-split-grid">
+        
+        <!-- Left: Manuscript Viewer Simulator -->
+        <div class="manuscript-viewer-card glow-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <span style="font-size: 0.88rem; font-weight: 700; font-family: var(--font-mono); color: var(--accent-primary);">
+              PDF MANUSCRIPT VIEWER
+            </span>
+            <span style="font-size: 0.8rem; color: var(--text-tertiary);">Click text to highlight</span>
+          </div>
+
+          <div class="highlighter-toolbar">
+            <span style="font-size: 0.82rem; color: var(--text-tertiary); font-weight: 600;">Highlighter:</span>
+            <button type="button" class="highlighter-tool-btn yellow active" onclick="setHighlightColor('yellow', this)">Yellow</button>
+            <button type="button" class="highlighter-tool-btn emerald" onclick="setHighlightColor('emerald', this)">Emerald</button>
+            <button type="button" class="highlighter-tool-btn cyan" onclick="setHighlightColor('cyan', this)">Cyan</button>
+            <button type="button" class="highlighter-tool-btn pink" onclick="setHighlightColor('pink', this)">Pink</button>
+          </div>
+
+          <div class="manuscript-sample-doc">
+            <p>
+              <span class="interactive-selectable highlight-yellow" onclick="highlightSampleText(this)">
+                "We propose a low-latency multilingual speech translation framework engineered specifically for resource-constrained Indic and South Asian languages."
+              </span>
+            </p>
+            <p>
+              <span class="interactive-selectable" onclick="highlightSampleText(this)">
+                "By integrating chunked self-attention transducers, the model isolates cross-lingual acoustic representations while maintaining a streaming execution latency below 200 milliseconds."
+              </span>
+            </p>
+            <p>
+              <span class="interactive-selectable highlight-emerald" onclick="highlightSampleText(this)">
+                "Extensive benchmarking against CoVoST-2 and BanglaVoice confirms a 4.2 BLEU score improvement with 38% reduction in memory footprint compared to full-context baselines."
+              </span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Right: KaTeX Math Sandbox -->
+        <div class="latex-sandbox-card glow-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <span style="font-size: 0.88rem; font-weight: 700; font-family: var(--font-mono); color: var(--accent-indigo);">
+              KATEX LATEX FORMULA ENGINE
+            </span>
+            <span style="font-size: 0.8rem; color: var(--text-tertiary);">Live Renderer</span>
+          </div>
+
+          <div class="formula-presets-bar" id="sandbox-formula-presets">
+            <!-- Preset buttons rendered dynamically -->
+          </div>
+
+          <label for="sandbox-latex-input" style="font-size: 0.82rem; color: var(--text-tertiary); margin-bottom: 0.35rem; display: block;">
+            LaTeX Code Input:
+          </label>
+          <textarea id="sandbox-latex-input" class="sandbox-latex-input" aria-label="LaTeX Math Formula Input">\mathcal{L}_{\text{total}} = \mathcal{L}_{\text{ASR}} + \alpha \mathcal{L}_{\text{MT}} + \beta \mathcal{L}_{\text{latency}}</textarea>
+
+          <label style="font-size: 0.82rem; color: var(--text-tertiary); margin-bottom: 0.35rem; display: block;">
+            Instant KaTeX Render Preview:
+          </label>
+          <div class="sandbox-latex-output-box" id="sandbox-latex-output">
+            <!-- Rendered by KaTeX -->
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       4. INTERACTIVE SUITE: PRISMA 2020 SCREENING SIMULATOR
+       ======================================================================== -->
+  <section class="interactive-section">
+    <div class="container">
+      
+      <div class="text-center">
+        <span class="section-eyebrow">Interactive View 03 • Systematic Quality Appraisal</span>
+        <h2 class="section-headline">PRISMA 2020 Blind Screening Simulator</h2>
+        <p class="section-subtext center-block">
+          Systematic reviews require rigorous eligibility screening. Test LitSphere's blind screening workflow: evaluate candidate papers, log methodological justifications, and watch the PRISMA 2020 audit flow update live.
+        </p>
+      </div>
+
+      <div class="prisma-sim-grid">
+        
+        <!-- Left: PRISMA Flow Diagram Simulator -->
+        <div class="prisma-flow-box glow-card" id="prisma-flow-diagram">
+          <div style="font-size: 0.92rem; font-weight: 700; font-family: var(--font-mono); color: var(--accent-gold); margin-bottom: 0.5rem;">
+            PRISMA 2020 FLOW TELEMETRY
+          </div>
+
+          <div class="prisma-flow-node">
+            <div>
+              <div class="prisma-flow-node-title">1. Identification Phase</div>
+              <div class="prisma-flow-node-desc">Database searches & CrossRef DOI auto-fetch</div>
+            </div>
+            <div class="prisma-flow-counter" id="prisma-count-identified">142</div>
+          </div>
+
+          <div class="prisma-flow-arrow">↓</div>
+
+          <div class="prisma-flow-node">
+            <div>
+              <div class="prisma-flow-node-title">2. Screening Phase</div>
+              <div class="prisma-flow-node-desc">Title & abstract eligibility appraisal</div>
+            </div>
+            <div class="prisma-flow-counter" id="prisma-count-screened">68</div>
+          </div>
+
+          <div class="prisma-flow-arrow">↓</div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="prisma-flow-node" style="border-left: 3px solid #10b981;">
+              <div>
+                <div class="prisma-flow-node-title" style="color: #10b981;">Included Studies</div>
+                <div class="prisma-flow-node-desc">Full synthesis criteria met</div>
+              </div>
+              <div class="prisma-flow-counter" id="prisma-count-included" style="color: #10b981;">24</div>
+            </div>
+
+            <div class="prisma-flow-node" style="border-left: 3px solid #ef4444;">
+              <div>
+                <div class="prisma-flow-node-title" style="color: #ef4444;">Excluded Studies</div>
+                <div class="prisma-flow-node-desc">Criteria not satisfied</div>
+              </div>
+              <div class="prisma-flow-counter" id="prisma-count-excluded" style="color: #ef4444;">44</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Active Study Candidate Appraisal -->
+        <div class="prisma-study-appraisal-card glow-card">
+          <div id="prisma-active-paper">
+            <!-- Paper details injected by homeInteractive.js -->
+          </div>
+
+          <div class="prisma-appraisal-controls">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <label for="prisma-criteria-reason" style="font-size: 0.84rem; font-weight: 600; color: var(--text-secondary);">
+                Screening Appraisal Justification:
+              </label>
+              <button type="button" onclick="nextPrismaSample()" style="background: none; border: none; color: var(--accent-primary); font-size: 0.82rem; cursor: pointer; text-decoration: underline;">
+                Next Candidate Paper →
+              </button>
+            </div>
+
+            <select id="prisma-criteria-reason" class="prisma-criteria-select" aria-label="PRISMA Screening Appraisal Reason">
+              <option value="Meets Full Methodological Criteria">✓ Meets Full Methodological Criteria</option>
+              <option value="High Risk of Bias / Uncontrolled Baseline">✕ Excluded: High Risk of Bias / Uncontrolled Baseline</option>
+              <option value="Insufficient Empirical Sample Size">✕ Excluded: Insufficient Empirical Sample Size</option>
+              <option value="Non-Peer Reviewed Preprint Duplicate">✕ Excluded: Non-Peer Reviewed Preprint Duplicate</option>
+              <option value="Out of Scope for Survey Domain">✕ Excluded: Out of Scope for Survey Domain</option>
+            </select>
+
+            <div class="prisma-voting-btns-row">
+              <button type="button" class="btn-vote-include" onclick="handlePrismaVote('included')">
+                Include Study
+              </button>
+              <button type="button" class="btn-vote-exclude" onclick="handlePrismaVote('excluded')">
+                Exclude Study
+              </button>
+              <button type="button" class="btn-vote-maybe" onclick="handlePrismaVote('maybe')">
+                Request Advisor Review
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       5. INTERACTIVE SUITE: CITATION & MULTI-FORMAT THESIS EXPORT
+       ======================================================================== -->
+  <section class="interactive-section">
+    <div class="container">
+      
+      <div class="text-center">
+        <span class="section-eyebrow">Interactive View 04 • Thesis Synthesis</span>
+        <h2 class="section-headline">Multi-Format Academic Citation &amp; Export Engine</h2>
+        <p class="section-subtext center-block">
+          Seamlessly export literature reviews for Overleaf LaTeX theses, Mendeley/Zotero reference libraries, and Microsoft Excel multi-level benchmark matrices.
+        </p>
+      </div>
+
+      <div class="citation-builder-card glow-card" style="max-width: 900px; margin: 0 auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px;">
+          <div class="citation-format-tabs">
+            <button class="citation-format-tab active" onclick="setCitationFormat('bibtex', this)">BibTeX (.bib)</button>
+            <button class="citation-format-tab" onclick="setCitationFormat('apa', this)">APA 7th</button>
+            <button class="citation-format-tab" onclick="setCitationFormat('ieee', this)">IEEE Style</button>
+            <button class="citation-format-tab" onclick="setCitationFormat('harvard', this)">Harvard</button>
+            <button class="citation-format-tab" onclick="setCitationFormat('ris', this)">RIS (EndNote/Zotero)</button>
+            <button class="citation-format-tab" onclick="setCitationFormat('markdown', this)">Markdown Table</button>
+          </div>
+
+          <button class="btn-secondary-hero" id="btn-copy-citation" onclick="copyCitationToClipboard()" style="padding: 6px 14px; font-size: 0.86rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span>Copy Citation</span>
+          </button>
+        </div>
+
+        <pre class="citation-code-box" id="citation-code-output"></pre>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem; color: var(--text-tertiary); font-family: var(--font-mono);">
+          <span>Format Verified: Overleaf / ACM / IEEE Compliant</span>
+          <span>1-Click Copy Ready</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       6. INTERACTIVE SUITE: 4-ROLE ACADEMIC RBAC EXPLORER
+       ======================================================================== -->
+  <section class="interactive-section">
+    <div class="container">
+      
+      <div class="text-center">
+        <span class="section-eyebrow">Interactive View 05 • Team Collaboration</span>
+        <h2 class="section-headline">4-Role Academic Governance &amp; RBAC Explorer</h2>
+        <p class="section-subtext center-block">
+          Research teams demand granular permissions. Switch between the 4 native roles below to explore real-world security guardrails separating lead authors, co-authors, supervisors, and external auditors.
+        </p>
+      </div>
+
+      <div class="rbac-explorer-card glow-card" style="max-width: 960px; margin: 0 auto;">
+        
+        <div class="rbac-role-tabs">
+          <button class="rbac-role-tab active" onclick="switchRbacRole('owner', this)">
+            👑 Owner (Lead PI)
+          </button>
+          <button class="rbac-role-tab" onclick="switchRbacRole('editor', this)">
+            ✏️ Editor (Co-Author)
+          </button>
+          <button class="rbac-role-tab" onclick="switchRbacRole('reviewer', this)">
+            🔍 Reviewer (Supervisor)
+          </button>
+          <button class="rbac-role-tab" onclick="switchRbacRole('viewer', this)">
+            👁️ Viewer (Student)
+          </button>
+        </div>
+
+        <div id="rbac-role-details">
+          <!-- Populated by homeInteractive.js -->
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       7. SYSTEM ARCHITECTURE & CORE CAPABILITIES
+       ======================================================================== -->
+  <section class="interactive-section" id="capabilities">
+    <div class="container">
+      
+      <div class="text-center">
+        <span class="section-eyebrow">Enterprise &amp; Academic Rigor</span>
+        <h2 class="section-headline">Engineered for Data Integrity &amp; Speed</h2>
+        <p class="section-subtext center-block">
+          Built with relational database rigor, transactional foreign keys, sub-millisecond local reads, and dual-layer manuscript storage.
+        </p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+        
+        <div class="glow-card" style="padding: 1.75rem;">
+          <div style="color: var(--accent-primary); font-size: 1.8rem; margin-bottom: 0.75rem;">⚡</div>
+          <h4 style="font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">
+            SQLite WAL Concurrent Engine
+          </h4>
+          <p style="font-size: 0.94rem; color: var(--text-secondary); line-height: 1.6;">
+            Uses Write-Ahead Logging (WAL) for non-blocking concurrent reads and instant atomic writes. Eliminates cloud latency and database lockups.
+          </p>
+        </div>
+
+        <div class="glow-card" style="padding: 1.75rem;">
+          <div style="color: var(--accent-emerald); font-size: 1.8rem; margin-bottom: 0.75rem;">🛡️</div>
+          <h4 style="font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">
+            Cascading Relational Protection
+          </h4>
+          <p style="font-size: 0.94rem; color: var(--text-secondary); line-height: 1.6;">
+            Foreign key constraints ensure that deleting a paper, taxonomy cluster, or survey cleanly purges child comments, file BLOBs, and metrics without orphan rows.
+          </p>
+        </div>
+
+        <div class="glow-card" style="padding: 1.75rem;">
+          <div style="color: var(--accent-gold); font-size: 1.8rem; margin-bottom: 0.75rem;">📄</div>
+          <h4 style="font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">
+            Dual-Storage Manuscript Redundancy
+          </h4>
+          <p style="font-size: 0.94rem; color: var(--text-secondary); line-height: 1.6;">
+            Uploaded PDF manuscripts are persisted both as SQLite raw BLOBs and filesystem assets, ensuring zero risk of missing papers during offline thesis defense.
+          </p>
+        </div>
+
+        <div class="glow-card" style="padding: 1.75rem;">
+          <div style="color: var(--accent-indigo); font-size: 1.8rem; margin-bottom: 0.75rem;">🌐</div>
+          <h4 style="font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">
+            CrossRef REST API &amp; DOI Resolver
+          </h4>
+          <p style="font-size: 0.94rem; color: var(--text-secondary); line-height: 1.6;">
+            Type or paste any DOI to pull author lists, publication years, conference proceedings, and abstracts directly from CrossRef with one click.
+          </p>
+        </div>
+
+        <div class="glow-card" style="padding: 1.75rem;">
+          <div style="color: var(--accent-rose); font-size: 1.8rem; margin-bottom: 0.75rem;">📊</div>
+          <h4 style="font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">
+            Real-Time Storage &amp; AI Telemetry
+          </h4>
+          <p style="font-size: 0.94rem; color: var(--text-secondary); line-height: 1.6;">
+            Live telemetry tracks storage quotas (MB used / remaining), active user sessions, and AI extraction token consumption in real time.
+          </p>
+        </div>
+
+        <div class="glow-card" style="padding: 1.75rem;">
+          <div style="color: var(--accent-teal); font-size: 1.8rem; margin-bottom: 0.75rem;">🧪</div>
+          <h4 style="font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">
+            Automated RBAC Test Harness
+          </h4>
+          <p style="font-size: 0.94rem; color: var(--text-secondary); line-height: 1.6;">
+            Verified by 6 comprehensive multi-role test suites covering 100+ automated test cases with zero regressions across the entire platform.
+          </p>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ========================================================================
+       9. LIVE STATS HIGHLIGHTS BANNER
+       ======================================================================== -->
+  <section class="stats-section">
+    <div class="container">
+      <div class="stats-grid">
+        
+        <div class="stat-card glow-card">
+          <span class="stat-number" id="live-total-papers">8</span>
+          <span class="stat-label">Active Research Papers</span>
+          <span class="stat-desc">Ingested, parsed, and mapped into survey clusters.</span>
+        </div>
+
+        <div class="stat-card glow-card">
+          <span class="stat-number" id="live-total-clusters">6</span>
+          <span class="stat-label">Taxonomy Clusters</span>
+          <span class="stat-desc">Custom domain classifications with dynamic schemas.</span>
+        </div>
+
+        <div class="stat-card glow-card">
+          <span class="stat-number" id="live-unique-keywords">18</span>
+          <span class="stat-label">Extracted Research Tags</span>
+          <span class="stat-desc">Thematic cross-referencing and live autocomplete.</span>
+        </div>
+
+        <div class="stat-card glow-card">
+          <span class="stat-number">100%</span>
+          <span class="stat-label">SQLite WAL Reliability</span>
+          <span class="stat-desc">Zero lockups with sub-millisecond local reads.</span>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       10. CALL TO ACTION BANNER
+       ======================================================================== -->
+  <section class="cta-banner">
+    <div class="container">
+      <h2 class="cta-title">Ready to Benchmark Your Research Literature?</h2>
+      <p class="cta-subtext">
+        Join leading researchers and graduate students who use LitSphere to organize papers, extract mathematical equations, and synthesize theses with speed and precision.
+      </p>
+      <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+        <a href="/dashboard?action=new" class="btn-primary-hero" id="btn-cta-start-new-survey" style="font-size: 1.15rem; padding: 14px 36px;">
+          <span>Start with New Survey</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Site Footer (Auto-rendered by /js/core/footer.js) -->
+  <footer id="site-footer"></footer>
+
+  <!-- Core Scripts -->
+  <script src="/js/core/navbar.js"></script>
+  <script src="/js/core/footer.js"></script>
+  <script src="/js/core/homeInteractive.js?v=2.2"></script>
+
   <script>
-    window.location.replace('home.html');
+
+    // 2. Dynamic Rotating Word Flipper
+    const flipperWords = ['benchmarked.', 'synthesized.', 'appraised.', 'accelerated.', 'discovered.'];
+    let flipperIdx = 0;
+    const flipperEl = document.getElementById('flipper-word');
+    if (flipperEl) {
+      setInterval(() => {
+        flipperEl.style.opacity = '0';
+        flipperEl.style.transform = 'translateY(8px)';
+        setTimeout(() => {
+          flipperIdx = (flipperIdx + 1) % flipperWords.length;
+          flipperEl.textContent = flipperWords[flipperIdx];
+          flipperEl.style.opacity = '1';
+          flipperEl.style.transform = 'translateY(0)';
+        }, 260);
+      }, 2800);
+    }
+
+    // 3. Hero Particle Network Canvas
+    const canvas = document.getElementById('hero-canvas');
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      let width = (canvas.width = window.innerWidth);
+      let height = (canvas.height = 850);
+      let particles = [];
+
+      window.addEventListener('resize', () => {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = 850;
+      });
+
+      for (let i = 0; i < 48; i++) {
+        particles.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          vx: (Math.random() - 0.5) * 0.4,
+          vy: (Math.random() - 0.5) * 0.4,
+          radius: Math.random() * 1.8 + 0.8
+        });
+      }
+
+      function drawNetwork() {
+        ctx.clearRect(0, 0, width, height);
+        const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+        ctx.fillStyle = isDark ? 'rgba(56, 189, 248, 0.6)' : 'rgba(2, 132, 199, 0.4)';
+        ctx.strokeStyle = isDark ? 'rgba(56, 189, 248, 0.08)' : 'rgba(2, 132, 199, 0.06)';
+
+        particles.forEach((p, idx) => {
+          p.x += p.vx;
+          p.y += p.vy;
+          if (p.x < 0 || p.x > width) p.vx *= -1;
+          if (p.y < 0 || p.y > height) p.vy *= -1;
+
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fill();
+
+          for (let j = idx + 1; j < particles.length; j++) {
+            const p2 = particles[j];
+            const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
+            if (dist < 130) {
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(p2.x, p2.y);
+              ctx.stroke();
+            }
+          }
+        });
+        requestAnimationFrame(drawNetwork);
+      }
+      drawNetwork();
+    }
+
+    // 4. Fetch live database telemetry for stats banner
+    async function updateLiveStats() {
+      try {
+        const res = await fetch('/api/stats');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.total_papers && document.getElementById('live-total-papers')) {
+            document.getElementById('live-total-papers').textContent = data.total_papers;
+          }
+          if (data.total_clusters && document.getElementById('live-total-clusters')) {
+            document.getElementById('live-total-clusters').textContent = data.total_clusters;
+          }
+          if (data.total_unique_keywords && document.getElementById('live-unique-keywords')) {
+            document.getElementById('live-unique-keywords').textContent = data.total_unique_keywords;
+          }
+        }
+      } catch (e) {
+        // Fallback already rendered
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', updateLiveStats);
   </script>
 </body>
 </html>
