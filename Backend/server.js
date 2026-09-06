@@ -97,17 +97,8 @@ if (!fs.existsSync(frontendDir)) {
 }
 app.use(express.static(frontendDir));
 
-// Route mappings for Home Overview, Interactive Workspace, and Admin Control Center
-app.get('/', (req, res) => {
-  const homeFile = path.join(frontendDir, 'home.html');
-  if (fs.existsSync(homeFile)) {
-    return res.sendFile(homeFile);
-  }
+app.get(['/', '/home', '/overview'], (req, res) => {
   res.sendFile(path.join(frontendDir, 'index.html'));
-});
-
-app.get(['/home', '/overview'], (req, res) => {
-  res.sendFile(path.join(frontendDir, 'home.html'));
 });
 
 app.get(['/workspace', '/app', '/matrix'], (req, res) => {

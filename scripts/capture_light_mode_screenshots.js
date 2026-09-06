@@ -69,7 +69,7 @@ async function run() {
 
   // 3. Dashboard Overview (Light Mode)
   console.log('Capturing fig5_03_dashboard_overview.png (Light Mode)...');
-  await page.goto('http://localhost:3000/home.html', { waitUntil: 'networkidle0' });
+  await page.goto('http://localhost:3000/home', { waitUntil: 'networkidle0' });
   await applyLightModeAndAuth();
   await page.goto('http://localhost:3000/dashboard.html', { waitUntil: 'networkidle0' });
   await applyLightModeAndAuth();

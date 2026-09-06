@@ -46,7 +46,7 @@ async function captureAll() {
 
   // 1. Home Hero
   console.log('1/12: 01_home_hero.png...');
-  await page.goto('http://localhost:3000/home.html', { waitUntil: 'networkidle0' });
+  await page.goto('http://localhost:3000/home', { waitUntil: 'networkidle0' });
   await new Promise(r => setTimeout(r, 1200));
   await page.screenshot({ path: path.join(OUT_DIR, '01_home_hero.png') });
 
@@ -65,7 +65,7 @@ async function captureAll() {
 
   // 4. Dashboard Surveys
   console.log('4/12: 04_dashboard_surveys.png...');
-  await page.goto('http://localhost:3000/home.html', { waitUntil: 'networkidle0' });
+  await page.goto('http://localhost:3000/home', { waitUntil: 'networkidle0' });
   await injectAuth();
   await page.goto('http://localhost:3000/dashboard.html', { waitUntil: 'networkidle0' });
   await new Promise(r => setTimeout(r, 1500));
