@@ -1346,6 +1346,7 @@ window.renderMasterMatrix = function(papers) {
   // Current user role and matrix modification permissions
   const currentRole = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
   const canModifyMatrix = ['owner', 'editor'].includes(currentRole);
+  window.canModifyMatrix = canModifyMatrix;
 
   // Customizable & Reorderable Columns
   orderedCols.forEach(col => {
@@ -1465,7 +1466,8 @@ window.renderMasterMatrix = function(papers) {
 
   // If there are no customizable dynamic columns defined in this matrix, append a clean + Add Column helper header (Owner & Editor only)
   const hasDynCols = orderedCols.some(c => c.isDynamic);
-  if (!hasDynCols && canModifyMatrix) {
+  const allowModify = (typeof canModifyMatrix !== 'undefined' && canModifyMatrix) || (window.canModifyMatrix === true) || ['owner', 'editor'].includes((window.currentProjectRole || '').toLowerCase());
+  if (!hasDynCols && allowModify) {
     const thAdd = document.createElement('th');
     thAdd.className = 'th-add-col-placeholder';
     thAdd.rowSpan = hasAnySplitCol ? 2 : 1;
