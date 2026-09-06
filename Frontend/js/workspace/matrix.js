@@ -1343,6 +1343,10 @@ window.renderMasterMatrix = function(papers) {
   `;
   trHead.appendChild(thTitle);
 
+  // Current user role and matrix modification permissions
+  const currentRole = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  const canModifyMatrix = ['owner', 'editor'].includes(currentRole);
+
   // Customizable & Reorderable Columns
   orderedCols.forEach(col => {
     const subCols = _getSubColumnsForCol(col, rawAllCols);
@@ -1386,9 +1390,6 @@ window.renderMasterMatrix = function(papers) {
       th.style.minWidth = colWidth;
       th.style.maxWidth = isKwCol ? '240px' : (isDomCol ? '240px' : COL_FIXED_W);
     }
-
-    const currentRole = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
-    const canModifyMatrix = ['owner', 'editor'].includes(currentRole);
 
     th.style.overflow = 'visible';
     if (canModifyMatrix) {
