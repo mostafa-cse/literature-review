@@ -3,13 +3,13 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "https://litsphere-backend.onrender.com/api/:splat"
+  to = "https://literature-review-8rxv.onrender.com/api/:splat"
   status = 200
   force = true
 
 [[redirects]]
   from = "/uploads/*"
-  to = "https://litsphere-backend.onrender.com/uploads/:splat"
+  to = "https://literature-review-8rxv.onrender.com/uploads/:splat"
   status = 200
   force = true
 

@@ -37,8 +37,8 @@
     { "source": "/about-us", "destination": "/about.html" },
     { "source": "/features", "destination": "/about.html" },
     { "source": "/shared/:token", "destination": "/workspace.html" },
-    { "source": "/api/:path*", "destination": "https://litsphere-backend.onrender.com/api/:path*" },
-    { "source": "/uploads/:path*", "destination": "https://litsphere-backend.onrender.com/uploads/:path*" }
+    { "source": "/api/:path*", "destination": "https://literature-review-8rxv.onrender.com/api/:path*" },
+    { "source": "/uploads/:path*", "destination": "https://literature-review-8rxv.onrender.com/uploads/:path*" }
   ],
   "headers": [
     {
