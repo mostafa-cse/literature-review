@@ -896,7 +896,7 @@ createFeatureSlide({
     },
     {
       title: 'BibTeX & RIS Reference Files',
-      desc: 'One-click export of structured .bib and .ris files containing DOI, authors, journal, and abstract fields for seamless drag-and-drop into Zotero, Mendeley, and Overleaf.'
+      desc: 'One-click export of structured .bib and .ris files containing DOI, authors, journal, and abstract fields for seamless drag-and-drop into Zotero and Overleaf.'
     }
   ],
   specs: [

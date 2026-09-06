@@ -96,8 +96,9 @@ window.updateMatrixColumnButtonStates = function() {
 };
 
 window.openAddColumnModal = function() {
-  if (['reviewer', 'viewer'].includes(currentProjectRole)) {
-    showToast(`[Read-Only] Role '${currentProjectRole.toUpperCase()}' cannot add custom columns.`, 'info');
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (['reviewer', 'viewer'].includes(role)) {
+    showToast(`[Read-Only] Role '${role.toUpperCase()}' cannot add custom columns.`, 'info');
     return;
   }
   const nameInput = document.getElementById('add-col-name') || document.getElementById('new-dyn-col-name');
@@ -272,8 +273,9 @@ window.handleSplitColumnSelectionChange = function(colVal) {
 };
 
 window.openSplitColumnModal = function(preSelectedKey) {
-  if (typeof currentProjectRole !== 'undefined' && ['reviewer', 'viewer'].includes(currentProjectRole)) {
-    showToast(`[Read-Only] Role '${currentProjectRole.toUpperCase()}' cannot split columns.`, 'info');
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (['reviewer', 'viewer'].includes(role)) {
+    showToast(`[Read-Only] Role '${role.toUpperCase()}' cannot split columns.`, 'info');
     return;
   }
   const eligibleCols = (window.activeDataColumns || []).filter(c => !c.parent_column_id);
@@ -724,6 +726,11 @@ window.quickAddSubColumn = async function(colIdentifier, customSubName, event) {
   if (event) {
     event.stopPropagation();
     if (typeof window.closeAllColumnMenus === 'function') window.closeAllColumnMenus();
+  }
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (['reviewer', 'viewer'].includes(role)) {
+    showToast(`[Read-Only] Role '${role.toUpperCase()}' cannot add sub-columns.`, 'info');
+    return;
   }
   const existing = window.getExistingSubColumnsForColumn(colIdentifier) || [];
   let newSubs = [];

@@ -470,6 +470,7 @@ function renderSurveysTable(surveys, searchVal) {
     const readPapers = p.read_count || 0;
     const progressPct = totalPapers > 0 ? Math.round((readPapers / totalPapers) * 100) : 0;
     const role = (p.current_user_role || 'owner').toLowerCase();
+    const isOwner = role === 'owner';
     const screeningsCount = (p.screenings_count || 0) + (p.comments_count || 0);
     const createdDate = p.created_at
       ? new Date(p.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
@@ -853,8 +854,8 @@ window.deleteSurvey = async function(id, name) {
 window.exportSurveyExcel = function(projectId) {
   const survey = allSurveys.find(s => Number(s.id) === Number(projectId));
   const role = survey ? (survey.current_user_role || '').toLowerCase() : '';
-  if (survey && role !== 'owner' && role !== 'editor') {
-    showToast('Permission Denied: Only survey owners and editors can export the master matrix.', 'warning');
+  if (survey && !['owner', 'editor', 'reviewer', 'viewer'].includes(role)) {
+    showToast('Permission Denied: You do not have access to export this survey.', 'warning');
     return;
   }
   window.open(`/api/export?project_id=${projectId}&format=excel`, '_blank');

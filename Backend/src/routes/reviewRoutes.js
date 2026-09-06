@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db');
-const { authenticateToken, getProjectRole, logAuditEvent } = require('../utils/auth');
+const { authenticateToken, getProjectRole, logAuditEvent, verifyToken } = require('../utils/auth');
 
 // ==========================================
 // 1. PAPER COMMENTS & SOURCE-QUOTE ANNOTATIONS
@@ -99,30 +99,28 @@ router.get('/papers/:id/screening', (req, res) => {
   const db = getDb();
 
   try {
-    const decisions = db.prepare(`
+    const screenings = db.prepare(`
       SELECT id, paper_id, user_id, user_name, decision, exclusion_reason, notes, updated_at
       FROM paper_screening
       WHERE paper_id = ?
-      ORDER BY updated_at DESC
+      ORDER BY id ASC
     `).all(paperId);
 
-    res.json({ decisions });
+    res.json({ screenings, decisions: screenings });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to retrieve screening data: ' + err.message });
+    res.status(500).json({ error: 'Failed to retrieve screening decisions: ' + err.message });
   }
 });
 
-// POST /api/papers/:id/screening - Submit blind screening decision (Owner, Editor, Reviewer)
+// POST /api/papers/:id/screening - Submit blind PRISMA screening vote (Owner, Editor, Reviewer)
 router.post('/papers/:id/screening', authenticateToken, (req, res) => {
   const paperId = req.params.id;
   const { decision, vote, exclusion_reason, reason, notes } = req.body;
   const db = getDb();
 
-  const finalDecision = decision || vote;
-  const finalReason = exclusion_reason || reason || '';
-
+  const finalDecision = (decision || vote || '').toLowerCase();
   if (!['included', 'excluded', 'uncertain'].includes(finalDecision)) {
-    return res.status(400).json({ error: "Invalid screening decision. Must be 'included', 'excluded', or 'uncertain'." });
+    return res.status(400).json({ error: 'Valid decision (included, excluded, uncertain) is required.' });
   }
 
   try {
@@ -131,26 +129,41 @@ router.post('/papers/:id/screening', authenticateToken, (req, res) => {
 
     const role = getProjectRole(req.user.id, paper.project_id);
     if (role === 'viewer') {
-      return res.status(403).json({ error: 'Viewers have read-only access and cannot submit screening votes.' });
+      return res.status(403).json({ error: 'Viewers have read-only access and cannot vote on PRISMA decisions.' });
     }
+
+    const cleanReason = (exclusion_reason !== undefined ? exclusion_reason : reason) ? String(exclusion_reason || reason).trim() : null;
+    const cleanNotes = notes ? String(notes).trim() : null;
 
     db.prepare(`
       INSERT INTO paper_screening (paper_id, user_id, user_name, decision, exclusion_reason, notes, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-      ON CONFLICT(paper_id, user_id) DO UPDATE SET 
+      ON CONFLICT(paper_id, user_id) DO UPDATE SET
         decision = excluded.decision,
         exclusion_reason = excluded.exclusion_reason,
         notes = excluded.notes,
         updated_at = CURRENT_TIMESTAMP
-    `).run(paperId, req.user.id, req.user.name, finalDecision, finalReason, notes || '');
+    `).run(paperId, req.user.id, req.user.name, finalDecision, cleanReason, cleanNotes);
 
-    logAuditEvent(req, 'SCREENING_DECISION', `Screened paper ${paperId} as ${finalDecision.toUpperCase()}`, 'SUCCESS');
+    // Sync primary paper table screening state (if columns present)
+    try {
+      db.prepare(`
+        UPDATE papers
+        SET screening_decision = ?, screening_reason = ?
+        WHERE id = ?
+      `).run(finalDecision, cleanReason, paperId);
+    } catch (colErr) {
+      // Gracefully handle if columns are pending migration
+    }
+
+    logAuditEvent(req, 'PRISMA_SCREENING_VOTE', `Voted ${finalDecision.toUpperCase()} on paper ${paperId} (Role: ${role})`, 'SUCCESS');
 
     res.json({
-      message: `Screening decision recorded: ${finalDecision.toUpperCase()}`,
-      paper_id: Number(paperId),
+      message: 'Screening decision recorded successfully.',
       decision: finalDecision,
-      reason: finalReason
+      exclusion_reason: cleanReason,
+      reason: cleanReason,
+      notes: cleanNotes
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to record screening decision: ' + err.message });
@@ -158,96 +171,82 @@ router.post('/papers/:id/screening', authenticateToken, (req, res) => {
 });
 
 // ==========================================
-// 3. PAPER PDF TEXT HIGHLIGHTS & EXCERPTS
+// 3. TEXT HIGHLIGHTS & VISUAL RECTANGLES
 // ==========================================
 
-// GET /api/papers/:id/highlights - Retrieve all highlights for a paper
+// GET /api/papers/:id/highlights - Get all text highlights for paper
 router.get('/papers/:id/highlights', (req, res) => {
   const paperId = req.params.id;
   const db = getDb();
 
   try {
-    const highlights = db.prepare(`
-      SELECT id, paper_id, user_id, user_name, user_role, page_number, color, color_label, selected_text, quads_json, note, created_at
+    const rows = db.prepare(`
+      SELECT id, paper_id, user_id, page_number, text, quads_json, color, color_label, note, created_at
       FROM paper_highlights
       WHERE paper_id = ?
-      ORDER BY page_number ASC, id ASC
+      ORDER BY id ASC
     `).all(paperId);
 
-    // Parse quads_json safely
-    const parsed = highlights.map(h => {
-      let rects = [];
-      try {
-        rects = h.quads_json ? JSON.parse(h.quads_json) : [];
-      } catch (e) {
-        rects = [];
-      }
+    const highlights = rows.map(r => {
+      let parsedRects = [];
+      try { parsedRects = JSON.parse(r.quads_json || '[]'); } catch (e) {}
       return {
-        ...h,
-        rects
+        ...r,
+        rects: parsedRects
       };
     });
 
-    res.json({ highlights: parsed });
+    res.json({ highlights });
   } catch (err) {
     res.status(500).json({ error: 'Failed to retrieve highlights: ' + err.message });
   }
 });
 
-// POST /api/papers/:id/highlights - Save new highlight (Authenticated or Optional Auth)
+// POST /api/papers/:id/highlights - Create highlight
 router.post('/papers/:id/highlights', (req, res) => {
   const paperId = req.params.id;
-  const { page_number, color, color_label, selected_text, rects, quads_json, note } = req.body;
+  const { page_number, text, rects, quads_json, color, color_label, note } = req.body;
   const db = getDb();
 
-  if (!selected_text || !selected_text.trim()) {
-    return res.status(400).json({ error: 'Selected text is required.' });
+  if (!page_number || !text) {
+    return res.status(400).json({ error: 'page_number and text are required.' });
   }
 
-  const pageNum = parseInt(page_number || '1', 10);
-  const finalColor = color || '#fef08a';
-  const finalLabel = color_label || 'Key Point';
-  const quadsString = typeof rects === 'object' ? JSON.stringify(rects) : (quads_json || '[]');
-
   try {
-    const paper = db.prepare("SELECT id, project_id, title FROM papers WHERE id = ?").get(paperId);
+    const paper = db.prepare("SELECT id, project_id FROM papers WHERE id = ?").get(paperId);
     if (!paper) return res.status(404).json({ error: 'Paper not found.' });
-
-    let userId = null;
-    let userName = 'Researcher';
-    let userRole = 'reviewer';
 
     // Check optional token header if present
     const authHeader = req.headers['authorization'];
     if (authHeader && authHeader.startsWith('Bearer ')) {
       try {
-        const jwt = require('jsonwebtoken');
         const token = authHeader.split(' ')[1];
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'litsphere_jwt_secret_dev_key');
+        const decoded = verifyToken(token);
         if (decoded && decoded.id) {
-          userId = decoded.id;
-          userName = decoded.name || 'Researcher';
-          userRole = getProjectRole(userId, paper.project_id) || 'reviewer';
+          const userRole = getProjectRole(decoded.id, paper.project_id) || 'reviewer';
           if (userRole === 'viewer') {
-            return res.status(403).json({ error: 'Viewers have read-only access and cannot save highlights.' });
+            return res.status(403).json({ error: 'Viewers have read-only access and cannot create highlights.' });
           }
         }
-      } catch (tokenErr) {
-        // Continue with guest/default role
-      }
+      } catch (_) {}
     }
 
+    const quadsString = quads_json || (rects ? JSON.stringify(rects) : '[]');
+    const finalColor = color || 'rgba(56, 189, 248, 0.35)';
+    const finalLabel = color_label || 'Default';
+    const userId = req.user ? req.user.id : 1;
+
     const result = db.prepare(`
-      INSERT INTO paper_highlights (paper_id, user_id, user_name, user_role, page_number, color, color_label, selected_text, quads_json, note)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(paperId, userId, userName, userRole, pageNum, finalColor, finalLabel, selected_text.trim(), quadsString, note || null);
+      INSERT INTO paper_highlights (paper_id, user_id, page_number, text, quads_json, color, color_label, note)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(paperId, userId, page_number, text.trim(), quadsString, finalColor, finalLabel, note ? note.trim() : null);
 
     const newHighlight = db.prepare("SELECT * FROM paper_highlights WHERE id = ?").get(result.lastInsertRowid);
     let parsedRects = [];
     try { parsedRects = JSON.parse(newHighlight.quads_json || '[]'); } catch (e) {}
 
     res.status(201).json({
-      message: 'Highlight saved successfully.',
+      message: 'Highlight created successfully.',
       highlight: {
         ...newHighlight,
         rects: parsedRects
@@ -267,6 +266,24 @@ const handleUpdateHighlight = (req, res) => {
   try {
     const existing = db.prepare("SELECT * FROM paper_highlights WHERE id = ?").get(highlightId);
     if (!existing) return res.status(404).json({ error: 'Highlight not found.' });
+
+    // Check optional token header if present
+    const authHeader = req.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.split(' ')[1];
+        const decoded = verifyToken(token);
+        if (decoded && decoded.id) {
+          const paper = db.prepare("SELECT project_id FROM papers WHERE id = ?").get(existing.paper_id);
+          if (paper) {
+            const userRole = getProjectRole(decoded.id, paper.project_id) || 'reviewer';
+            if (userRole === 'viewer') {
+              return res.status(403).json({ error: 'Viewers have read-only access.' });
+            }
+          }
+        }
+      } catch (_) {}
+    }
 
     const newColor = color !== undefined ? color : existing.color;
     const newLabel = color_label !== undefined ? color_label : existing.color_label;
@@ -305,6 +322,24 @@ const handleDeleteHighlight = (req, res) => {
   try {
     const existing = db.prepare("SELECT * FROM paper_highlights WHERE id = ?").get(highlightId);
     if (!existing) return res.status(404).json({ error: 'Highlight not found.' });
+
+    // Check optional token header if present
+    const authHeader = req.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.split(' ')[1];
+        const decoded = verifyToken(token);
+        if (decoded && decoded.id) {
+          const paper = db.prepare("SELECT project_id FROM papers WHERE id = ?").get(existing.paper_id);
+          if (paper) {
+            const userRole = getProjectRole(decoded.id, paper.project_id) || 'reviewer';
+            if (userRole === 'viewer') {
+              return res.status(403).json({ error: 'Viewers have read-only access.' });
+            }
+          }
+        }
+      } catch (_) {}
+    }
 
     db.prepare("DELETE FROM paper_highlights WHERE id = ?").run(highlightId);
     res.json({ message: 'Highlight deleted successfully.' });

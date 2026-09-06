@@ -2652,3 +2652,74 @@ body:not([data-theme="light"]) .status-error {
   line-height: 1.5;
 }
 
+/* ════ ROLE BADGES & READ-ONLY VIEWER MODE ════ */
+.role-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: 'JetBrains Mono', monospace, sans-serif;
+  border: 1px solid transparent;
+}
+.role-badge-pill.role-owner {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+.role-badge-pill.role-editor {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.3);
+}
+.role-badge-pill.role-reviewer {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border-color: rgba(168, 85, 247, 0.3);
+}
+.role-badge-pill.role-viewer {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+.save-dot.readonly {
+  background-color: #94a3b8 !important;
+  box-shadow: 0 0 6px rgba(148, 163, 184, 0.5) !important;
+}
+
+.read-only-box,
+input.dashed-col1[readonly],
+input.dashed-col2[readonly],
+textarea.detailed-summary-textarea[readonly] {
+  background-color: transparent !important;
+  cursor: default !important;
+  user-select: text !important;
+}
+
+.grid-item.read-only-item {
+  cursor: default !important;
+}
+
+.grid-item.read-only-item:hover {
+  background: transparent !important;
+  border-color: var(--border-solid) !important;
+}
+
+.read-only-pill-notice {
+  font-size: 0.72rem;
+  color: var(--text-muted, #94a3b8);
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px dashed rgba(148, 163, 184, 0.25);
+  border-radius: 6px;
+  padding: 4px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+

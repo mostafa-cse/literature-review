@@ -4,6 +4,11 @@
  */
 
 window.openTeamModal = function() {
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (role === 'reviewer') {
+    showToast("[Access Denied] Team Collaboration is not available for Reviewers.", 'warning');
+    return;
+  }
   loadTeamMembers();
   openModal('team-modal-overlay');
 };
@@ -143,7 +148,10 @@ window.loadTeamMembers = async function() {
 };
 
 window.submitInviteCollaborator = async function(e) {
-  if (e) e.preventDefault();
+  if (currentProjectRole !== 'owner') {
+    showToast('Permission Denied: Only the project Owner can invite team members.', 'warning');
+    return;
+  }
   const emailInput = document.getElementById('team-invite-email');
   const roleSelect = document.getElementById('team-invite-role');
 
@@ -180,6 +188,10 @@ window.submitInviteCollaborator = async function(e) {
 };
 
 window.updateCollaboratorRole = async function(userId, newRole) {
+  if ((window.isProjectViewer && window.isProjectViewer()) || currentProjectRole === 'viewer') {
+    showToast('View-only access: You cannot modify collaborator roles.', 'warning');
+    return;
+  }
   const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
   try {
     const res = await fetch(`/api/projects/${pid}/members/${userId}`, {
@@ -200,6 +212,10 @@ window.updateCollaboratorRole = async function(userId, newRole) {
 };
 
 window.removeCollaborator = async function(userId, memberName = 'this collaborator') {
+  if (memberName !== 'yourself' && ((window.isProjectViewer && window.isProjectViewer()) || currentProjectRole === 'viewer')) {
+    showToast('View-only access: You cannot remove team members.', 'warning');
+    return;
+  }
   if (!confirm(`Are you sure you want to remove ${memberName} from this project?`)) return;
   const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
   try {
@@ -225,6 +241,11 @@ window.removeCollaborator = async function(userId, memberName = 'this collaborat
    ========================================================= */
 
 window.openShareModal = async function() {
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (role === 'reviewer') {
+    showToast("[Access Denied] Sharing is not available for Reviewers.", 'warning');
+    return;
+  }
   const shareInput = document.getElementById('share-url-input');
   const previewLink = document.getElementById('btn-open-share-link');
   const statusBadge = document.getElementById('share-link-status-badge');
@@ -280,9 +301,15 @@ window.openShareModal = async function() {
           enableBtn.style.display = ['owner', 'editor', 'admin'].includes(currentProjectRole) ? 'inline-flex' : 'none';
         }
       }
-    } else {
-      // If GET endpoint returns 404 or requires generation, attempt initial creation
+    } else if (['owner', 'editor', 'admin'].includes(currentProjectRole)) {
+      // If GET endpoint returns 404 or requires generation, attempt initial creation for editors/owners
       await window.enableShareLink(false);
+    } else {
+      if (shareInput) shareInput.value = 'Public link is not active.';
+      if (statusBadge) {
+        statusBadge.className = 'role-badge-pill role-viewer';
+        statusBadge.textContent = 'DISABLED';
+      }
     }
   } catch (err) {
     if (shareInput) shareInput.value = 'Failed to inspect share link.';
@@ -295,6 +322,12 @@ window.openShareModal = async function() {
 };
 
 window.enableShareLink = async function(showFeedback = true) {
+  if ((window.isProjectViewer && window.isProjectViewer()) || currentProjectRole === 'viewer') {
+    if (showFeedback) {
+      showToast('View-only access: You cannot modify public share link settings.', 'warning');
+    }
+    return;
+  }
   const shareInput = document.getElementById('share-url-input');
   const previewLink = document.getElementById('btn-open-share-link');
   const statusBadge = document.getElementById('share-link-status-badge');
@@ -388,6 +421,10 @@ function fallbackCopy(inputElement) {
 }
 
 window.revokeShareLink = async function() {
+  if ((window.isProjectViewer && window.isProjectViewer()) || currentProjectRole === 'viewer') {
+    showToast('View-only access: You cannot revoke public share links.', 'warning');
+    return;
+  }
   if (!confirm('Are you sure you want to disable this public share link? External visitors will immediately lose access.')) return;
 
   const shareInput = document.getElementById('share-url-input');

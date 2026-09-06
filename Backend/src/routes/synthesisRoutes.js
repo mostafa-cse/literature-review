@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db');
+const { getProjectRole } = require('../utils/auth');
 
 // ==========================================
 // KEYWORDS & DASHBOARD TELEMETRY STATS API
@@ -53,6 +54,16 @@ router.post('/keywords', (req, res) => {
     if (!cleanKw) return res.status(400).json({ error: 'keyword cannot be empty' });
 
     const db = getDb();
+    const paper = db.prepare('SELECT project_id FROM papers WHERE id = ?').get(paper_id);
+    if (!paper) return res.status(404).json({ error: 'Paper not found' });
+
+    if (req.user) {
+      const role = getProjectRole(req.user.id, paper.project_id);
+      if (role === 'viewer') {
+        return res.status(403).json({ error: 'Access Denied: Viewers cannot add keywords to papers.' });
+      }
+    }
+
     // Check if duplicate
     const exists = db.prepare('SELECT id FROM keywords WHERE paper_id = ? AND keyword = ?').get(paper_id, cleanKw);
     if (exists) return res.json(exists);
@@ -68,6 +79,22 @@ router.post('/keywords', (req, res) => {
 router.delete('/keywords/:id', (req, res) => {
   try {
     const db = getDb();
+    const kw = db.prepare(`
+      SELECT k.id, k.paper_id, p.project_id 
+      FROM keywords k 
+      JOIN papers p ON p.id = k.paper_id 
+      WHERE k.id = ?
+    `).get(req.params.id);
+
+    if (!kw) return res.status(404).json({ error: 'Keyword not found' });
+
+    if (req.user) {
+      const role = getProjectRole(req.user.id, kw.project_id);
+      if (role === 'viewer') {
+        return res.status(403).json({ error: 'Access Denied: Viewers cannot delete keywords.' });
+      }
+    }
+
     const result = db.prepare('DELETE FROM keywords WHERE id = ?').run(req.params.id);
     if (result.changes === 0) return res.status(404).json({ error: 'Keyword not found' });
     res.json({ success: true, message: 'Keyword deleted' });

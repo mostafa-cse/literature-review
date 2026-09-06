@@ -217,7 +217,7 @@ window.loadProjects = async function () {
     if (curProj) {
       activeProjectId = curProj.id;
       window.activeProjectId = curProj.id;
-      currentProjectRole = (curProj.current_user_role || curProj.user_role || 'owner').toLowerCase();
+      currentProjectRole = (curProj.current_user_role || curProj.user_role || 'viewer').toLowerCase();
       window.currentProjectRole = currentProjectRole;
       if (surveyTitleEl) {
         surveyTitleEl.innerHTML = curProj.name ? `Literature Survey on <span style="color: var(--accent-gold);">${escapeHtml(curProj.name)}</span>` : 'Literature Survey';
@@ -318,7 +318,23 @@ window.applyWorkspaceRolePermissions = function () {
     updateMatrixColumnButtonStates();
   }
 
-  // 6. Team modal invite bar (Owner Only)
+  // 6. Header Action Buttons: Team Collaboration, Share, Settings
+  // Reviewer: Team Collaboration, Share, Settings, and Add Paper are NOT available (hidden)
+  const isReviewer = role === 'reviewer';
+  const btnTeam = document.getElementById('btn-open-team');
+  const btnShare = document.getElementById('btn-share-project');
+  const btnSettings = document.getElementById('btn-open-survey-settings');
+  if (btnTeam) {
+    btnTeam.style.display = isReviewer ? 'none' : 'inline-flex';
+  }
+  if (btnShare) {
+    btnShare.style.display = isReviewer ? 'none' : 'inline-flex';
+  }
+  if (btnSettings) {
+    btnSettings.style.display = isReviewer ? 'none' : 'inline-flex';
+  }
+
+  // 7. Team modal invite bar (Owner Only)
   const addMemberBar = document.getElementById('team-add-member-bar');
   const readOnlyNotice = document.getElementById('team-readonly-notice');
   const currentRoleLabel = document.getElementById('team-current-role-label');
@@ -615,6 +631,9 @@ window.renderKeywordsHub = function () {
     }
   }
 
+  const userRole = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  const canModifyKeywords = userRole === 'owner' || userRole === 'editor' || userRole === 'admin';
+
   if (allUnique.length === 0) {
     container.innerHTML = `
       <div style="font-size: 0.86rem; color: var(--text-tertiary); display: flex; align-items: center; justify-content: center; gap: 0.65rem; padding: 0.75rem 0; width: 100%;">
@@ -623,7 +642,7 @@ window.renderKeywordsHub = function () {
           <line x1="7" y1="7" x2="7.01" y2="7"></line>
         </svg>
         <span>${activeClusterObj ? `No keywords recorded for papers in "${escapeHtml(activeClusterObj.name)}" yet.` : 'No keywords assigned to papers in this workspace yet.'}</span>
-        <button type="button" class="mini-btn gold" onclick="openAddKeywordModal()" style="font-size: 0.76rem; padding: 0.2rem 0.55rem; font-weight: 700;">+ Add First Keyword</button>
+        ${canModifyKeywords ? `<button type="button" class="mini-btn gold" onclick="openAddKeywordModal()" style="font-size: 0.76rem; padding: 0.2rem 0.55rem; font-weight: 700;">+ Add First Keyword</button>` : `<span style="font-size:0.75rem; color:var(--text-tertiary); font-family:var(--font-mono);">[Read-Only]</span>`}
       </div>
     `;
     if (typeof window.updateKeywordsExpandState === 'function') window.updateKeywordsExpandState();
@@ -641,7 +660,7 @@ window.renderKeywordsHub = function () {
       <div style="font-size: 0.84rem; color: var(--text-tertiary); display: flex; align-items: center; justify-content: center; gap: 0.65rem; padding: 0.5rem 0; width: 100%;">
         <span>No keywords matching "<strong>${escapeHtml(window.keywordSearchQuery)}</strong>"</span>
         <button type="button" class="mini-btn" onclick="clearKeywordSearch()" style="font-size: 0.74rem; padding: 0.18rem 0.5rem;">Clear Search</button>
-        <button type="button" class="mini-btn gold" onclick="openAddKeywordModal()" style="font-size: 0.74rem; padding: 0.18rem 0.5rem;">+ Add as Keyword</button>
+        ${canModifyKeywords ? `<button type="button" class="mini-btn gold" onclick="openAddKeywordModal()" style="font-size: 0.74rem; padding: 0.18rem 0.5rem;">+ Add as Keyword</button>` : ''}
       </div>
     `;
     if (typeof window.updateKeywordsExpandState === 'function') window.updateKeywordsExpandState();
@@ -735,6 +754,12 @@ window.toggleDomainFilter = function (domainName) {
 };
 
 window.openAddKeywordModal = function () {
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (['reviewer', 'viewer'].includes(role)) {
+    showToast(`[Read-Only] Role '${role.toUpperCase()}' cannot add keywords.`, 'info');
+    return;
+  }
+
   const modal = document.getElementById('add-keyword-modal-overlay');
   const input = document.getElementById('new-keyword-input');
   const paperSelect = document.getElementById('new-keyword-paper-select');
@@ -758,6 +783,12 @@ window.openAddKeywordModal = function () {
 
 window.submitAddKeyword = async function (e) {
   if (e) e.preventDefault();
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (['reviewer', 'viewer'].includes(role)) {
+    showToast(`[Read-Only] Role '${role.toUpperCase()}' cannot add keywords.`, 'info');
+    return;
+  }
+
   const input = document.getElementById('new-keyword-input');
   const paperSelect = document.getElementById('new-keyword-paper-select');
 
@@ -906,7 +937,7 @@ function renderUnassignedBox() {
 
   if (!section) return;
 
-  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'owner') || 'viewer').toLowerCase();
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
   const isOwnerOrEditor = role === 'owner' || role === 'editor' || role === 'admin';
 
   // Rule: Unassigned Papers Box is visible ONLY to Owner and Editor
@@ -928,7 +959,7 @@ function renderUnassignedBox() {
 }
 
 window.openUnassignedModal = function () {
-  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'owner') || 'viewer').toLowerCase();
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
   if (role !== 'owner' && role !== 'editor' && role !== 'admin') {
     showToast(`Role '${role.toUpperCase()}' cannot access Unassigned Papers.`, 'warning');
     return;

@@ -388,6 +388,94 @@ async function runUserCredentialsTestSuite() {
       assert.ok(res.body.error.includes('Only the project Owner'));
     });
 
+    // 3.4 Editor can add a new paper to the project
+    await test('3.4 Editor can create/ingest a new paper in project', async () => {
+      const res = await makeRequest('POST', '/api/papers', {
+        project_id: testProjectId,
+        cluster_id: testClusterId,
+        title: 'Editor Ingested Paper: Information Theoretic Feature Filtering',
+        authors: 'Editor Author',
+        year: 2024,
+        pub: 'ACM Transactions on Knowledge Discovery',
+        domain: 'Computer Science',
+        doi: '10.1145/3333333.4444444'
+      }, { 'Authorization': `Bearer ${editorToken}` });
+      assert.strictEqual(res.status, 201);
+      assert.ok(res.body.id);
+    });
+
+    // 3.5 Editor can manage taxonomy clusters
+    let editorClusterId = null;
+    await test('3.5 Editor can create taxonomy cluster', async () => {
+      const res = await makeRequest('POST', '/api/clusters', {
+        project_id: testProjectId,
+        name: 'Editor Cluster (Embedded / Hybrid Methods)',
+        description: 'Lasso and Elastic Net regularization',
+        color: '#10b981'
+      }, { 'Authorization': `Bearer ${editorToken}` });
+      assert.strictEqual(res.status, 201);
+      assert.ok(res.body.id);
+      editorClusterId = res.body.id;
+    });
+
+    await test('3.6 Editor can update taxonomy cluster', async () => {
+      const res = await makeRequest('PUT', `/api/clusters/${editorClusterId}`, {
+        name: 'Editor Cluster Updated (Regularized Embeddings)',
+        color: '#059669'
+      }, { 'Authorization': `Bearer ${editorToken}` });
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(res.body.name, 'Editor Cluster Updated (Regularized Embeddings)');
+    });
+
+    await test('3.7 Editor can reorder clusters', async () => {
+      const res = await makeRequest('PUT', '/api/clusters/reorder', {
+        project_id: testProjectId,
+        cluster_ids: [editorClusterId, testClusterId]
+      }, { 'Authorization': `Bearer ${editorToken}` });
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(res.body.success, true);
+    });
+
+    await test('3.8 Editor can delete taxonomy cluster', async () => {
+      const res = await makeRequest('DELETE', `/api/clusters/${editorClusterId}`, null, {
+        'Authorization': `Bearer ${editorToken}`
+      });
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(res.body.success, true);
+    });
+
+    // 3.9 Editor can update survey general settings
+    await test('3.9 Editor can update survey description in general settings', async () => {
+      const res = await makeRequest('PUT', `/api/projects/${testProjectId}`, {
+        description: 'Updated survey description by Editor Co-Author'
+      }, { 'Authorization': `Bearer ${editorToken}` });
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(res.body.description, 'Updated survey description by Editor Co-Author');
+    });
+
+    // 3.10 Editor restrictions on sensitive operations
+    await test('3.10 RBAC Guard: Editor forbidden from transferring ownership (HTTP 403)', async () => {
+      const res = await makeRequest('POST', `/api/projects/${testProjectId}/transfer`, {
+        new_owner_email: 'view_user@mail.com'
+      }, { 'Authorization': `Bearer ${editorToken}` });
+      assert.strictEqual(res.status, 403);
+    });
+
+    await test('3.11 RBAC Guard: Editor forbidden from resetting matrix values (HTTP 403)', async () => {
+      const res = await makeRequest('POST', `/api/projects/${testProjectId}/reset-matrix`, null, {
+        'Authorization': `Bearer ${editorToken}`
+      });
+      assert.strictEqual(res.status, 403);
+    });
+
+    await test('3.12 RBAC Guard: Editor forbidden from inviting members (HTTP 403)', async () => {
+      const res = await makeRequest('POST', `/api/projects/${testProjectId}/members`, {
+        email: 'view_user@mail.com',
+        role: 'editor'
+      }, { 'Authorization': `Bearer ${editorToken}` });
+      assert.strictEqual(res.status, 403);
+    });
+
     // =========================================================================
     // SECTION 4: REVIEWER USER PERMISSIONS & RESTRICTIONS
     // =========================================================================
@@ -482,7 +570,7 @@ async function runUserCredentialsTestSuite() {
       });
       assert.strictEqual(res.status, 200);
       assert.ok(Array.isArray(res.body));
-      assert.strictEqual(res.body.length, 1);
+      assert.strictEqual(res.body.length, 2);
     });
 
     // 5.3 Viewer restriction: Cannot edit cell values

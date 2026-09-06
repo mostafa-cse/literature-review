@@ -147,8 +147,12 @@ router.put('/clusters/:id', authenticateToken, (req, res) => {
       return res.status(403).json({ error: `Access Denied. Role '${role}' cannot edit clusters.` });
     }
 
-    const result = db.prepare('UPDATE clusters SET name = COALESCE(?, name), description = COALESCE(?, description), color = COALESCE(?, color) WHERE id = ?')
-      .run(name, description, color, cid);
+    const cleanName = name !== undefined ? name : existing.name;
+    const cleanDesc = description !== undefined ? description : existing.description;
+    const cleanColor = color !== undefined ? color : existing.color;
+
+    const result = db.prepare('UPDATE clusters SET name = ?, description = ?, color = ? WHERE id = ?')
+      .run(cleanName, cleanDesc, cleanColor, cid);
     if (result.changes === 0) return res.status(404).json({ error: 'Cluster not found' });
     const updated = db.prepare('SELECT * FROM clusters WHERE id = ?').get(cid);
     res.json(updated);
@@ -167,8 +171,8 @@ router.delete('/clusters/:id', authenticateToken, (req, res) => {
     if (!existing) return res.status(404).json({ error: 'Cluster not found' });
 
     const role = getProjectRole(req.user.id, existing.project_id);
-    if (role !== 'owner' && req.user.role !== 'admin') {
-      return res.status(403).json({ error: `Access Denied. Only Project Owner can delete clusters.` });
+    if (!['owner', 'editor'].includes(role) && req.user.role !== 'admin') {
+      return res.status(403).json({ error: `Access Denied. Role '${role}' cannot delete clusters.` });
     }
 
     db.exec('BEGIN TRANSACTION;');

@@ -95,6 +95,8 @@ function initDb() {
       advantages TEXT,
       criticism TEXT,
       future_directions TEXT,
+      screening_decision TEXT,
+      screening_reason TEXT,
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
       FOREIGN KEY (cluster_id) REFERENCES clusters(id) ON DELETE SET NULL
     );
@@ -285,6 +287,12 @@ function initDb() {
     }
     if (!paperCols.some(c => c.name === 'future_directions')) {
       db.exec("ALTER TABLE papers ADD COLUMN future_directions TEXT;");
+    }
+    if (!paperCols.some(c => c.name === 'screening_decision')) {
+      db.exec("ALTER TABLE papers ADD COLUMN screening_decision TEXT;");
+    }
+    if (!paperCols.some(c => c.name === 'screening_reason')) {
+      db.exec("ALTER TABLE papers ADD COLUMN screening_reason TEXT;");
     }
 
     // Automatic Migration: Add domain column if it doesn't exist

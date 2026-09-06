@@ -5,7 +5,7 @@
  */
 
 window.openAddPaperModal = function(tab = 'single') {
-  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'owner') || 'owner').toLowerCase();
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
   if (['reviewer', 'viewer'].includes(role)) {
     showToast(`[Read-Only] Role '${role.toUpperCase()}' cannot add papers. Ingestion requires Owner or Editor role.`, 'warning');
     return;
@@ -455,7 +455,7 @@ window.submitAddPaperForm = async function(e) {
 };
 
 window.submitBulkPdfUpload = async function() {
-  const userRole = (typeof currentProjectRole !== 'undefined' && currentProjectRole) ? currentProjectRole : (window.currentProjectRole || 'owner');
+  const userRole = (typeof currentProjectRole !== 'undefined' && currentProjectRole) ? currentProjectRole : (window.currentProjectRole || 'viewer');
   if (['reviewer', 'viewer'].includes(userRole.toLowerCase())) {
     showToast(`[Read-Only] Role '${userRole.toUpperCase()}' cannot batch upload papers.`, 'warning');
     return;

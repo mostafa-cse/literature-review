@@ -8,7 +8,11 @@ window.currentSettingsTab = 'general';
 
 window.openSurveySettingsModal = async function(initialTab = 'general') {
   const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
-  const role = (window.currentProjectRole || 'owner').toLowerCase();
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (role === 'reviewer') {
+    showToast("[Access Denied] Settings are not available for Reviewers.", 'warning');
+    return;
+  }
   const isOwner = role === 'owner';
   const isEditor = role === 'editor';
   const canModify = isOwner || isEditor;
@@ -106,6 +110,11 @@ window.switchSettingsTab = function(tabName) {
 
 window.saveGeneralSettings = async function(e) {
   if (e) e.preventDefault();
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (['reviewer', 'viewer'].includes(role)) {
+    showToast(`[Read-Only] Role '${role.toUpperCase()}' cannot edit survey details.`, 'info');
+    return;
+  }
   const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
   const nameInput = document.getElementById('setting-survey-name');
   const descInput = document.getElementById('setting-survey-desc');
@@ -177,6 +186,11 @@ window.saveGeneralSettings = async function(e) {
 
 window.transferSurveyOwnership = async function(e) {
   if (e) e.preventDefault();
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (role !== 'owner') {
+    showToast('Only the project owner can transfer survey ownership.', 'warning');
+    return;
+  }
   const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
   const emailInput = document.getElementById('setting-transfer-email');
   const keepEditorCheckbox = document.getElementById('setting-transfer-keep-editor');
@@ -221,6 +235,11 @@ window.transferSurveyOwnership = async function(e) {
 };
 
 window.duplicateCurrentSurvey = async function() {
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (['viewer', 'reviewer'].includes(role)) {
+    showToast('View-only access: You cannot duplicate this survey.', 'warning');
+    return;
+  }
   const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
   const cloneNameInput = document.getElementById('setting-clone-name');
   const includePapersCheckbox = document.getElementById('setting-clone-include-papers');
@@ -251,6 +270,11 @@ window.duplicateCurrentSurvey = async function() {
 };
 
 window.downloadCurrentSurveyBackup = function() {
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (['viewer', 'reviewer'].includes(role)) {
+    showToast('Administrative JSON database backups are restricted. Use the Export button for data inspection & downloads.', 'info');
+    return;
+  }
   const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
   
   // Download via authenticated fetch blob
@@ -276,6 +300,11 @@ window.downloadCurrentSurveyBackup = function() {
 };
 
 window.resetCurrentSurveyMatrix = async function() {
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (role !== 'owner') {
+    showToast('Only the project owner can reset matrix cell values.', 'warning');
+    return;
+  }
   const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
 
   if (!confirm('⚠️ WARNING: This will permanently wipe all extracted cell values and notes across all papers in this survey, and reset reading statuses to unread.\n\nPapers and taxonomy columns will NOT be deleted.\n\nDo you wish to proceed?')) {
@@ -306,6 +335,11 @@ window.resetCurrentSurveyMatrix = async function() {
 };
 
 window.deleteCurrentSurveyFromSettings = async function() {
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (role !== 'owner') {
+    showToast('Only the project owner can delete this survey.', 'warning');
+    return;
+  }
   const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
   const confirmInput = document.getElementById('setting-delete-confirm-input');
   const targetNameEl = document.getElementById('setting-delete-target-name');

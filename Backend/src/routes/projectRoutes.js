@@ -422,12 +422,6 @@ router.post('/projects/:id/transfer', authenticateToken, (req, res) => {
   try {
     const db = getDb();
     const pid = req.params.id;
-    const { target_email, keep_as_editor = true } = req.body;
-
-    if (!target_email || !target_email.trim()) {
-      return res.status(400).json({ error: 'Recipient user email is required for ownership transfer.' });
-    }
-
     const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(pid);
     if (!project) return res.status(404).json({ error: 'Project not found' });
 
@@ -436,7 +430,14 @@ router.post('/projects/:id/transfer', authenticateToken, (req, res) => {
       return res.status(403).json({ error: `Access Denied. Only the project Owner can transfer ownership (Your role: ${role}).` });
     }
 
-    const cleanEmail = target_email.trim().toLowerCase();
+    const { target_email, new_owner_email, keep_as_editor = true } = req.body;
+    const recipientEmail = (target_email || new_owner_email || '').trim();
+
+    if (!recipientEmail) {
+      return res.status(400).json({ error: 'Recipient user email is required for ownership transfer.' });
+    }
+
+    const cleanEmail = recipientEmail.toLowerCase();
     const targetUser = db.prepare('SELECT id, name, email FROM users WHERE email = ?').get(cleanEmail);
     if (!targetUser) {
       return res.status(404).json({ error: `User with email "${cleanEmail}" does not exist on LitSphere. They must register first.` });

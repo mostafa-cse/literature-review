@@ -17,10 +17,29 @@ window.currentStatus = 'all';
 window.searchQuery = '';
 window.activePaper = null;
 window.paperKeywords = [];
-window.currentProjectRole = 'owner';
+window.currentProjectRole = 'viewer';
 window.currentScreeningVote = null;
 window.currentAttachedQuote = null;
 window.currentPaperComments = [];
+
+// Centralized role helper utilities
+window.getEffectiveProjectRole = function() {
+  return (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+};
+window.isProjectOwner = function() {
+  return window.getEffectiveProjectRole() === 'owner';
+};
+window.isProjectEditorOrOwner = function() {
+  const r = window.getEffectiveProjectRole();
+  return r === 'owner' || r === 'editor' || r === 'admin';
+};
+window.isProjectReadOnly = function() {
+  const r = window.getEffectiveProjectRole();
+  return r === 'viewer' || r === 'reviewer';
+};
+window.isProjectViewer = function() {
+  return window.getEffectiveProjectRole() === 'viewer';
+};
 
 // PDF Viewer State
 window.currentPdfDoc = null;

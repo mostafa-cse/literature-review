@@ -20,6 +20,7 @@
   let currentProjectId = 1;
   let currentPaperId = null;
   let activePaper = null;
+  let currentUserRole = 'viewer';
   let allClusters = [];
   let paperKeywords = [];
   let paperColumnsList = [];
@@ -27,6 +28,19 @@
   let activePrismaVote = 'included';
   let activePrismaReason = '';
   let autoSaveTimer = null;
+
+  // Role Permissions Helpers
+  function isViewerRole() { return (currentUserRole || 'viewer').toLowerCase() === 'viewer'; }
+  function isReviewerRole() { return (currentUserRole || 'viewer').toLowerCase() === 'reviewer'; }
+  function isEditorOrOwnerRole() {
+    const r = (currentUserRole || 'viewer').toLowerCase();
+    return r === 'owner' || r === 'editor' || r === 'admin';
+  }
+  function canEditPaperData() { return isEditorOrOwnerRole(); }
+  function canScreenPaperData() {
+    const r = (currentUserRole || 'viewer').toLowerCase();
+    return r === 'owner' || r === 'editor' || r === 'reviewer' || r === 'admin';
+  }
 
   // Central Dynamic Component State
   const componentState = {
@@ -85,7 +99,7 @@
   }
 
   const SVG_MOON = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
-  const SVG_SUN  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+  const SVG_SUN  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="21" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
   const SVG_SAVE_ICON = `<svg class="save-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`;
 
   function applyTheme(theme) {
@@ -107,6 +121,11 @@
     const dot   = document.getElementById('header-save-dot');
     const label = document.getElementById('header-save-label');
     if (!dot || !label) return;
+    if (isViewerRole()) {
+      dot.className = 'save-dot readonly';
+      label.textContent = 'Read-Only (Viewer)';
+      return;
+    }
     dot.className = `save-dot ${status}`;
     label.textContent = status === 'saving' ? 'Saving…' : status === 'error' ? 'Save error' : 'All saved';
   };
@@ -166,6 +185,21 @@
         }
       } catch (e) {
         console.warn('Notice: Error fetching project info', e);
+      }
+
+      // 3.5 Fetch Effective User Project Role
+      try {
+        const roleRes = await fetch(`/api/projects/${currentProjectId}/my-role`, {
+          headers: getAuthHeaders()
+        });
+        if (roleRes.ok) {
+          const roleData = await roleRes.json();
+          if (roleData && roleData.role) {
+            currentUserRole = roleData.role.toLowerCase();
+          }
+        }
+      } catch (e) {
+        console.warn('Notice: Error fetching user project role in review', e);
       }
 
       // 4. Fetch Dynamic Columns for this survey and this paper's cluster
@@ -392,9 +426,125 @@
       detailedInput.value = p.gaps || p.intuition || '';
     }
 
+    // Apply granular role permissions to lock down UI for Viewers / Reviewers
+    applyReviewRolePermissions();
+
     // Load PDF preview & Highlights
     loadPdfPreview(p.pdf_url || (p.doi ? `https://doi.org/${p.doi}` : null));
     loadPaperHighlights(p.id);
+  }
+
+  function applyReviewRolePermissions() {
+    const isViewer = isViewerRole();
+    const isReviewer = isReviewerRole();
+    const canModify = canEditPaperData();
+
+    // 1. Header Save Indicator & Role Badge
+    const dot = document.getElementById('header-save-dot');
+    const label = document.getElementById('header-save-label');
+    if (isViewer) {
+      if (dot) {
+        dot.className = 'save-dot readonly';
+        dot.title = 'Project Role: Viewer (Read-Only)';
+      }
+      if (label) {
+        label.textContent = 'Read-Only (Viewer)';
+        label.title = 'You have read-only inspection access to this survey.';
+      }
+    } else if (isReviewer) {
+      if (dot) {
+        dot.className = 'save-dot saved';
+        dot.title = 'Project Role: Reviewer (PRISMA Screening & Notes)';
+      }
+      if (label) {
+        label.textContent = 'Reviewer Mode';
+        label.title = 'You can submit PRISMA screening decisions and comments.';
+      }
+    } else {
+      if (dot) {
+        dot.className = 'save-dot saved';
+        dot.title = `Project Role: ${(currentUserRole || 'Editor').toUpperCase()} • Full Editing & Auto-Save Active`;
+      }
+      if (label) {
+        label.textContent = `${(currentUserRole || 'Editor').toUpperCase()} • Auto-Save Active`;
+        label.title = `${(currentUserRole || 'Editor').toUpperCase()}: All changes are auto-saved in real-time.`;
+      }
+    }
+
+    // 2. Header Action Buttons (Delete Paper)
+    const headerDelBtn = document.getElementById('btn-delete-paper-header');
+    if (headerDelBtn) {
+      headerDelBtn.style.display = canModify ? 'inline-flex' : 'none';
+    }
+
+    // 3. DOI Search / Auto-fill Bar
+    const doiWrap = document.getElementById('doi-search-bar-wrap');
+    if (doiWrap) {
+      doiWrap.style.display = canModify ? 'flex' : 'none';
+    }
+
+    // 4. Section Save Buttons
+    const saveBtns = document.querySelectorAll('.section-save-btn, #btn-save-cluster');
+    saveBtns.forEach(btn => {
+      btn.style.display = canModify ? 'inline-flex' : 'none';
+    });
+
+    // 5. Column Action Buttons (Split / Add new)
+    const colBtnGroup = document.querySelector('#section-columns .btn-group');
+    if (colBtnGroup) {
+      colBtnGroup.style.display = canModify ? 'flex' : 'none';
+    }
+
+    // 6. Detailed Summary Textarea
+    const summaryInput = document.getElementById('detailed-summary-input');
+    if (summaryInput) {
+      if (isViewer || isReviewer) {
+        summaryInput.readOnly = true;
+        summaryInput.classList.add('read-only-box');
+      } else {
+        summaryInput.readOnly = false;
+        summaryInput.classList.remove('read-only-box');
+      }
+    }
+
+    // 7. Danger Zone Section
+    const dangerSec = document.getElementById('section-danger-zone');
+    if (dangerSec) {
+      dangerSec.style.display = canModify ? 'block' : 'none';
+    }
+
+    // 8. PDF Placeholder Upload Button
+    const pdfPlaceholder = document.getElementById('pdf-placeholder-area');
+    if (pdfPlaceholder) {
+      const uploadBtn = pdfPlaceholder.querySelector('button[onclick*="pdf-upload-input"]');
+      if (uploadBtn) {
+        uploadBtn.style.display = canModify ? 'inline-flex' : 'none';
+      }
+    }
+
+    // 9. PRISMA UI States
+    const incBox = document.getElementById('prisma-include');
+    const excBox = document.getElementById('prisma-exclude');
+    const uncBox = document.getElementById('prisma-uncertain');
+    const reasonSel = document.getElementById('prisma-reason-select');
+    const statusBox = document.getElementById('auto-save-status-box');
+
+    if (isViewer) {
+      if (incBox) { incBox.style.cursor = 'default'; incBox.style.pointerEvents = 'none'; }
+      if (excBox) { excBox.style.cursor = 'default'; excBox.style.pointerEvents = 'none'; }
+      if (uncBox) { uncBox.style.cursor = 'default'; uncBox.style.pointerEvents = 'none'; }
+      if (reasonSel) { reasonSel.disabled = true; }
+      if (statusBox) {
+        statusBox.className = 'solid-box short-box';
+        statusBox.textContent = 'Read-Only';
+        statusBox.title = 'Viewers cannot modify screening decisions';
+      }
+    } else {
+      if (incBox) { incBox.style.cursor = 'pointer'; incBox.style.pointerEvents = 'auto'; }
+      if (excBox) { excBox.style.cursor = 'pointer'; excBox.style.pointerEvents = 'auto'; }
+      if (uncBox) { uncBox.style.cursor = 'pointer'; uncBox.style.pointerEvents = 'auto'; }
+      if (reasonSel) { reasonSel.disabled = false; }
+    }
   }
 
   function updateUnassignedSectionVisibility() {
@@ -427,7 +577,8 @@
     const domainName = (activePaper.domain || '').trim();
     const hasKeywords = Array.isArray(paperKeywords) && paperKeywords.length > 0;
 
-    let html = '';
+    const role = (currentUserRole || 'viewer').toLowerCase();
+    let html = `<span class="role-badge-pill role-${role}" style="font-size:0.72rem; padding:0.15rem 0.55rem; font-weight:700; letter-spacing:0.04em; border-radius:4px; display:inline-flex; align-items:center;" title="Your Project Role: ${role.toUpperCase()}">${role.toUpperCase()}</span>`;
     if (clusterName) {
       html += `<span class="meta-chip chip-cluster" title="Taxonomy Cluster: ${clusterName}"><span class="chip-icon">🔬</span><span class="chip-label">${clusterName}</span></span>`;
     }
@@ -540,8 +691,8 @@
       loadPdfPreview(`https://doi.org/${activePaper.doi}`);
     }
 
-    // Auto-update reading status to 'in_progress' in database if currently unread
-    if (activePaper.status !== 'in_progress' && activePaper.status !== 'reviewed') {
+    // Auto-update reading status to 'in_progress' in database if currently unread and user has edit permissions
+    if (canEditPaperData() && activePaper.status !== 'in_progress' && activePaper.status !== 'reviewed') {
       try {
         activePaper.status = 'in_progress';
         await fetch(`/api/papers/${activePaper.id}`, {
@@ -617,6 +768,14 @@
     const saveBtn = document.getElementById('btn-save-cluster');
     if (!statusEl) return;
 
+    if (!canEditPaperData()) {
+      if (saveBtn) saveBtn.style.display = 'none';
+      const assignedCluster = allClusters.find(c => String(c.id) === String(activePaper ? activePaper.cluster_id : null));
+      statusEl.className = 'cluster-transfer-status';
+      statusEl.textContent = assignedCluster ? `Cluster: "${assignedCluster.name}" (Read-Only)` : 'Cluster: Unassigned (Read-Only)';
+      return;
+    }
+
     const isTransferAllowed = activePrismaVote === 'included';
 
     if (!isTransferAllowed) {
@@ -666,10 +825,10 @@
     if (!container) return;
     container.innerHTML = '';
 
-    const isTransferAllowed = activePrismaVote === 'included';
+    const isTransferAllowed = canEditPaperData() && activePrismaVote === 'included';
 
-    // If transfer not allowed (excluded or uncertain), render a clear status notice
-    if (!isTransferAllowed) {
+    // If transfer not allowed (excluded or uncertain), render a clear status notice (only for editors/reviewers)
+    if (canEditPaperData() && !isTransferAllowed) {
       const lockNotice = document.createElement('div');
       lockNotice.className = 'prisma-transfer-locked-notice';
       lockNotice.style.cssText = 'padding: 0.65rem 0.85rem; background: rgba(239, 68, 68, 0.08); border: 1px dashed rgba(239, 68, 68, 0.35); border-radius: 8px; color: #f87171; font-size: 0.82rem; margin-bottom: 0.75rem; width: 100%; grid-column: 1 / -1; display: flex; align-items: center; gap: 0.5rem;';
@@ -688,38 +847,46 @@
     } else if (selectedId !== undefined && isTransferAllowed) {
       stagedClusterId = selectedId;
     } else if (!isTransferAllowed) {
-      stagedClusterId = null;
+      stagedClusterId = activePaper ? activePaper.cluster_id : null;
     }
 
     // Only render existed clusters that actually belong to this survey/project
     const list = Array.isArray(allClusters) ? allClusters : [];
 
     list.forEach(cl => {
-      const isSelected = isTransferAllowed && String(cl.id) === String(stagedClusterId);
+      const isSelected = String(cl.id) === String(activePaper ? activePaper.cluster_id : stagedClusterId);
       const item = document.createElement('div');
-      item.className = `grid-item ${isSelected ? 'selected' : ''} ${!isTransferAllowed ? 'disabled-locked' : ''}`;
+      item.className = `grid-item ${isSelected ? 'selected' : ''} ${!canEditPaperData() ? 'read-only-item' : (!isTransferAllowed ? 'disabled-locked' : '')}`;
       item.textContent = cl.name;
-      item.title = isTransferAllowed ? `Click to assign cluster: ${cl.name}` : `Transfer disabled while paper is ${activePrismaVote}`;
-      
-      if (!isTransferAllowed) {
-        item.style.opacity = '0.45';
-        item.style.cursor = 'not-allowed';
-      }
 
-      item.onclick = () => {
+      if (!canEditPaperData()) {
+        item.title = `Cluster: ${cl.name} (Read-Only)`;
+        item.onclick = () => {
+          showToast('View-only access: You cannot reassign clusters.', 'info');
+        };
+      } else {
+        item.title = isTransferAllowed ? `Click to assign cluster: ${cl.name}` : `Transfer disabled while paper is ${activePrismaVote}`;
+        
         if (!isTransferAllowed) {
-          showToast(`Cannot assign cluster while paper is ${activePrismaVote === 'excluded' ? 'Excluded' : 'Uncertain'}. Select 'Include' first to transfer.`, 'warning');
-          return;
+          item.style.opacity = '0.45';
+          item.style.cursor = 'not-allowed';
         }
-        // Toggle selection
-        if (String(stagedClusterId) === String(cl.id)) {
-          stagedClusterId = null; // unassign
-        } else {
-          stagedClusterId = cl.id;
-        }
-        renderClustersGrid(stagedClusterId);
-        updateClusterTransferStatus();
-      };
+
+        item.onclick = () => {
+          if (!isTransferAllowed) {
+            showToast(`Cannot assign cluster while paper is ${activePrismaVote === 'excluded' ? 'Excluded' : 'Uncertain'}. Select 'Include' first to transfer.`, 'warning');
+            return;
+          }
+          // Toggle selection
+          if (String(stagedClusterId) === String(cl.id)) {
+            stagedClusterId = null; // unassign
+          } else {
+            stagedClusterId = cl.id;
+          }
+          renderClustersGrid(stagedClusterId);
+          updateClusterTransferStatus();
+        };
+      }
       container.appendChild(item);
     });
 
@@ -766,6 +933,10 @@
   }
 
   window.saveClusterTransfer = async function () {
+    if (!canEditPaperData()) {
+      showToast('View-only access: You cannot transfer clusters.', 'warning');
+      return;
+    }
     if (!activePaper) return;
     if (activePrismaVote !== 'included') {
       showToast(`Cannot transfer to cluster while paper is ${activePrismaVote === 'excluded' ? 'Excluded' : 'Uncertain'}. Mark as 'Include' first.`, 'warning');
@@ -877,6 +1048,10 @@
   };
 
   async function createNewCluster(name) {
+    if (!canEditPaperData()) {
+      showToast('View-only access: You cannot create clusters.', 'warning');
+      return;
+    }
     if (!name || !name.trim()) return;
     const cleanName = name.trim();
     try {
@@ -1010,62 +1185,71 @@
       if (!dom) return;
       const isSelected = currentDomain && String(dom).toLowerCase() === String(currentDomain).toLowerCase();
       const item = document.createElement('div');
-      item.className = `grid-item ${isSelected ? 'selected' : ''}`;
+      item.className = `grid-item ${isSelected ? 'selected' : ''} ${!canEditPaperData() ? 'read-only-item' : ''}`;
       item.textContent = dom;
-      item.title = `Select domain: ${dom}`;
-      item.onclick = () => {
-        if (!activePaper) return;
-        activePaper.domain = dom;
-        renderDomainsGrid(dom);
-        updateHeaderSubtitle();
-        triggerAutoSave(true);
-      };
+      if (!canEditPaperData()) {
+        item.title = `Domain: ${dom} (Read-Only)`;
+        item.onclick = () => {
+          showToast('View-only access: You cannot change domains.', 'info');
+        };
+      } else {
+        item.title = `Select domain: ${dom}`;
+        item.onclick = () => {
+          if (!activePaper) return;
+          activePaper.domain = dom;
+          renderDomainsGrid(dom);
+          updateHeaderSubtitle();
+          triggerAutoSave(true);
+        };
+      }
       container.appendChild(item);
     });
 
-    // Inline "+ add new"
-    const addBtn = document.createElement('div');
-    addBtn.className = 'grid-item add-new-btn';
-    addBtn.innerHTML = '<a href="#" style="color: #38bdf8; text-decoration: none;">+ add new</a>';
-    addBtn.onclick = (e) => {
-      e.preventDefault();
-      addBtn.innerHTML = '<input type="text" class="inline-add-input" placeholder="+ Domain..." autoFocus>';
-      const input = addBtn.querySelector('input');
-      input.focus();
-      let committed = false;
+    if (canEditPaperData()) {
+      // Inline "+ add new"
+      const addBtn = document.createElement('div');
+      addBtn.className = 'grid-item add-new-btn';
+      addBtn.innerHTML = '<a href="#" style="color: #38bdf8; text-decoration: none;">+ add new</a>';
+      addBtn.onclick = (e) => {
+        e.preventDefault();
+        addBtn.innerHTML = '<input type="text" class="inline-add-input" placeholder="+ Domain..." autoFocus>';
+        const input = addBtn.querySelector('input');
+        input.focus();
+        let committed = false;
 
-      const commitValue = () => {
-        if (committed) return;
-        committed = true;
-        const val = (input.value || '').trim();
-        if (val) {
-          if (!componentState.domains.includes(val)) {
-            componentState.domains.push(val);
-          }
-          if (activePaper) activePaper.domain = val;
-          renderDomainsGrid(val);
-          updateHeaderSubtitle();
-          triggerAutoSave(true);
-          showToast(`+ Added domain: "${val}"`);
-        } else {
-          renderDomainsGrid(activePaper ? activePaper.domain : '');
-        }
-      };
-
-      input.onkeydown = (ev) => {
-        if (ev.key === 'Enter') {
-          ev.preventDefault();
-          commitValue();
-        } else if (ev.key === 'Escape') {
+        const commitValue = () => {
+          if (committed) return;
           committed = true;
-          renderDomainsGrid(activePaper ? activePaper.domain : '');
-        }
+          const val = (input.value || '').trim();
+          if (val) {
+            if (!componentState.domains.includes(val)) {
+              componentState.domains.push(val);
+            }
+            if (activePaper) activePaper.domain = val;
+            renderDomainsGrid(val);
+            updateHeaderSubtitle();
+            triggerAutoSave(true);
+            showToast(`+ Added domain: "${val}"`);
+          } else {
+            renderDomainsGrid(activePaper ? activePaper.domain : '');
+          }
+        };
+
+        input.onkeydown = (ev) => {
+          if (ev.key === 'Enter') {
+            ev.preventDefault();
+            commitValue();
+          } else if (ev.key === 'Escape') {
+            committed = true;
+            renderDomainsGrid(activePaper ? activePaper.domain : '');
+          }
+        };
+        input.onblur = () => {
+          commitValue();
+        };
       };
-      input.onblur = () => {
-        commitValue();
-      };
-    };
-    container.appendChild(addBtn);
+      container.appendChild(addBtn);
+    }
   }
 
   /* ────────────────────────────────────────────────────────────────
@@ -1166,67 +1350,77 @@
     filteredList.forEach(kw => {
       const isSelected = currentList.includes(kw);
       const item = document.createElement('div');
-      item.className = `grid-item ${isSelected ? 'selected' : ''}`;
+      item.className = `grid-item ${isSelected ? 'selected' : ''} ${!canEditPaperData() ? 'read-only-item' : ''}`;
       item.textContent = kw;
-      item.title = isSelected ? `Remove keyword: ${kw}` : `Add keyword: ${kw}`;
-      item.onclick = () => {
-        if (paperKeywords.includes(kw)) {
-          paperKeywords = paperKeywords.filter(k => k !== kw);
-        } else {
-          paperKeywords.push(kw);
-        }
-        renderKeywordsGrid(paperKeywords);
-        updateHeaderSubtitle();
-        triggerAutoSave(true);
-      };
-      container.appendChild(item);
-    });
 
-    // Inline "+ add new"
-    const addBtn = document.createElement('div');
-    addBtn.className = 'grid-item add-new-btn';
-    addBtn.innerHTML = '<a href="#" style="color: #38bdf8; text-decoration: none;">+ add new</a>';
-    addBtn.onclick = (e) => {
-      e.preventDefault();
-      addBtn.innerHTML = '<input type="text" class="inline-add-input" placeholder="+ keyword..." autoFocus>';
-      const input = addBtn.querySelector('input');
-      input.focus();
-      let committed = false;
-
-      const commitValue = () => {
-        if (committed) return;
-        committed = true;
-        const raw = (input.value || '').trim().replace(/^#/, '');
-        if (raw) {
-          if (!componentState.keywords.includes(raw)) {
-            componentState.keywords.push(raw);
-          }
-          if (!paperKeywords.includes(raw)) {
-            paperKeywords.push(raw);
+      if (!canEditPaperData()) {
+        item.title = `Keyword: #${kw} (Read-Only)`;
+        item.onclick = () => {
+          showToast('View-only access: You cannot modify keywords.', 'info');
+        };
+      } else {
+        item.title = isSelected ? `Remove keyword: ${kw}` : `Add keyword: ${kw}`;
+        item.onclick = () => {
+          if (paperKeywords.includes(kw)) {
+            paperKeywords = paperKeywords.filter(k => k !== kw);
+          } else {
+            paperKeywords.push(kw);
           }
           renderKeywordsGrid(paperKeywords);
           updateHeaderSubtitle();
           triggerAutoSave(true);
-          showToast(`+ Added keyword: "#${raw}"`);
-        } else {
-          renderKeywordsGrid(paperKeywords);
-        }
-      };
+        };
+      }
+      container.appendChild(item);
+    });
 
-      input.onkeydown = (ev) => {
-        if (ev.key === 'Enter') {
-          ev.preventDefault();
-          commitValue();
-        } else if (ev.key === 'Escape') {
+    if (canEditPaperData()) {
+      // Inline "+ add new"
+      const addBtn = document.createElement('div');
+      addBtn.className = 'grid-item add-new-btn';
+      addBtn.innerHTML = '<a href="#" style="color: #38bdf8; text-decoration: none;">+ add new</a>';
+      addBtn.onclick = (e) => {
+        e.preventDefault();
+        addBtn.innerHTML = '<input type="text" class="inline-add-input" placeholder="+ keyword..." autoFocus>';
+        const input = addBtn.querySelector('input');
+        input.focus();
+        let committed = false;
+
+        const commitValue = () => {
+          if (committed) return;
           committed = true;
-          renderKeywordsGrid(paperKeywords);
-        }
+          const raw = (input.value || '').trim().replace(/^#/, '');
+          if (raw) {
+            if (!componentState.keywords.includes(raw)) {
+              componentState.keywords.push(raw);
+            }
+            if (!paperKeywords.includes(raw)) {
+              paperKeywords.push(raw);
+            }
+            renderKeywordsGrid(paperKeywords);
+            updateHeaderSubtitle();
+            triggerAutoSave(true);
+            showToast(`+ Added keyword: "#${raw}"`);
+          } else {
+            renderKeywordsGrid(paperKeywords);
+          }
+        };
+
+        input.onkeydown = (ev) => {
+          if (ev.key === 'Enter') {
+            ev.preventDefault();
+            commitValue();
+          } else if (ev.key === 'Escape') {
+            committed = true;
+            renderKeywordsGrid(paperKeywords);
+          }
+        };
+        input.onblur = () => {
+          commitValue();
+        };
       };
-      input.onblur = () => {
-        commitValue();
-      };
-    };
-    container.appendChild(addBtn);
+      container.appendChild(addBtn);
+    }
   }
 
   /* ────────────────────────────────────────────────────────────────
@@ -1361,11 +1555,11 @@
       box.setAttribute('data-col-idx', originalIdx);
       box.innerHTML = `
         <div class="dashed-col1-wrapper">
-          <input type="text" class="dashed-col1" value="${esc(colItem.key)}" placeholder="Column name" title="Click to rename column: ${esc(colItem.key)}">
-          <span class="col-rename-icon" title="Edit column name">✎</span>
+          <input type="text" class="dashed-col1 ${!canEditPaperData() ? 'read-only-box' : ''}" value="${esc(colItem.key)}" placeholder="Column name" title="${canEditPaperData() ? `Click to rename column: ${esc(colItem.key)}` : `Column: ${esc(colItem.key)} (Read-Only)`}" ${!canEditPaperData() ? 'readonly' : ''}>
+          <span class="col-rename-icon" title="Edit column name" style="${!canEditPaperData() ? 'display:none;' : ''}">✎</span>
         </div>
-        <input type="text" class="dashed-col2" value="${esc(colItem.value)}" placeholder="Extracted value or notes...">
-        <button type="button" class="dashed-col-del-btn" title="Delete column '${esc(colItem.key)}'" onclick="handleDeleteColumn(${originalIdx})">
+        <input type="text" class="dashed-col2 ${!canEditPaperData() ? 'read-only-box' : ''}" value="${esc(colItem.value)}" placeholder="${canEditPaperData() ? 'Extracted value or notes...' : 'No value'}" ${!canEditPaperData() ? 'readonly' : ''}>
+        <button type="button" class="dashed-col-del-btn" title="Delete column '${esc(colItem.key)}'" onclick="handleDeleteColumn(${originalIdx})" style="${!canEditPaperData() ? 'display:none;' : ''}">
           ✕
         </button>
       `;
@@ -1373,48 +1567,54 @@
       const inputCol1 = box.querySelector('.dashed-col1');
       const inputCol2 = box.querySelector('.dashed-col2');
 
-      inputCol1.oninput = (e) => {
-        const newKey = e.target.value;
-        const oldKey = paperColumnsList[originalIdx].key;
-        paperColumnsList[originalIdx].key = newKey;
-        delete componentState.columns[oldKey];
-        componentState.columns[newKey] = paperColumnsList[originalIdx].value;
-        triggerAutoSave(false);
-      };
+      if (canEditPaperData()) {
+        inputCol1.oninput = (e) => {
+          const newKey = e.target.value;
+          const oldKey = paperColumnsList[originalIdx].key;
+          paperColumnsList[originalIdx].key = newKey;
+          delete componentState.columns[oldKey];
+          componentState.columns[newKey] = paperColumnsList[originalIdx].value;
+          triggerAutoSave(false);
+        };
 
-      inputCol1.onblur = async (e) => {
-        const newKey = (e.target.value || '').trim();
-        const origKey = paperColumnsList[originalIdx].original_key;
-        if (!newKey) {
-          e.target.value = origKey;
-          paperColumnsList[originalIdx].key = origKey;
-          componentState.columns[origKey] = paperColumnsList[originalIdx].value;
-          showToast('Column name cannot be empty');
-          return;
-        }
-        if (newKey !== origKey) {
-          await renameColumnDirect(origKey, newKey, paperColumnsList[originalIdx].id, originalIdx);
-        }
-      };
+        inputCol1.onblur = async (e) => {
+          const newKey = (e.target.value || '').trim();
+          const origKey = paperColumnsList[originalIdx].original_key;
+          if (!newKey) {
+            e.target.value = origKey;
+            paperColumnsList[originalIdx].key = origKey;
+            componentState.columns[origKey] = paperColumnsList[originalIdx].value;
+            showToast('Column name cannot be empty');
+            return;
+          }
+          if (newKey !== origKey) {
+            await renameColumnDirect(origKey, newKey, paperColumnsList[originalIdx].id, originalIdx);
+          }
+        };
 
-      inputCol1.onkeydown = (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          inputCol1.blur();
-        }
-      };
+        inputCol1.onkeydown = (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            inputCol1.blur();
+          }
+        };
 
-      inputCol2.oninput = (e) => {
-        paperColumnsList[originalIdx].value = e.target.value;
-        componentState.columns[paperColumnsList[originalIdx].key] = e.target.value;
-        triggerAutoSave(false);
-      };
+        inputCol2.oninput = (e) => {
+          paperColumnsList[originalIdx].value = e.target.value;
+          componentState.columns[paperColumnsList[originalIdx].key] = e.target.value;
+          triggerAutoSave(false);
+        };
+      }
 
       container.appendChild(box);
     });
   }
 
   window.renameColumnDirect = async function (oldKey, newKey, colId, originalIdx) {
+    if (!canEditPaperData()) {
+      showToast('View-only access: You cannot rename columns.', 'warning');
+      return;
+    }
     if (!oldKey || !newKey || oldKey === newKey) return;
     try {
       const payload = {
@@ -1484,6 +1684,10 @@
   };
 
   window.handleDeleteColumn = async function (originalIdx) {
+    if (!canEditPaperData()) {
+      showToast('View-only access: You cannot delete columns.', 'warning');
+      return;
+    }
     const colItem = paperColumnsList[originalIdx];
     if (!colItem || !colItem.key) return;
 
@@ -1544,6 +1748,10 @@
   };
 
   window.handleSplitColumn = async function () {
+    if (!canEditPaperData()) {
+      showToast('View-only access: You cannot split columns.', 'warning');
+      return;
+    }
     const nextIdx = paperColumnsList.length + 1;
     const parentName = `Feature_${nextIdx}`;
     const splitKey1 = `Feature_${nextIdx}(TC)`;
@@ -1597,6 +1805,10 @@
   };
 
   window.handleAddColumn = async function () {
+    if (!canEditPaperData()) {
+      showToast('View-only access: You cannot add columns.', 'warning');
+      return;
+    }
     const nextIdx = paperColumnsList.length + 1;
     const newKey = `Feature_${nextIdx}`;
 
@@ -1676,6 +1888,10 @@
      6. PRISMA SCREENING & QUALITY APPRAISAL (MUTUALLY EXCLUSIVE)
   ──────────────────────────────────────────────────────────────── */
   window.setPrismaVote = function (vote) {
+    if (isViewerRole()) {
+      showToast('View-only access: You cannot modify screening decisions.', 'warning');
+      return;
+    }
     activePrismaVote = vote;
     if (activePaper) {
       activePaper.screening_decision = vote;
@@ -1699,6 +1915,10 @@
   };
 
   window.handleReasonChange = function (val) {
+    if (isViewerRole()) {
+      showToast('View-only access: You cannot modify screening reason.', 'warning');
+      return;
+    }
     activePrismaReason = val;
     if (activePaper) {
       activePaper.screening_reason = val;
@@ -1728,6 +1948,7 @@
      7. DETAILED SUMMARY
   ──────────────────────────────────────────────────────────────── */
   window.handleDetailedSummaryChange = function (val) {
+    if (!canEditPaperData()) return;
     if (activePaper) {
       activePaper.gaps = val;
     }
@@ -1738,6 +1959,10 @@
      8. SECTION DIRECT SAVE HANDLER & BACKGROUND AUTO-SAVE ENGINE
   ──────────────────────────────────────────────────────────────── */
   window.saveSectionDirect = async function (sectionType, btn) {
+    if (!canEditPaperData()) {
+      showToast('View-only access: Changes cannot be saved.', 'warning');
+      return;
+    }
     if (btn) {
       btn.disabled = true;
       btn.innerHTML = '<span class="save-spinner"></span> Saving...';
@@ -1765,6 +1990,7 @@
   };
 
   window.triggerAutoSave = function (immediate) {
+    if (!canEditPaperData()) return;
     if (immediate) {
       if (autoSaveTimer) clearTimeout(autoSaveTimer);
       executeAutoSave();
@@ -1778,6 +2004,7 @@
   };
 
   async function executeAutoSave() {
+    if (!canEditPaperData()) return;
     if (!activePaper || !activePaper.id) return;
     updateStatusBadge('saving');
 
@@ -1785,6 +2012,8 @@
     const updatedTitle = titleEl ? titleEl.textContent.trim() : (activePaper.title || '');
 
     const detailedSummaryEl = document.getElementById('detailed-summary-input');
+    const detailedSummaryVal = detailedSummaryEl ? detailedSummaryEl.value : (activePaper.gaps || '');
+
     // Sync any pending renamed columns to dynamic_columns definition
     if (Array.isArray(paperColumnsList)) {
       for (const col of paperColumnsList) {
@@ -1946,6 +2175,10 @@
      9. DOI AUTO-FETCH HANDLER & ASYNC SIMULATION
   ──────────────────────────────────────────────────────────────── */
   window.handleDoiFetch = async function () {
+    if (!canEditPaperData()) {
+      showToast('View-only access: You cannot fetch DOI metadata.', 'warning');
+      return;
+    }
     const doiInput = document.getElementById('doi-input-field');
     const fetchBtn = document.getElementById('btn-fetch-doi');
     if (!doiInput || !doiInput.value.trim()) {
@@ -2478,6 +2711,10 @@
   };
 
   window.applyHighlightFromToolbar = async function (color, label) {
+    if (isViewerRole()) {
+      showToast('View-only access: Highlighting is disabled in viewer mode.', 'info');
+      return;
+    }
     if (!activeSelectionData || !activeSelectionData.text) {
       handlePdfSelectionEnd({ target: document.getElementById('pdf-page-container') });
     }
@@ -2539,6 +2776,10 @@
   };
 
   window.addSelectionToDetailedSummary = function () {
+    if (!canEditPaperData()) {
+      showToast('View-only access: Cannot modify detailed summary.', 'warning');
+      return;
+    }
     if (!activeSelectionData || !activeSelectionData.text) return;
     const summaryInput = document.getElementById('detailed-summary-input');
     if (summaryInput) {
@@ -2567,6 +2808,11 @@
     if (pageEl) pageEl.textContent = `Page ${hl.page_number}`;
     if (quoteEl) quoteEl.textContent = hl.selected_text || '';
 
+    const swatchPicker = popover.querySelector('.popover-swatch-picker');
+    const deleteBtn = popover.querySelector('.popover-btn.danger');
+    if (swatchPicker) swatchPicker.style.display = isViewerRole() ? 'none' : 'block';
+    if (deleteBtn) deleteBtn.style.display = isViewerRole() ? 'none' : 'inline-block';
+
     popover.style.display = 'block';
     const popX = Math.max(10, Math.min(window.innerWidth - 280, clientX - 130));
     const popY = Math.max(10, clientY - 140);
@@ -2575,6 +2821,10 @@
   }
 
   window.updateActiveHighlightColor = async function (newColor, newLabel) {
+    if (isViewerRole()) {
+      showToast('View-only access: Cannot change highlight color.', 'info');
+      return;
+    }
     if (!activeClickedHighlight) return;
     activeClickedHighlight.color = newColor;
     activeClickedHighlight.color_label = newLabel;
@@ -2621,6 +2871,10 @@
   };
 
   window.deleteActiveHighlight = async function () {
+    if (isViewerRole()) {
+      showToast('View-only access: Cannot delete highlight.', 'info');
+      return;
+    }
     if (!activeClickedHighlight) return;
     const hlId = activeClickedHighlight.id;
     paperHighlights = paperHighlights.filter(h => h.id !== hlId);
@@ -2654,6 +2908,10 @@
 
   // --- TOOLBAR CONTROLS ---
   window.toggleHighlightMode = function () {
+    if (isViewerRole()) {
+      showToast('View-only access: Marker tool is disabled.', 'info');
+      return;
+    }
     isHighlightModeActive = !isHighlightModeActive;
     const btn = document.getElementById('btn-highlight-mode-toggle');
     if (btn) {
@@ -2663,6 +2921,7 @@
   };
 
   window.toggleColorPickerMenu = function () {
+    if (isViewerRole()) return;
     const menu = document.getElementById('pdf-color-picker-menu');
     if (menu) {
       menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
@@ -2718,6 +2977,7 @@
       const label = hl.color_label || 'Key Point';
       const page = hl.page_number || 1;
       const quote = esc(hl.selected_text || '');
+      const deleteBtnHtml = isViewerRole() ? '' : `<button type="button" class="hl-action-mini-btn danger" onclick="deleteHighlightFromList('${hl.id}', event)" title="Delete highlight">Delete</button>`;
       return `
         <div class="highlight-card" style="--hl-color:${color};" onclick="jumpToHighlightPage(${page}, '${hl.id}')">
           <div class="highlight-card-header">
@@ -2727,7 +2987,7 @@
           <div class="highlight-card-quote">"${quote}"</div>
           <div class="highlight-card-actions" onclick="event.stopPropagation();">
             <button type="button" class="hl-action-mini-btn" onclick="copyHighlightQuoteFromList('${encodeURIComponent(hl.selected_text || '')}', event)" title="Copy excerpt">Copy</button>
-            <button type="button" class="hl-action-mini-btn danger" onclick="deleteHighlightFromList('${hl.id}', event)" title="Delete highlight">Delete</button>
+            ${deleteBtnHtml}
           </div>
         </div>
       `;
@@ -2770,6 +3030,10 @@
   };
 
   window.deleteHighlightFromList = async function (hlId, e) {
+    if (isViewerRole()) {
+      showToast('View-only access: Cannot delete highlight.', 'info');
+      return;
+    }
     if (e) e.stopPropagation();
     paperHighlights = paperHighlights.filter(h => String(h.id) !== String(hlId));
 
@@ -2865,6 +3129,10 @@
   };
 
   window.handleDirectPdfUpload = async function (input) {
+    if (!canEditPaperData()) {
+      showToast('View-only access: Cannot upload PDF manuscript.', 'warning');
+      return;
+    }
     if (!input.files || input.files.length === 0 || !activePaper) return;
     const file = input.files[0];
     const formData = new FormData();
@@ -2922,6 +3190,10 @@
      13. DELETE / REMOVE ACTIVE PAPER FROM SURVEY (MODAL ENGINE)
   ──────────────────────────────────────────────────────────────── */
   window.openDeleteModal = function () {
+    if (!canEditPaperData()) {
+      showToast('View-only access: You cannot delete papers.', 'warning');
+      return;
+    }
     const urlParams = new URLSearchParams(window.location.search);
     const paperIdFromUrl = parseInt(urlParams.get('paper') || urlParams.get('paperId') || '0', 10);
     const paperIdToDelete = currentPaperId || paperIdFromUrl || (activePaper && activePaper.id);
@@ -2953,10 +3225,19 @@
   };
 
   window.handleDeletePaper = function () {
+    if (!canEditPaperData()) {
+      showToast('View-only access: You cannot delete papers.', 'warning');
+      return;
+    }
     window.openDeleteModal();
   };
 
   window.executePaperDelete = async function () {
+    if (!canEditPaperData()) {
+      showToast('View-only access: You cannot delete papers.', 'warning');
+      window.closeDeleteModal();
+      return;
+    }
     const urlParams = new URLSearchParams(window.location.search);
     const paperIdFromUrl = parseInt(urlParams.get('paper') || urlParams.get('paperId') || '0', 10);
     const projectIdFromUrl = parseInt(urlParams.get('project') || urlParams.get('projectId') || '1', 10);

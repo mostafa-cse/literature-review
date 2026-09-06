@@ -961,24 +961,6 @@
           </button>
         </div>
 
-        <!-- Single Google SSO Button -->
-        <div class="sso-btn-wrap">
-          <button type="button" class="btn-sso-pill" id="btn-google-sso" onclick="handleGoogleAuthTrigger()">
-            <svg width="20" height="20" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
-              <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"/>
-              <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
-              <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.93 6.72-4.93z"/>
-            </svg>
-            <span id="google-btn-text">Continue with Google</span>
-          </button>
-        </div>
-
-        <!-- Overleaf-Style OR Divider -->
-        <div class="auth-divider">
-          <span>OR WITH CREDENTIALS</span>
-        </div>
-
         <!-- Error Banner -->
         <div class="auth-error-banner" id="auth-error-msg"></div>
 
@@ -1097,55 +1079,7 @@
   <!-- Commercial Enterprise & Academic Platform Footer (Auto-rendered by /js/core/footer.js) -->
   <footer id="site-footer"></footer>
 
-  <!-- GOOGLE OAUTH POPUP / PROMPT MODAL -->
-  <div class="modal-overlay" id="google-auth-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(5, 8, 16, 0.82); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); z-index: 10000; align-items: center; justify-content: center; padding: 1.5rem;" onclick="closeGoogleModal()">
-    <div class="modal-box" style="background: linear-gradient(180deg, #131926 0%, #0d121f 100%); border: 1.5px solid rgba(212, 175, 55, 0.4); border-radius: 16px; max-width: 460px; width: 100%; padding: 2.25rem 2rem; box-shadow: 0 25px 60px rgba(0,0,0,0.8), 0 0 35px rgba(212, 175, 55, 0.15); text-align: center; position: relative; animation: modalFade 0.25s cubic-bezier(0.16, 1, 0.3, 1);" onclick="event.stopPropagation()">
-      <button style="position: absolute; top: 1.1rem; right: 1.1rem; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; width: 32px; height: 32px; font-size: 1rem; color: var(--text-secondary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s ease;" onclick="closeGoogleModal()" title="Close Modal">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-      </button>
 
-      <div style="width: 54px; height: 54px; border-radius: 14px; background: #ffffff; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.15rem; box-shadow: 0 4px 18px rgba(0,0,0,0.3);">
-        <svg width="30" height="30" viewBox="0 0 24 24">
-          <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
-          <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"/>
-          <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
-          <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.93 6.72-4.93z"/>
-        </svg>
-      </div>
-
-      <h3 style="font-size: 1.35rem; font-family: 'Outfit', 'Inter', sans-serif; font-weight: 700; color: #d4af37; margin-bottom: 0.35rem;">Sign In with Google</h3>
-      <p style="font-size: 0.86rem; color: var(--text-secondary); margin-bottom: 1.15rem; line-height: 1.5;">Choose a quick profile or enter your Google credentials to authenticate automatically.</p>
-
-      <!-- Quick Tester Profile Chips -->
-      <div style="text-align: left; margin-bottom: 0.75rem;">
-        <span style="font-size: 0.72rem; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; color: var(--text-tertiary); font-weight: 700;">Quick Select Profile:</span>
-        <div class="sso-quick-chips-wrap">
-          <button type="button" class="sso-quick-chip" onclick="fillGoogleProfile('Alex Scholar', 'scholar@gmail.com')">👤 Alex Scholar (scholar@gmail.com)</button>
-          <button type="button" class="sso-quick-chip" onclick="fillGoogleProfile('Mostafa Kamal', 'mostafa.kamal@gmail.com')">👤 Mostafa (mostafa.kamal@gmail.com)</button>
-          <button type="button" class="sso-quick-chip" onclick="fillGoogleProfile('Dr. Research Lead', 'lead.researcher@gmail.com')">👤 Dr. Research Lead</button>
-        </div>
-      </div>
-
-      <form id="google-sso-form" onsubmit="submitGoogleAuth(event)">
-        <div class="form-group" style="text-align: left; margin-bottom: 0.95rem;">
-          <label class="form-label" for="google-name" style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary);">Full Name</label>
-          <input type="text" class="form-control" id="google-name" required placeholder="e.g. Mostafa Kamal" autocomplete="name" style="padding-left: 1rem; border-radius: 8px; background: rgba(15, 23, 42, 0.6); border: 1.5px solid rgba(255, 255, 255, 0.12); color: var(--text-primary);">
-        </div>
-
-        <div class="form-group" style="text-align: left; margin-bottom: 1.25rem;">
-          <label class="form-label" for="google-email" style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary);">Google / Gmail Address</label>
-          <input type="email" class="form-control" id="google-email" required placeholder="scholar@gmail.com" autocomplete="email" style="padding-left: 1rem; border-radius: 8px; background: rgba(15, 23, 42, 0.6); border: 1.5px solid rgba(255, 255, 255, 0.12); color: var(--text-primary);">
-        </div>
-
-        <div id="google-error-msg" style="color: var(--accent-rose); font-size: 0.84rem; margin-bottom: 0.85rem; display: none;"></div>
-
-        <button type="submit" class="auth-submit-btn-glow" id="btn-google-submit">
-          <span>Authorize Google Session</span>
-          <span>→</span>
-        </button>
-      </form>
-    </div>
-  </div>
 
   <!-- FORGOT PASSWORD / PASSWORD RESET MODAL -->
   <div class="modal-overlay" id="forgot-password-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(5, 8, 16, 0.85); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); z-index: 10000; align-items: center; justify-content: center; padding: 1.5rem;" onclick="closeForgotPasswordModal()">
@@ -1816,113 +1750,7 @@
       }
     }
 
-    // Google Single Sign-On Logic
-    function handleGoogleAuthTrigger() {
-      console.group('🔥 [Google Authentication]');
-      console.log('1. User clicked Continue with Google / Sign up with Google');
-      console.log('2. Opening Google Profile Authorization Portal...');
-      console.groupEnd();
-      openGoogleModal();
-    }
 
-    function openGoogleModal(optionalMsg) {
-      const modal = document.getElementById('google-auth-modal');
-      if (modal) {
-        modal.style.display = 'flex';
-        const errEl = document.getElementById('google-error-msg');
-        if (errEl) {
-          if (optionalMsg) {
-            errEl.textContent = optionalMsg;
-            errEl.style.display = 'block';
-          } else {
-            errEl.style.display = 'none';
-          }
-        }
-        const mainInput = document.getElementById('auth-identifier') || document.getElementById('reg-email');
-        if (mainInput && mainInput.value.includes('@')) {
-          document.getElementById('google-email').value = mainInput.value.trim();
-          if (!document.getElementById('google-name').value) {
-            document.getElementById('google-name').value = mainInput.value.split('@')[0];
-          }
-        }
-        document.getElementById('google-email').focus();
-      }
-    }
-
-    function fillGoogleProfile(name, email) {
-      document.getElementById('google-name').value = name;
-      document.getElementById('google-email').value = email;
-      console.log(`[Google SSO] Profile selected: ${name} (${email})`);
-    }
-
-    function closeGoogleModal() {
-      const modal = document.getElementById('google-auth-modal');
-      if (modal) modal.style.display = 'none';
-      const errEl = document.getElementById('google-error-msg');
-      if (errEl) errEl.style.display = 'none';
-    }
-
-    async function submitGoogleAuth(e) {
-      e.preventDefault();
-      const name = document.getElementById('google-name').value.trim();
-      const email = document.getElementById('google-email').value.trim();
-      const errEl = document.getElementById('google-error-msg');
-      const submitBtn = document.getElementById('btn-google-submit');
-
-      errEl.style.display = 'none';
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span>Authorizing Session...</span>';
-
-      console.group('🔥 [Google Authentication Request]');
-      console.log('1. Target Email:', email);
-      console.log('2. Target Display Name:', name);
-      console.log('3. Submitting POST /api/auth/google');
-
-      try {
-        const res = await fetch('/api/auth/google', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email })
-        });
-
-        const data = await res.json();
-        console.log('4. Server HTTP Status:', res.status, res.statusText);
-
-        if (!res.ok) {
-          throw new Error(data.error || 'Google authentication failed.');
-        }
-
-        console.log('5. Application JWT Token:', data.token ? `${data.token.slice(0, 16)}...` : 'N/A');
-        console.log('6. Authenticated User Profile:');
-        console.table(data.user);
-        console.groupEnd();
-
-        localStorage.setItem('litsphere_auth_token', data.token);
-        localStorage.setItem('litsphere_user', JSON.stringify(data.user));
-        const _wKey = 'litsphere_welcome_dismissed_' + data.token.slice(-12);
-        localStorage.removeItem(_wKey);
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const redirectUrl = urlParams.get('redirect');
-
-        if (data.is_new_user) {
-          window.location.href = '/profile?notice=welcome_google' + (redirectUrl ? '&redirect=' + encodeURIComponent(redirectUrl) : '');
-        } else if (redirectUrl && (redirectUrl.startsWith('/dashboard') || redirectUrl.startsWith('/workspace') || redirectUrl.startsWith('/profile') || redirectUrl.startsWith('/admin'))) {
-          window.location.href = redirectUrl;
-        } else if (data.user && data.user.role === 'admin') {
-          window.location.href = '/admin';
-        } else {
-          window.location.href = '/dashboard';
-        }
-      } catch (err) {
-        console.error('❌ [Google Authentication Error]:', err.message);
-        console.groupEnd();
-        errEl.textContent = err.message;
-        errEl.style.display = 'block';
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<span>Authorize Google Session</span> <span>→</span>';
-      }
-    }
 
 
 
@@ -2349,11 +2177,6 @@
       const urlParams = new URLSearchParams(window.location.search);
       const mode = urlParams.get('mode') || (window.location.pathname.includes('register') || window.location.pathname.includes('signup') ? 'register' : 'login');
       setAuthMode(mode);
-
-      const provider = urlParams.get('provider');
-      if (provider === 'google') {
-        setTimeout(handleGoogleAuthTrigger, 300);
-      }
 
       if (urlParams.get('action') === 'forgot-password' || urlParams.get('reset') === 'true') {
         setTimeout(openForgotPasswordModal, 300);

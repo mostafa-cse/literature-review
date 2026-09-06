@@ -548,8 +548,9 @@ window.openRenameColumnModal = function(key, event) {
   }
   if (typeof closeAllColumnMenus === 'function') closeAllColumnMenus();
 
-  if (typeof currentProjectRole !== 'undefined' && ['reviewer', 'viewer'].includes(currentProjectRole)) {
-    showToast(`[Read-Only] Role '${currentProjectRole.toUpperCase()}' cannot rename columns.`, 'info');
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (['reviewer', 'viewer'].includes(role)) {
+    showToast(`[Read-Only] Role '${role.toUpperCase()}' cannot rename columns.`, 'info');
     return;
   }
 
@@ -720,8 +721,9 @@ window.openDeleteColumnModal = function(key, event) {
   }
   if (typeof closeAllColumnMenus === 'function') closeAllColumnMenus();
 
-  if (typeof currentProjectRole !== 'undefined' && ['reviewer', 'viewer'].includes(currentProjectRole)) {
-    showToast(`[Read-Only] Role '${currentProjectRole.toUpperCase()}' cannot delete columns.`, 'info');
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (['reviewer', 'viewer'].includes(role)) {
+    showToast(`[Read-Only] Role '${role.toUpperCase()}' cannot delete columns.`, 'info');
     return;
   }
 
@@ -1385,22 +1387,22 @@ window.renderMasterMatrix = function(papers) {
       th.style.maxWidth = isKwCol ? '240px' : (isDomCol ? '240px' : COL_FIXED_W);
     }
 
-    th.style.overflow = 'visible';
-    th.ondragstart = (e) => window.handleColDragStart(e, col.key);
-    th.ondragover = (e) => window.handleColDragOver(e);
-    th.ondragenter = (e) => window.handleColDragEnter(e, th);
-    th.ondragleave = (e) => window.handleColDragLeave(e, th);
-    th.ondrop = (e) => window.handleColDrop(e, col.key);
-    th.ondragend = (e) => window.handleColDragEnd(e);
+    const currentRole = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+    const canModifyMatrix = ['owner', 'editor'].includes(currentRole);
 
-    th.innerHTML = `
-      <div class="col-header-inner">
-        <span class="col-drag-handle" title="Drag to change column position"><svg width="10" height="14" viewBox="0 0 10 16" fill="currentColor"><circle cx="3" cy="3" r="1.5"/><circle cx="7" cy="3" r="1.5"/><circle cx="3" cy="8" r="1.5"/><circle cx="7" cy="8" r="1.5"/><circle cx="3" cy="13" r="1.5"/><circle cx="7" cy="13" r="1.5"/></svg></span>
-        <span class="col-title-text" draggable="false" onmousedown="event.stopPropagation()" title="${escapeHtml(col.name)} (Click to extend • Double-click to collapse)" onclick="window.handleColHeaderClick('${escapeHtml(col.key)}', event)" ondblclick="window.handleColHeaderDblClick('${escapeHtml(col.key)}', event)">${escapeHtml(col.name)}</span>
-        ${subBadgeHtml}
-        <button type="button" class="col-expand-toggle-btn" draggable="false" onmousedown="event.stopPropagation()" onclick="window.toggleColExpand('${escapeHtml(col.key)}', this, event)" title="Expand column to show full text" aria-label="Expand column">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
-        </button>
+    th.style.overflow = 'visible';
+    if (canModifyMatrix) {
+      th.ondragstart = (e) => window.handleColDragStart(e, col.key);
+      th.ondragover = (e) => window.handleColDragOver(e);
+      th.ondragenter = (e) => window.handleColDragEnter(e, th);
+      th.ondragleave = (e) => window.handleColDragLeave(e, th);
+      th.ondrop = (e) => window.handleColDrop(e, col.key);
+      th.ondragend = (e) => window.handleColDragEnd(e);
+    }
+
+    const dragHandleHtml = canModifyMatrix ? `<span class="col-drag-handle" title="Drag to change column position"><svg width="10" height="14" viewBox="0 0 10 16" fill="currentColor"><circle cx="3" cy="3" r="1.5"/><circle cx="7" cy="3" r="1.5"/><circle cx="3" cy="8" r="1.5"/><circle cx="7" cy="8" r="1.5"/><circle cx="3" cy="13" r="1.5"/><circle cx="7" cy="13" r="1.5"/></svg></span>` : '';
+
+    const colMenuHtml = canModifyMatrix ? `
         <div class="col-menu-dropdown-wrapper" draggable="false" onmousedown="event.stopPropagation()">
           <button class="col-menu-btn" draggable="false" onmousedown="event.stopPropagation()" data-col-key="${escapeHtml(col.key)}" onclick="window.toggleColMenu(this.getAttribute('data-col-key'), event)" title="Column Settings"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></button>
           <div class="col-dropdown-menu" id="col-menu-${escapeHtml(col.key)}" draggable="false" onclick="event.stopPropagation()">
@@ -1444,14 +1446,25 @@ window.renderMasterMatrix = function(papers) {
             </button>
           </div>
         </div>
+    ` : '';
+
+    th.innerHTML = `
+      <div class="col-header-inner">
+        ${dragHandleHtml}
+        <span class="col-title-text" draggable="false" onmousedown="event.stopPropagation()" title="${escapeHtml(col.name)} (Click to extend • Double-click to collapse)" onclick="window.handleColHeaderClick('${escapeHtml(col.key)}', event)" ondblclick="window.handleColHeaderDblClick('${escapeHtml(col.key)}', event)">${escapeHtml(col.name)}</span>
+        ${subBadgeHtml}
+        <button type="button" class="col-expand-toggle-btn" draggable="false" onmousedown="event.stopPropagation()" onclick="window.toggleColExpand('${escapeHtml(col.key)}', this, event)" title="Expand column to show full text" aria-label="Expand column">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+        </button>
+        ${colMenuHtml}
       </div>
     `;
     trHead.appendChild(th);
   });
 
-  // If there are no customizable dynamic columns defined in this matrix, append a clean + Add Column helper header
+  // If there are no customizable dynamic columns defined in this matrix, append a clean + Add Column helper header (Owner & Editor only)
   const hasDynCols = orderedCols.some(c => c.isDynamic);
-  if (!hasDynCols) {
+  if (!hasDynCols && canModifyMatrix) {
     const thAdd = document.createElement('th');
     thAdd.className = 'th-add-col-placeholder';
     thAdd.rowSpan = hasAnySplitCol ? 2 : 1;
@@ -1782,8 +1795,9 @@ window.parseSplitData = function(raw) {
 
 window.makeCellEditable = function(cell, fieldType, paperId, isMultiline = true, columnId = null, columnName = null) {
   cell.addEventListener('dblclick', (e) => {
-    if (typeof currentProjectRole !== 'undefined' && ['reviewer', 'viewer'].includes(currentProjectRole)) {
-      showToast(`[Read-Only] Role '${currentProjectRole.toUpperCase()}' cannot edit table data.`, 'info');
+    const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+    if (['reviewer', 'viewer'].includes(role)) {
+      showToast(`[Read-Only] Role '${role.toUpperCase()}' cannot edit table data.`, 'info');
       return;
     }
     if (cell.classList.contains('editing')) return;
@@ -2141,7 +2155,8 @@ function formatCellContent(val, fieldType, paperId = null) {
   const clickHandler = (isTitle && paperId) ? `onclick="window.handlePaperTitleClick(${paperId}, event)" title="Click to open paper in split-screen review"` : '';
   
   if (isTitle && paperId) {
-    const isRestrictedRole = (typeof currentProjectRole !== 'undefined' && ['reviewer', 'viewer'].includes(currentProjectRole));
+    const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+    const isRestrictedRole = ['reviewer', 'viewer'].includes(role);
     const delBtnHtml = !isRestrictedRole ? `
       <button
         type="button"
@@ -2210,8 +2225,9 @@ window.deletePaper = async function(paperId, event) {
     event.stopPropagation();
     event.preventDefault();
   }
-  if (typeof currentProjectRole !== 'undefined' && ['reviewer', 'viewer'].includes(currentProjectRole)) {
-    showToast(`[Read-Only] Role '${currentProjectRole.toUpperCase()}' cannot delete papers.`, 'info');
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (['reviewer', 'viewer'].includes(role)) {
+    showToast(`[Read-Only] Role '${role.toUpperCase()}' cannot delete papers.`, 'info');
     return;
   }
 
@@ -2252,8 +2268,9 @@ function restoreCellDisplay(cell, fieldType, val) {
 
 window.cyclePaperStatus = async function(paperId, currentStat, event) {
   if (event) event.stopPropagation();
-  if (typeof currentProjectRole !== 'undefined' && ['reviewer', 'viewer'].includes(currentProjectRole)) {
-    showToast(`[Read-Only] Role '${currentProjectRole.toUpperCase()}' cannot modify paper status.`, 'info');
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (['reviewer', 'viewer'].includes(role)) {
+    showToast(`[Read-Only] Role '${role.toUpperCase()}' cannot modify paper status.`, 'info');
     return;
   }
 

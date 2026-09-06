@@ -510,8 +510,9 @@ window.populateClusterDropdowns = function () {
 };
 
 window.openCreateClusterModal = function () {
-  if (['reviewer', 'viewer'].includes(currentProjectRole)) {
-    showToast(`[Read-Only] Role '${currentProjectRole.toUpperCase()}' cannot create clusters.`, 'info');
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (['reviewer', 'viewer'].includes(role)) {
+    showToast(`[Read-Only] Role '${role.toUpperCase()}' cannot create clusters.`, 'info');
     return;
   }
   const titleEl = document.getElementById('cluster-modal-title');
@@ -533,8 +534,9 @@ window.openCreateClusterModal = function () {
 };
 
 window.editCluster = function (id) {
-  if (['reviewer', 'viewer'].includes(currentProjectRole)) {
-    showToast(`[Read-Only] Role '${currentProjectRole.toUpperCase()}' cannot edit clusters.`, 'info');
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (['reviewer', 'viewer'].includes(role)) {
+    showToast(`[Read-Only] Role '${role.toUpperCase()}' cannot edit clusters.`, 'info');
     return;
   }
   const c = allClusters.find(item => item.id === id);
@@ -616,7 +618,7 @@ window.submitClusterForm = async function (e) {
 };
 
 window.deleteCluster = async function (id, skipConfirm = false) {
-  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'owner') || 'viewer').toLowerCase();
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
   if (['reviewer', 'viewer'].includes(role)) {
     showToast(`[Read-Only] Role '${role.toUpperCase()}' cannot delete clusters.`, 'info');
     return;
@@ -781,7 +783,7 @@ window.openClusterSettingsMasterModal = function (clusterId, initialTab = 'edit'
   if (deleteNameBadge) deleteNameBadge.textContent = c.name;
 
   // Role checks for editing and deleting
-  const role = (window.currentProjectRole || 'owner').toLowerCase();
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
   const isReadOnly = ['reviewer', 'viewer'].includes(role);
   if (nameInput) nameInput.disabled = isReadOnly;
   if (descInput) descInput.disabled = isReadOnly;
@@ -827,8 +829,9 @@ window.setClusterSettingsColor = function (hex) {
 
 window.submitClusterSettingsForm = async function (e) {
   if (e) e.preventDefault();
-  if (['reviewer', 'viewer'].includes(currentProjectRole)) {
-    showToast(`[Read-Only] Role '${currentProjectRole.toUpperCase()}' cannot edit clusters.`, 'info');
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (['reviewer', 'viewer'].includes(role)) {
+    showToast(`[Read-Only] Role '${role.toUpperCase()}' cannot edit clusters.`, 'info');
     return;
   }
 
