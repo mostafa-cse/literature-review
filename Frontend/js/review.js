@@ -430,7 +430,7 @@
     applyReviewRolePermissions();
 
     // Load PDF preview & Highlights
-    loadPdfPreview(p.pdf_url || (p.doi ? `https://doi.org/${p.doi}` : null));
+    loadPdfPreview(p.pdf_url);
     loadPaperHighlights(p.id);
   }
 
@@ -2448,9 +2448,25 @@
     const viewport = document.getElementById('pdf-viewport');
     const toolbar = document.getElementById('pdf-toolbar');
 
-    if (!pdfUrl) {
+    // Only attempt in-browser PDF rendering if this is an actual PDF document
+    const isPdf = typeof pdfUrl === 'string' && (
+      pdfUrl.toLowerCase().includes('.pdf') ||
+      pdfUrl.startsWith('/uploads/') ||
+      pdfUrl.includes('/storage/v1/object/public/') ||
+      pdfUrl.startsWith('blob:') ||
+      pdfUrl.startsWith('data:application/pdf')
+    );
+
+    if (!isPdf) {
       hidePdfLoader();
-      if (placeholder) placeholder.style.display = 'flex';
+      if (placeholder) {
+        placeholder.style.display = 'flex';
+        const sub = document.getElementById('pdf-status-subtext');
+        if (sub) {
+          const docId = (activePaper && (activePaper.doi || activePaper.title)) ? (activePaper.doi || activePaper.title) : 'External Manuscript';
+          sub.textContent = `External manuscript linked (${docId}). Click "Open Source ↗" or upload a PDF manuscript above.`;
+        }
+      }
       if (viewport) viewport.style.display = 'none';
       if (toolbar) toolbar.style.display = 'none';
       return;
@@ -2469,10 +2485,35 @@
       return;
     }
 
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    // Firefox cross-origin Web Worker fix: create same-origin Blob Worker wrapper
+    try {
+      if (!window._pdfWorkerBlobUrl) {
+        const workerBlob = new Blob(
+          [`importScripts('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js');`],
+          { type: 'application/javascript' }
+        );
+        window._pdfWorkerBlobUrl = URL.createObjectURL(workerBlob);
+      }
+      pdfjsLib.GlobalWorkerOptions.workerSrc = window._pdfWorkerBlobUrl;
+    } catch (_) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
     if (pdfjsLib.VerbosityLevel) {
       pdfjsLib.GlobalWorkerOptions.verbosity = pdfjsLib.VerbosityLevel.ERRORS;
     }
+
+    let isDone = false;
+    const safetyTimer = setTimeout(() => {
+      if (!isDone) {
+        hidePdfLoader();
+        if (!currentPdfDoc && placeholder) {
+          placeholder.style.display = 'flex';
+          if (viewport) viewport.style.display = 'none';
+          if (toolbar) toolbar.style.display = 'none';
+        }
+      }
+    }, 8500);
 
     const loadingTask = pdfjsLib.getDocument({
       url: fullPdfUrl,
@@ -2495,6 +2536,8 @@
     };
 
     loadingTask.promise.then(pdf => {
+      isDone = true;
+      clearTimeout(safetyTimer);
       currentPdfDoc = pdf;
       pdfTotalPages = pdf.numPages;
       pdfCurrentPageNum = 1;
@@ -2508,6 +2551,8 @@
 
       renderPdfPage(pdfCurrentPageNum);
     }).catch(err => {
+      isDone = true;
+      clearTimeout(safetyTimer);
       console.warn('PDF load notice:', err.message);
       hidePdfLoader();
       if (placeholder) {

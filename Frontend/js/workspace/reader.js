@@ -41,7 +41,25 @@
     const projectId = (typeof activeProjectId !== 'undefined' && activeProjectId)
       ? activeProjectId
       : (window.currentProjectId || (new URLSearchParams(window.location.search)).get('project') || 1);
-    window.open(`/review?project=${projectId}&paper=${paperId}`, '_blank');
+    const url = `/review?project=${projectId}&paper=${paperId}`;
+    
+    let win = null;
+    try {
+      win = window.open(url, '_blank');
+    } catch (_) {}
+
+    // Firefox pop-up blocker fallback: synthetic anchor click
+    if (!win || win.closed || typeof win.closed === 'undefined') {
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (a.parentNode) a.parentNode.removeChild(a);
+      }, 100);
+    }
   };
 
   window.openReader = window.openReaderModal;
@@ -799,7 +817,20 @@
       return;
     }
 
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    // Firefox cross-origin Web Worker fix: create same-origin Blob Worker wrapper
+    try {
+      if (!window._pdfWorkerBlobUrl) {
+        const workerBlob = new Blob(
+          [`importScripts('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js');`],
+          { type: 'application/javascript' }
+        );
+        window._pdfWorkerBlobUrl = URL.createObjectURL(workerBlob);
+      }
+      pdfjsLib.GlobalWorkerOptions.workerSrc = window._pdfWorkerBlobUrl;
+    } catch (_) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
     if (pdfjsLib.VerbosityLevel) {
       pdfjsLib.GlobalWorkerOptions.verbosity = pdfjsLib.VerbosityLevel.ERRORS;
     }

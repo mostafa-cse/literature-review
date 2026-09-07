@@ -2220,8 +2220,25 @@ window.handlePaperTitleClick = function(paperId, event) {
     ? activeProjectId
     : (window.activeProjectId || (new URLSearchParams(window.location.search)).get('project') || 1);
   
-  // Directly open the split-screen Review Page for this paper
-  window.open(`/review?project=${pid}&paper=${paperId}`, '_blank');
+  const url = `/review?project=${pid}&paper=${paperId}`;
+
+  let win = null;
+  try {
+    win = window.open(url, '_blank');
+  } catch (_) {}
+
+  // Firefox pop-up blocker fallback: synthetic anchor click
+  if (!win || win.closed || typeof win.closed === 'undefined') {
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      if (a.parentNode) a.parentNode.removeChild(a);
+    }, 100);
+  }
 };
 
 window.deletePaper = async function(paperId, event) {
