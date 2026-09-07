@@ -70,6 +70,10 @@
      1. INITIALIZATION & DATA LOADING
   ──────────────────────────────────────────────────────────────── */
   window.addEventListener('DOMContentLoaded', async () => {
+    // Show active web loader immediately with file size telemetry
+    showPdfLoader('Opening Manuscript...', 'Connecting to repository & preparing high-resolution layout...', false);
+    updatePdfLoaderTelemetry(0, 0, 0, null);
+
     const urlParams = new URLSearchParams(window.location.search);
     currentProjectId = parseInt(urlParams.get('project') || urlParams.get('projectId') || '1', 10);
     currentPaperId = parseInt(urlParams.get('paper') || urlParams.get('paperId') || urlParams.get('id') || '0', 10);
@@ -2373,6 +2377,60 @@
   /* ────────────────────────────────────────────────────────────────
      11. PDF.js EMBEDDED VIEWER, TEXT SELECTION & MULTI-COLOR HIGHLIGHTS
   ──────────────────────────────────────────────────────────────── */
+  function formatBytes(bytes) {
+    if (!bytes || isNaN(bytes) || bytes <= 0) return '0 KB';
+    const k = 1024;
+    if (bytes < k) return `${bytes} B`;
+    if (bytes < k * k) return `${(bytes / k).toFixed(1)} KB`;
+    return `${(bytes / (k * k)).toFixed(2)} MB`;
+  }
+
+  function updatePdfLoaderTelemetry(speedBps, loadedBytes, totalBytes, etaSec) {
+    const telemetry = document.getElementById('pdf-loader-telemetry');
+    const speedEl = document.getElementById('pdf-loader-speed');
+    const bytesEl = document.getElementById('pdf-loader-bytes');
+    const etaEl = document.getElementById('pdf-loader-eta');
+    const pillLabel = document.getElementById('pdf-loader-filesize-label');
+
+    if (telemetry) telemetry.style.display = 'flex';
+
+    if (speedEl) {
+      if (speedBps && speedBps > 0) {
+        speedEl.textContent = `⚡ ${formatBytes(speedBps)}/s`;
+      } else {
+        speedEl.textContent = '⚡ Connecting...';
+      }
+    }
+
+    if (bytesEl) {
+      if (totalBytes && totalBytes > 0) {
+        bytesEl.textContent = `${formatBytes(loadedBytes)} / ${formatBytes(totalBytes)}`;
+      } else if (loadedBytes && loadedBytes > 0) {
+        bytesEl.textContent = `${formatBytes(loadedBytes)} loaded`;
+      } else {
+        bytesEl.textContent = '0.0 MB / -- MB';
+      }
+    }
+
+    if (etaEl) {
+      if (etaSec !== null && etaSec !== undefined && !isNaN(etaSec)) {
+        etaEl.textContent = `⏱ ETA: ${etaSec}s`;
+      } else {
+        etaEl.textContent = '⏱ ETA: --';
+      }
+    }
+
+    if (pillLabel) {
+      if (totalBytes && totalBytes > 0) {
+        pillLabel.textContent = `File size: ${formatBytes(loadedBytes)} of ${formatBytes(totalBytes)}`;
+      } else if (loadedBytes && loadedBytes > 0) {
+        pillLabel.textContent = `File size: ${formatBytes(loadedBytes)} loaded`;
+      } else {
+        pillLabel.textContent = 'File size: Resolving stream...';
+      }
+    }
+  }
+
   function showPdfLoader(title = 'Opening Manuscript...', subtitle = 'Streaming PDF & preparing high-resolution layout', isUploading = false) {
     const overlay = document.getElementById('pdf-loader');
     const titleEl = document.getElementById('pdf-loader-title');
@@ -2380,14 +2438,14 @@
     const bar = document.getElementById('pdf-loader-bar');
     const pct = document.getElementById('pdf-loader-pct');
     const telemetry = document.getElementById('pdf-loader-telemetry');
+    const pillLabel = document.getElementById('pdf-loader-filesize-label');
 
     if (titleEl) titleEl.textContent = title;
     if (subEl) subEl.textContent = subtitle;
     if (bar) bar.style.width = isUploading ? '0%' : '12%';
     if (pct) pct.textContent = isUploading ? '0%' : '12%';
-    if (telemetry) {
-      telemetry.style.display = isUploading ? 'flex' : 'none';
-    }
+    if (telemetry) telemetry.style.display = 'flex';
+    if (pillLabel) pillLabel.textContent = isUploading ? 'Upload size: Initializing...' : 'File size: Connecting...';
 
     if (overlay) {
       overlay.style.display = 'flex';
@@ -2412,11 +2470,11 @@
     const telemetry = document.getElementById('pdf-loader-telemetry');
     if (!overlay) return;
     updatePdfLoaderProgress(100, 'Manuscript ready');
-    if (telemetry) telemetry.style.display = 'none';
     overlay.classList.remove('active');
     setTimeout(() => {
       if (!overlay.classList.contains('active')) {
         overlay.style.display = 'none';
+        if (telemetry) telemetry.style.display = 'none';
       }
     }, 280);
   }
@@ -2443,49 +2501,28 @@
     }, 240);
   }
 
-  function loadPdfPreview(pdfUrl) {
+  let activePdfLoadId = 0;
+
+  async function loadPdfPreview(pdfUrl) {
+    const thisLoadId = ++activePdfLoadId;
     const placeholder = document.getElementById('pdf-placeholder-area');
     const viewport = document.getElementById('pdf-viewport');
     const toolbar = document.getElementById('pdf-toolbar');
 
-    // Only attempt in-browser PDF rendering if this is an actual PDF document
-    const isPdf = typeof pdfUrl === 'string' && (
-      pdfUrl.toLowerCase().includes('.pdf') ||
-      pdfUrl.startsWith('/uploads/') ||
-      pdfUrl.includes('/storage/v1/object/public/') ||
-      pdfUrl.startsWith('blob:') ||
-      pdfUrl.startsWith('data:application/pdf')
-    );
-
-    if (!isPdf) {
-      hidePdfLoader();
-      if (placeholder) {
-        placeholder.style.display = 'flex';
-        const sub = document.getElementById('pdf-status-subtext');
-        if (sub) {
-          const docId = (activePaper && (activePaper.doi || activePaper.title)) ? (activePaper.doi || activePaper.title) : 'External Manuscript';
-          sub.textContent = `External manuscript linked (${docId}). Click "Open Source ↗" or upload a PDF manuscript above.`;
-        }
-      }
-      if (viewport) viewport.style.display = 'none';
-      if (toolbar) toolbar.style.display = 'none';
-      return;
-    }
-
-    showPdfLoader('Opening Manuscript...', 'Fetching document stream from server...');
+    // Immediately present the animated web loader with file size telemetry
+    showPdfLoader('Opening Manuscript...', 'Connecting to repository & preparing high-resolution layout...', false);
+    updatePdfLoaderTelemetry(0, 0, 0, null);
 
     if (placeholder) placeholder.style.display = 'none';
     if (viewport) viewport.style.display = 'flex';
     if (toolbar) toolbar.style.display = 'flex';
-
-    const fullPdfUrl = pdfUrl.startsWith('http') || pdfUrl.startsWith('/') ? pdfUrl : '/' + pdfUrl;
 
     if (typeof pdfjsLib === 'undefined') {
       hidePdfLoader();
       return;
     }
 
-    // Firefox cross-origin Web Worker fix: create same-origin Blob Worker wrapper
+    // Configure same-origin Blob Worker wrapper for cross-browser safety (Firefox, Chrome, Safari)
     try {
       if (!window._pdfWorkerBlobUrl) {
         const workerBlob = new Blob(
@@ -2503,63 +2540,187 @@
       pdfjsLib.GlobalWorkerOptions.verbosity = pdfjsLib.VerbosityLevel.ERRORS;
     }
 
-    let isDone = false;
-    const safetyTimer = setTimeout(() => {
-      if (!isDone) {
-        hidePdfLoader();
-        if (!currentPdfDoc && placeholder) {
-          placeholder.style.display = 'flex';
-          if (viewport) viewport.style.display = 'none';
-          if (toolbar) toolbar.style.display = 'none';
+    // Determine target stream URL (prioritize backend proxy endpoint which caches & auto-resolves OA DOIs)
+    let streamUrl = null;
+    if (activePaper && activePaper.id) {
+      streamUrl = `/api/papers/${activePaper.id}/pdf`;
+    } else if (typeof pdfUrl === 'string' && pdfUrl.trim()) {
+      streamUrl = pdfUrl.startsWith('http') || pdfUrl.startsWith('/') || pdfUrl.startsWith('blob:') || pdfUrl.startsWith('data:')
+        ? pdfUrl
+        : '/' + pdfUrl;
+    }
+
+    function showExternalPlaceholder() {
+      hidePdfLoader();
+      if (placeholder) {
+        placeholder.style.display = 'flex';
+        const sub = document.getElementById('pdf-status-subtext');
+        if (sub) {
+          const docId = (activePaper && (activePaper.doi || activePaper.title)) ? (activePaper.doi || activePaper.title) : 'External Manuscript';
+          sub.textContent = `External manuscript linked (${docId}). Click "Open Link ↗" to view on publisher site or upload a local copy.`;
         }
       }
-    }, 8500);
+      if (viewport) viewport.style.display = 'none';
+      if (toolbar) toolbar.style.display = 'none';
+    }
 
-    const loadingTask = pdfjsLib.getDocument({
-      url: fullPdfUrl,
-      cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
-      cMapPacked: true,
-      standardFontDataUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/standard_fonts/',
-      verbosity: (typeof pdfjsLib !== 'undefined' && pdfjsLib.VerbosityLevel) ? pdfjsLib.VerbosityLevel.ERRORS : 0
-    });
+    if (!streamUrl) {
+      showExternalPlaceholder();
+      return;
+    }
 
-    loadingTask.onProgress = function (progress) {
-      if (progress.total > 0) {
-        const percent = Math.round((progress.loaded / progress.total) * 85);
-        const mbLoaded = (progress.loaded / 1048576).toFixed(1);
-        const mbTotal = (progress.total / 1048576).toFixed(1);
-        updatePdfLoaderProgress(percent, `Streaming ${mbLoaded} MB of ${mbTotal} MB...`);
-      } else if (progress.loaded > 0) {
-        const mbLoaded = (progress.loaded / 1048576).toFixed(1);
-        updatePdfLoaderProgress(45, `Streaming ${mbLoaded} MB...`);
+    try {
+      // Stream PDF directly from server with live loaded bytes vs total bytes tracking
+      const response = await fetch(streamUrl, {
+        headers: {
+          'Accept': 'application/pdf,*/*',
+          ...getAuthHeaders()
+        }
+      });
+
+      if (thisLoadId !== activePdfLoadId) return;
+
+      if (!response.ok) {
+        // If 404, check if direct pdfUrl can be loaded or show external placeholder
+        if (pdfUrl && pdfUrl !== streamUrl && (pdfUrl.startsWith('http') || pdfUrl.toLowerCase().includes('.pdf'))) {
+          loadPdfFromUrlFallback(pdfUrl, thisLoadId);
+          return;
+        }
+        showExternalPlaceholder();
+        return;
       }
-    };
 
-    loadingTask.promise.then(pdf => {
-      isDone = true;
-      clearTimeout(safetyTimer);
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('pdf') && !contentType.includes('octet-stream')) {
+        showExternalPlaceholder();
+        return;
+      }
+
+      const contentLengthHeader = response.headers.get('content-length');
+      const totalBytes = contentLengthHeader ? parseInt(contentLengthHeader, 10) : 0;
+      let loadedBytes = 0;
+      const chunks = [];
+      const startTime = performance.now();
+      let lastTelemetryUpdate = 0;
+
+      if (response.body && typeof response.body.getReader === 'function') {
+        const reader = response.body.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (thisLoadId !== activePdfLoadId) return;
+
+          chunks.push(value);
+          loadedBytes += value.length;
+
+          const now = performance.now();
+          if (now - lastTelemetryUpdate > 75 || (totalBytes > 0 && loadedBytes >= totalBytes)) {
+            lastTelemetryUpdate = now;
+            const elapsedSec = Math.max((now - startTime) / 1000, 0.05);
+            const speedBps = loadedBytes / elapsedSec;
+            const pct = totalBytes > 0 ? Math.min(Math.round((loadedBytes / totalBytes) * 85), 85) : 40;
+            const etaSec = (totalBytes > 0 && speedBps > 0) ? Math.max(Math.round((totalBytes - loadedBytes) / speedBps), 0) : null;
+
+            updatePdfLoaderProgress(pct, `Streaming ${formatBytes(loadedBytes)} ${totalBytes > 0 ? 'of ' + formatBytes(totalBytes) : ''}...`);
+            updatePdfLoaderTelemetry(speedBps, loadedBytes, totalBytes, etaSec);
+          }
+        }
+      } else {
+        const arrayBuf = await response.arrayBuffer();
+        chunks.push(new Uint8Array(arrayBuf));
+        loadedBytes = arrayBuf.byteLength;
+      }
+
+      if (thisLoadId !== activePdfLoadId) return;
+
+      // Concatenate all chunks into a contiguous Uint8Array
+      const allBytes = new Uint8Array(loadedBytes);
+      let byteOffset = 0;
+      for (const chunk of chunks) {
+        allBytes.set(chunk, byteOffset);
+        byteOffset += chunk.length;
+      }
+
+      updatePdfLoaderProgress(88, `Downloaded ${formatBytes(loadedBytes)}. Initializing layout...`);
+      updatePdfLoaderTelemetry(0, loadedBytes, totalBytes || loadedBytes, 0);
+
+      // Feed binary in-memory data directly to PDF.js
+      const loadingTask = pdfjsLib.getDocument({
+        data: allBytes,
+        cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+        cMapPacked: true,
+        standardFontDataUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/standard_fonts/',
+        verbosity: 0
+      });
+
+      const pdf = await loadingTask.promise;
+      if (thisLoadId !== activePdfLoadId) return;
+
       currentPdfDoc = pdf;
       pdfTotalPages = pdf.numPages;
       pdfCurrentPageNum = 1;
 
-      updatePdfLoaderProgress(90, `Rendering Page 1 of ${pdfTotalPages}...`);
+      updatePdfLoaderProgress(94, `Rendering Page 1 of ${pdfTotalPages}...`);
 
       const pageCountEl = document.getElementById('pdf-page-count');
       const pageNumInput = document.getElementById('pdf-page-num');
       if (pageCountEl) pageCountEl.textContent = pdfTotalPages;
       if (pageNumInput) pageNumInput.value = 1;
 
-      renderPdfPage(pdfCurrentPageNum);
+      renderPdfPage(1);
+    } catch (err) {
+      if (thisLoadId !== activePdfLoadId) return;
+      console.warn('PDF stream loading notice:', err.message);
+      showExternalPlaceholder();
+    }
+  }
+
+  function loadPdfFromUrlFallback(fullPdfUrl, loadId) {
+    const placeholder = document.getElementById('pdf-placeholder-area');
+    const viewport = document.getElementById('pdf-viewport');
+    const toolbar = document.getElementById('pdf-toolbar');
+
+    const loadingTask = pdfjsLib.getDocument({
+      url: fullPdfUrl,
+      cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+      cMapPacked: true,
+      standardFontDataUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/standard_fonts/',
+      verbosity: 0
+    });
+
+    loadingTask.onProgress = function (progress) {
+      if (progress.total > 0) {
+        const percent = Math.round((progress.loaded / progress.total) * 85);
+        updatePdfLoaderProgress(percent, `Streaming ${formatBytes(progress.loaded)} of ${formatBytes(progress.total)}...`);
+        updatePdfLoaderTelemetry(0, progress.loaded, progress.total, null);
+      } else if (progress.loaded > 0) {
+        updatePdfLoaderProgress(45, `Streaming ${formatBytes(progress.loaded)}...`);
+        updatePdfLoaderTelemetry(0, progress.loaded, 0, null);
+      }
+    };
+
+    loadingTask.promise.then(pdf => {
+      if (loadId && loadId !== activePdfLoadId) return;
+      currentPdfDoc = pdf;
+      pdfTotalPages = pdf.numPages;
+      pdfCurrentPageNum = 1;
+
+      updatePdfLoaderProgress(92, `Rendering Page 1 of ${pdfTotalPages}...`);
+      const pageCountEl = document.getElementById('pdf-page-count');
+      const pageNumInput = document.getElementById('pdf-page-num');
+      if (pageCountEl) pageCountEl.textContent = pdfTotalPages;
+      if (pageNumInput) pageNumInput.value = 1;
+
+      renderPdfPage(1);
     }).catch(err => {
-      isDone = true;
-      clearTimeout(safetyTimer);
-      console.warn('PDF load notice:', err.message);
+      if (loadId && loadId !== activePdfLoadId) return;
+      console.warn('Fallback PDF load notice:', err.message);
       hidePdfLoader();
       if (placeholder) {
         placeholder.style.display = 'flex';
         const sub = document.getElementById('pdf-status-subtext');
         if (sub) {
-          sub.textContent = `External document linked (${activePaper ? (activePaper.doi || activePaper.title) : 'paper'}). Click "Open Link ↗" to view.`;
+          sub.textContent = `External document linked (${activePaper ? (activePaper.doi || activePaper.title) : 'document'}). Click "Open Link ↗" to view.`;
         }
       }
       if (viewport) viewport.style.display = 'none';
@@ -3304,10 +3465,12 @@
     const speedEl = document.getElementById('pdf-loader-speed');
     const bytesEl = document.getElementById('pdf-loader-bytes');
     const etaEl = document.getElementById('pdf-loader-eta');
+    const pillLabel = document.getElementById('pdf-loader-filesize-label');
     const initialMb = (file.size / (1024 * 1024)).toFixed(1);
     if (speedEl) speedEl.textContent = '⚡ Starting...';
     if (bytesEl) bytesEl.textContent = `0 MB / ${initialMb} MB`;
     if (etaEl) etaEl.textContent = '⏱ ETA: --';
+    if (pillLabel) pillLabel.textContent = `Uploading: 0 MB / ${initialMb} MB`;
 
     try {
       let data;
@@ -3321,6 +3484,7 @@
             if (speedEl) speedEl.textContent = isComplete ? '⚡ Uploaded' : rateStr;
             if (bytesEl) bytesEl.textContent = bytesStr;
             if (etaEl) etaEl.textContent = etaStr;
+            if (pillLabel) pillLabel.textContent = isComplete ? `Uploaded: ${bytesStr}` : `Uploading: ${bytesStr}`;
           }
         });
       } else {

@@ -799,7 +799,12 @@
     const viewport = document.getElementById('pdf-viewport');
     const toolbar = document.getElementById('reader-pdf-toolbar');
 
-    if (!pdfUrl) {
+    let targetUrl = pdfUrl;
+    if (!targetUrl && activePaper && activePaper.id) {
+      targetUrl = `/api/papers/${activePaper.id}/pdf`;
+    }
+
+    if (!targetUrl) {
       if (emptyNotice) emptyNotice.style.display = 'flex';
       if (viewport) viewport.style.display = 'none';
       if (toolbar) toolbar.style.display = 'none';
@@ -810,7 +815,7 @@
     if (viewport) viewport.style.display = 'flex';
     if (toolbar) toolbar.style.display = 'flex';
 
-    const fullPdfUrl = pdfUrl.startsWith('http') || pdfUrl.startsWith('/') ? pdfUrl : '/' + pdfUrl;
+    const fullPdfUrl = targetUrl.startsWith('http') || targetUrl.startsWith('/') ? targetUrl : '/' + targetUrl;
 
     if (typeof pdfjsLib === 'undefined') {
       console.warn('[PDF.js] pdfjsLib library is not loaded.');

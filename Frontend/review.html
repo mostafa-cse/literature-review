@@ -237,7 +237,7 @@
             </div>
 
             <!-- Interactive PDF Loader Overlay (Rich Academic Aesthetics) -->
-            <div class="pdf-loader-overlay" id="pdf-loader" style="display: none;" aria-live="polite">
+            <div class="pdf-loader-overlay active" id="pdf-loader" style="display: flex;" aria-live="polite">
                 <div class="pdf-loader-card">
                     <div class="pdf-loader-spinner-wrap">
                         <div class="pdf-loader-ring"></div>
@@ -253,14 +253,21 @@
                         </div>
                     </div>
                     <div class="pdf-loader-title" id="pdf-loader-title">Opening Manuscript...</div>
-                    <div class="pdf-loader-subtitle" id="pdf-loader-subtitle">Streaming PDF & preparing high-resolution layout</div>
+                    <div class="pdf-loader-subtitle" id="pdf-loader-subtitle">Connecting to manuscript stream & preparing layout...</div>
+
+                    <!-- Dynamic File Size Badge / Indicator -->
+                    <div class="pdf-loader-filesize-pill" id="pdf-loader-filesize-pill">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        <span id="pdf-loader-filesize-label">File size: Connecting...</span>
+                    </div>
+
                     <div class="pdf-loader-progress-track">
                         <div class="pdf-loader-progress-bar" id="pdf-loader-bar"></div>
                     </div>
-                    <!-- Real-Time Upload Rate & Telemetry -->
-                    <div class="pdf-loader-telemetry" id="pdf-loader-telemetry" style="display: none;">
-                        <span class="telemetry-item rate" id="pdf-loader-speed">⚡ 0 KB/s</span>
-                        <span class="telemetry-item bytes" id="pdf-loader-bytes">0 MB / 0 MB</span>
+                    <!-- Real-Time Download/Upload Rate & Telemetry -->
+                    <div class="pdf-loader-telemetry" id="pdf-loader-telemetry" style="display: flex;">
+                        <span class="telemetry-item rate" id="pdf-loader-speed">⚡ Connecting...</span>
+                        <span class="telemetry-item bytes" id="pdf-loader-bytes">0.0 MB / -- MB</span>
                         <span class="telemetry-item eta" id="pdf-loader-eta">⏱ ETA: --</span>
                     </div>
                     <div class="pdf-loader-percentage" id="pdf-loader-pct">0%</div>
@@ -332,7 +339,7 @@
             </div>
 
             <!-- Fallback PDF Previewer Placeholder (Matching Reference UI) -->
-            <div id="pdf-placeholder-area" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;">
+            <div id="pdf-placeholder-area" style="display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px;">
                 <h2>PDF Previewer</h2>
                 <p class="pdf-subtext" id="pdf-status-subtext">
                     Document preview area. Enter a DOI or attach a manuscript to review page-by-page.

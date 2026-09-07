@@ -263,13 +263,105 @@ router.get('/papers/:id', (req, res) => {
   }
 });
 
-// Stream PDF file directly from SQLite Database
-router.get('/papers/:id/pdf', (req, res) => {
+// Helper to fetch remote binary PDF safely with a timeout
+async function fetchPdfStreamWithTimeout(url, timeoutMs = 8000) {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/pdf,*/*'
+      }
+    });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const ctype = res.headers.get('content-type') || '';
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length > 500 && (ctype.includes('pdf') || buf.subarray(0, 5).toString() === '%PDF-')) {
+      return { buffer: buf, contentType: 'application/pdf' };
+    }
+  } catch (e) {
+    // ignore fetch timeouts/network errors
+  }
+  return null;
+}
+
+// Auto-resolve open-access PDF buffer from DOI or external links
+async function resolvePaperPdf(doi, pdfUrl, title) {
+  const candidates = [];
+  if (doi) candidates.push(...doi.split('|').map(s => s.trim()));
+  if (pdfUrl) candidates.push(...pdfUrl.split('|').map(s => s.trim()));
+
+  for (const item of candidates) {
+    if (!item) continue;
+
+    // 1. Direct PDF URL (if points to an external https:// URL ending in .pdf)
+    if ((item.startsWith('http://') || item.startsWith('https://')) && item.toLowerCase().includes('.pdf')) {
+      const res = await fetchPdfStreamWithTimeout(item);
+      if (res) return { ...res, filename: 'manuscript.pdf', source: 'direct_url' };
+    }
+
+    // 2. ACL Anthology pattern (e.g. 2020.acl-main.661, P19-1001, etc.)
+    const aclMatch = item.match(/([0-9]{4}\.[a-z0-9\-]+\.[0-9]+)/i) || item.match(/([A-Z][0-9]{2}-[0-9]{4})/i);
+    if (aclMatch) {
+      const aclUrl = 'https://aclanthology.org/' + aclMatch[1] + '.pdf';
+      const res = await fetchPdfStreamWithTimeout(aclUrl);
+      if (res) return { ...res, filename: aclMatch[1] + '.pdf', source: 'acl_anthology' };
+    }
+
+    // 3. arXiv pattern (e.g. 2005.14165, arXiv.2005.14165)
+    const arxivMatch = item.match(/([0-9]{4}\.[0-9]{4,5})/i);
+    if (item.toLowerCase().includes('arxiv') && arxivMatch) {
+      const arxivUrl = 'https://arxiv.org/pdf/' + arxivMatch[1] + '.pdf';
+      const res = await fetchPdfStreamWithTimeout(arxivUrl);
+      if (res) return { ...res, filename: 'arxiv_' + arxivMatch[1] + '.pdf', source: 'arxiv' };
+    }
+
+    // 4. Clean DOI for Open-Access Aggregators
+    const cleanDoi = item.replace(/^https?:\/\/(dx\.)?doi\.org\//, '').trim();
+    if (cleanDoi && cleanDoi.includes('/')) {
+      // Check Semantic Scholar Graph API
+      try {
+        const s2 = await fetch('https://api.semanticscholar.org/graph/v1/paper/' + encodeURIComponent(cleanDoi) + '?fields=openAccessPdf', {
+          headers: { 'User-Agent': 'LitSphere/1.0' }
+        });
+        if (s2.ok) {
+          const s2Data = await s2.json();
+          if (s2Data.openAccessPdf && s2Data.openAccessPdf.url) {
+            const res = await fetchPdfStreamWithTimeout(s2Data.openAccessPdf.url);
+            if (res) return { ...res, filename: cleanDoi.replace(/[^a-zA-Z0-9]/g, '_') + '.pdf', source: 'semanticscholar' };
+          }
+        }
+      } catch (_) {}
+
+      // Check Unpaywall API
+      try {
+        const unp = await fetch('https://api.unpaywall.org/v2/' + encodeURIComponent(cleanDoi) + '?email=litreview@litsphere.org');
+        if (unp.ok) {
+          const unpData = await unp.json();
+          const oaUrl = unpData.best_oa_location && (unpData.best_oa_location.url_for_pdf || unpData.best_oa_location.url);
+          if (oaUrl && (oaUrl.toLowerCase().includes('.pdf') || oaUrl.startsWith('http'))) {
+            const res = await fetchPdfStreamWithTimeout(oaUrl);
+            if (res) return { ...res, filename: cleanDoi.replace(/[^a-zA-Z0-9]/g, '_') + '.pdf', source: 'unpaywall' };
+          }
+        }
+      } catch (_) {}
+    }
+  }
+
+  return null;
+}
+
+// Stream PDF file directly from SQLite Database with automated OA resolver fallback
+router.get('/papers/:id/pdf', async (req, res) => {
   try {
     const db = getDb();
     const paperId = parseInt(req.params.id, 10);
     if (!paperId) return res.status(400).send('Invalid paper ID');
 
+    // 1. Check local SQLite binary cache
     const row = db.prepare('SELECT filename, mimetype, file_size, data FROM paper_files WHERE paper_id = ?').get(paperId);
 
     if (row && row.data) {
@@ -281,9 +373,9 @@ router.get('/papers/:id/pdf', (req, res) => {
       return res.end(buffer);
     }
 
-    // Fallback check if paper has a legacy pdf_url or file on disk
-    const paper = db.prepare('SELECT pdf_url, title FROM papers WHERE id = ?').get(paperId);
-    if (paper && paper.pdf_url) {
+    // 2. Fallback check if paper has a legacy file on disk
+    const paper = db.prepare('SELECT pdf_url, title, doi FROM papers WHERE id = ?').get(paperId);
+    if (paper && paper.pdf_url && !paper.pdf_url.startsWith('http')) {
       const pathModule = require('path');
       const fsModule = require('fs');
       const filename = pathModule.basename(paper.pdf_url);
@@ -305,7 +397,34 @@ router.get('/papers/:id/pdf', (req, res) => {
       }
     }
 
-    return res.status(404).send('PDF file not found in database for this paper.');
+    // 3. Automated Open-Access manuscript resolution (ACL Anthology, arXiv, Semantic Scholar, Unpaywall, etc.)
+    if (paper) {
+      const resolved = await resolvePaperPdf(paper.doi, paper.pdf_url, paper.title);
+      if (resolved && resolved.buffer) {
+        try {
+          db.prepare(`
+            INSERT OR REPLACE INTO paper_files (paper_id, filename, mimetype, file_size, data)
+            VALUES (?, ?, ?, ?, ?)
+          `).run(paperId, resolved.filename, resolved.contentType || 'application/pdf', resolved.buffer.length, resolved.buffer);
+          db.prepare('UPDATE papers SET pdf_url = ? WHERE id = ?').run(`/api/papers/${paperId}/pdf`, paperId);
+        } catch (dbErr) {
+          console.warn('Notice: Cached PDF insertion error:', dbErr.message);
+        }
+
+        res.setHeader('Content-Type', resolved.contentType || 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(resolved.filename)}"`);
+        res.setHeader('Content-Length', resolved.buffer.length);
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        return res.end(resolved.buffer);
+      }
+    }
+
+    return res.status(404).json({
+      error: 'PDF file not available for this manuscript',
+      paper_id: paperId,
+      doi: paper ? paper.doi : null,
+      title: paper ? paper.title : null
+    });
   } catch (err) {
     res.status(500).send('Error retrieving PDF from database: ' + err.message);
   }
