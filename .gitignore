@@ -27,6 +27,8 @@ npm-debug.log*
 # Build output
 dist/
 build/
+.next/
+*.tsbuildinfo
 
 # Python & Environments
 .venv/

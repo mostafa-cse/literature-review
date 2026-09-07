@@ -406,8 +406,46 @@ function handleExport(req, res) {
   }
 }
 
+// ==========================================
+// ASYNCHRONOUS EXPORT (BullMQ Queue Dispatch)
+// ==========================================
+async function handleAsyncExport(req, res) {
+  try {
+    const queueService = require('../services/queueService');
+    const format = (req.query.format || (req.body && req.body.format) || 'xlsx').toLowerCase();
+    const clusterId = req.params.id || req.query.cluster_id || (req.body && req.body.cluster_id);
+    const projectId = req.query.project_id || (req.body && req.body.project_id) || 1;
+    const rawCols = req.query.cols || req.query.columns || (req.body && (req.body.cols || req.body.columns));
+    const selectedColumns = rawCols ? (Array.isArray(rawCols) ? rawCols : String(rawCols).split(',')) : null;
+
+    const job = await queueService.addJob(queueService.QUEUES.CITATION_EXPORT, {
+      projectId: parseInt(projectId, 10),
+      clusterId: (clusterId && clusterId !== 'all') ? parseInt(clusterId, 10) : null,
+      format,
+      selectedColumns,
+      userId: req.user ? req.user.id : null,
+    });
+
+    res.status(202).json({
+      success: true,
+      message: 'Citation export job enqueued successfully',
+      jobId: job.id,
+      queueName: queueService.QUEUES.CITATION_EXPORT,
+      format,
+      statusUrl: `/api/jobs/${queueService.QUEUES.CITATION_EXPORT}/${job.id}`,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
 router.get('/clusters/:id/export', handleExport);
 router.get('/export', handleExport);
 router.post('/export', handleExport);
+
+router.get('/export/async', handleAsyncExport);
+router.post('/export/async', handleAsyncExport);
+router.get('/clusters/:id/export/async', handleAsyncExport);
+router.post('/clusters/:id/export/async', handleAsyncExport);
 
 module.exports = router;

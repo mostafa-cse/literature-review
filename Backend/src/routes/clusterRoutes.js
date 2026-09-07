@@ -1,37 +1,43 @@
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db');
+const cacheService = require('../services/cacheService');
 
 // ==========================================
 // TAXONOMY CLUSTERS API
 // ==========================================
 
-// Get all clusters (optionally scoped by project_id)
-router.get('/clusters', (req, res) => {
+// Get all clusters (optionally scoped by project_id) with sub-millisecond cache-aside
+router.get('/clusters', async (req, res) => {
   try {
-    const db = getDb();
     const { project_id } = req.query;
-    let query = `
-      SELECT c.*, 
-             COUNT(DISTINCT p.id) as paper_count,
-             COUNT(DISTINCT CASE WHEN p.status = 'read' THEN p.id END) as read_count,
-             COUNT(DISTINCT CASE WHEN p.status = 'in_progress' THEN p.id END) as in_progress_count,
-             COUNT(DISTINCT CASE WHEN p.status = 'unread' OR p.status IS NULL THEN p.id END) as unread_count,
-             COUNT(DISTINCT dc.id) as column_count,
-             COALESCE((SELECT COUNT(DISTINCT k.id) FROM keywords k JOIN papers p2 ON p2.id = k.paper_id WHERE p2.cluster_id = c.id), 0) as keyword_count
-      FROM clusters c
-      LEFT JOIN papers p ON p.cluster_id = c.id
-      LEFT JOIN dynamic_columns dc ON dc.cluster_id = c.id
-    `;
-    const params = [];
-    if (project_id) {
-      query += ` WHERE c.project_id = ? `;
-      params.push(project_id);
-    }
-    query += ` GROUP BY c.id ORDER BY COALESCE(c.position, c.id) ASC, c.id ASC`;
 
-    const clusters = db.prepare(query).all(...params);
-    res.json(clusters);
+    const { data, cached } = await cacheService.getSurveyClusters(project_id || 'all', async () => {
+      const db = getDb();
+      let query = `
+        SELECT c.*, 
+               COUNT(DISTINCT p.id) as paper_count,
+               COUNT(DISTINCT CASE WHEN p.status = 'read' THEN p.id END) as read_count,
+               COUNT(DISTINCT CASE WHEN p.status = 'in_progress' THEN p.id END) as in_progress_count,
+               COUNT(DISTINCT CASE WHEN p.status = 'unread' OR p.status IS NULL THEN p.id END) as unread_count,
+               COUNT(DISTINCT dc.id) as column_count,
+               COALESCE((SELECT COUNT(DISTINCT k.id) FROM keywords k JOIN papers p2 ON p2.id = k.paper_id WHERE p2.cluster_id = c.id), 0) as keyword_count
+        FROM clusters c
+        LEFT JOIN papers p ON p.cluster_id = c.id
+        LEFT JOIN dynamic_columns dc ON dc.cluster_id = c.id
+      `;
+      const params = [];
+      if (project_id) {
+        query += ` WHERE c.project_id = ? `;
+        params.push(project_id);
+      }
+      query += ` GROUP BY c.id ORDER BY COALESCE(c.position, c.id) ASC, c.id ASC`;
+
+      return db.prepare(query).all(...params);
+    });
+
+    res.setHeader('X-Cache', cached ? 'HIT' : 'MISS');
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -56,7 +62,7 @@ router.get('/clusters/:id', (req, res) => {
 const { authenticateToken, getProjectRole } = require('../utils/auth');
 
 // Create cluster (Owner, Editor)
-router.post('/clusters', (req, res) => {
+router.post('/clusters', async (req, res) => {
   try {
     const { project_id, name, description, color } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Cluster name is required' });
@@ -94,6 +100,7 @@ router.post('/clusters', (req, res) => {
     }
 
     const newCluster = db.prepare('SELECT * FROM clusters WHERE id = ?').get(clusterId);
+    await cacheService.invalidateSurveyClusters(pid);
     res.status(201).json(newCluster);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -101,7 +108,7 @@ router.post('/clusters', (req, res) => {
 });
 
 // Reorder clusters sequence (Owner, Editor)
-router.put('/clusters/reorder', authenticateToken, (req, res) => {
+router.put('/clusters/reorder', authenticateToken, async (req, res) => {
   try {
     const { project_id, cluster_ids } = req.body;
     if (!project_id || !Array.isArray(cluster_ids) || cluster_ids.length === 0) {
@@ -122,6 +129,7 @@ router.put('/clusters/reorder', authenticateToken, (req, res) => {
         updateStmt.run(idx + 1, cid, pid);
       });
       db.exec('COMMIT;');
+      await cacheService.invalidateSurveyClusters(pid);
       res.json({ success: true, message: 'Clusters reordered successfully', reordered: cluster_ids.length });
     } catch (e) {
       db.exec('ROLLBACK;');
@@ -133,7 +141,7 @@ router.put('/clusters/reorder', authenticateToken, (req, res) => {
 });
 
 // Update cluster (Owner, Editor)
-router.put('/clusters/:id', authenticateToken, (req, res) => {
+router.put('/clusters/:id', authenticateToken, async (req, res) => {
   try {
     const { name, description, color } = req.body;
     const db = getDb();
@@ -155,6 +163,7 @@ router.put('/clusters/:id', authenticateToken, (req, res) => {
       .run(cleanName, cleanDesc, cleanColor, cid);
     if (result.changes === 0) return res.status(404).json({ error: 'Cluster not found' });
     const updated = db.prepare('SELECT * FROM clusters WHERE id = ?').get(cid);
+    await cacheService.invalidateSurveyClusters(existing.project_id);
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -162,7 +171,7 @@ router.put('/clusters/:id', authenticateToken, (req, res) => {
 });
 
 // Delete cluster (Owner only)
-router.delete('/clusters/:id', authenticateToken, (req, res) => {
+router.delete('/clusters/:id', authenticateToken, async (req, res) => {
   try {
     const db = getDb();
     const cid = req.params.id;
@@ -183,6 +192,7 @@ router.delete('/clusters/:id', authenticateToken, (req, res) => {
       const result = db.prepare('DELETE FROM clusters WHERE id = ?').run(cid);
       db.exec('COMMIT;');
       if (result.changes === 0) return res.status(404).json({ error: 'Cluster not found' });
+      await cacheService.invalidateSurveyClusters(existing.project_id);
       res.json({ success: true, message: 'Cluster deleted' });
     } catch (e) {
       db.exec('ROLLBACK;');

@@ -15,6 +15,7 @@ const exportRoutes = require('./exportRoutes');
 const uploadRoutes = require('./uploadRoutes');
 const doiRoutes = require('./doiRoutes');
 const templateRoutes = require('./templateRoutes');
+const jobRoutes = require('./jobRoutes');
 
 // Mount sub-routers
 router.use(projectRoutes);
@@ -26,5 +27,6 @@ router.use(exportRoutes);
 router.use(uploadRoutes);
 router.use(doiRoutes);
 router.use(templateRoutes);
+router.use(jobRoutes);
 
 module.exports = router;

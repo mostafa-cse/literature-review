@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { getDb } = require('../db');
+const { getSession, unsignCookieValue } = require('../services/sessionService');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'litsphere_super_secure_academic_research_secret_key_2026';
 
@@ -25,6 +26,25 @@ function generateToken(user) {
 
 function verifyToken(token) {
   if (!token || typeof token !== 'string') return null;
+
+  // Synchronous session check for seamless cross-module interoperability
+  try {
+    const { getSessionSync } = require('../services/sessionService');
+    const sess = getSessionSync(token);
+    if (sess) {
+      return {
+        id: sess.userId,
+        username: sess.username,
+        name: sess.name,
+        email: sess.email,
+        role: sess.role.toLowerCase(),
+        institution: sess.institution,
+        v: sess.tokenVersion,
+        exp: Math.floor(new Date(sess.expiresAt).getTime() / 1000)
+      };
+    }
+  } catch {}
+
   const parts = token.split('.');
   if (parts.length !== 3) return null;
 
@@ -76,9 +96,25 @@ function recalculateUserStorage(userId) {
   }
 }
 
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'] || req.headers['x-auth-token'];
-  let token = authHeader ? (authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim()) : null;
+async function authenticateToken(req, res, next) {
+  let token = null;
+
+  // 1. Check signed cookie
+  if (req.signedCookies && req.signedCookies.litsphere_session) {
+    token = req.signedCookies.litsphere_session;
+  } else if (req.cookies && req.cookies.litsphere_session) {
+    const raw = req.cookies.litsphere_session;
+    const unsigned = unsignCookieValue(raw);
+    token = unsigned || raw;
+  }
+
+  // 2. Check Authorization header or x-auth-token / x-session-id
+  if (!token) {
+    const authHeader = req.headers['authorization'] || req.headers['x-auth-token'] || req.headers['x-session-id'];
+    token = authHeader ? (authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim()) : null;
+  }
+
+  // 3. Check query param
   if (!token && req.query && req.query.token) {
     token = String(req.query.token).trim();
   }
@@ -87,9 +123,36 @@ function authenticateToken(req, res, next) {
     return res.status(401).json({ error: 'Authentication required. Please sign in or provide a valid token.' });
   }
 
+  // Fast-path: Check Redis session cache (< 1ms lookup)
+  try {
+    const session = await getSession(token);
+    if (session) {
+      req.session = session;
+      req.user = {
+        id: session.userId,
+        username: session.username,
+        name: session.name,
+        email: session.email,
+        role: session.role.toLowerCase(),
+        status: session.status.toLowerCase(),
+        institution: session.institution,
+        token_version: session.tokenVersion,
+        avatar_url: session.avatarUrl || '',
+        ai_token_quota: session.aiTokenQuota !== undefined ? session.aiTokenQuota : 100000,
+        ai_tokens_used: session.aiTokensUsed !== undefined ? session.aiTokensUsed : 0,
+        storage_quota_mb: session.storageQuotaMb !== undefined ? session.storageQuotaMb : 500,
+        storage_used_mb: session.storageUsedMb !== undefined ? session.storageUsedMb : 0,
+      };
+      return next();
+    }
+  } catch (sessErr) {
+    // Fall through to legacy JWT check
+  }
+
+  // Fallback: Verify legacy JWT token
   const payload = verifyToken(token);
   if (!payload) {
-    return res.status(401).json({ error: 'Invalid or expired authentication session. Please sign in again.' });
+    return res.status(401).json({ error: 'Session has been revoked or expired. Please sign in again.' });
   }
 
   // Check user status in database (ensure not banned/deactivated)
@@ -116,11 +179,46 @@ function authenticateToken(req, res, next) {
   }
 }
 
-function optionalAuth(req, res, next) {
-  const authHeader = req.headers['authorization'] || req.headers['x-auth-token'];
-  const token = authHeader ? (authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim()) : null;
+async function optionalAuth(req, res, next) {
+  let token = null;
+
+  if (req.signedCookies && req.signedCookies.litsphere_session) {
+    token = req.signedCookies.litsphere_session;
+  } else if (req.cookies && req.cookies.litsphere_session) {
+    const raw = req.cookies.litsphere_session;
+    const unsigned = unsignCookieValue(raw);
+    token = unsigned || raw;
+  }
+
+  if (!token) {
+    const authHeader = req.headers['authorization'] || req.headers['x-auth-token'] || req.headers['x-session-id'];
+    token = authHeader ? (authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim()) : null;
+  }
 
   if (token) {
+    try {
+      const session = await getSession(token);
+      if (session) {
+        req.session = session;
+        req.user = {
+          id: session.userId,
+          username: session.username,
+          name: session.name,
+          email: session.email,
+          role: session.role.toLowerCase(),
+          status: session.status.toLowerCase(),
+          institution: session.institution,
+          token_version: session.tokenVersion,
+          avatar_url: session.avatarUrl || '',
+          ai_token_quota: session.aiTokenQuota !== undefined ? session.aiTokenQuota : 100000,
+          ai_tokens_used: session.aiTokensUsed !== undefined ? session.aiTokensUsed : 0,
+          storage_quota_mb: session.storageQuotaMb !== undefined ? session.storageQuotaMb : 500,
+          storage_used_mb: session.storageUsedMb !== undefined ? session.storageUsedMb : 0,
+        };
+        return next();
+      }
+    } catch {}
+
     const payload = verifyToken(token);
     if (payload) {
       try {
@@ -140,12 +238,16 @@ function optionalAuth(req, res, next) {
 
 function requireRole(allowedRoles) {
   return (req, res, next) => {
-    if (!req.user) {
+    if (!req.user && !req.session) {
       return res.status(401).json({ error: 'Authentication required.' });
     }
-    if (Array.isArray(allowedRoles) && !allowedRoles.includes(req.user.role)) {
+    const currentRole = (req.user && req.user.role) || (req.session && req.session.role) || '';
+    const normalizedCurrent = String(currentRole).toLowerCase();
+    const normalizedAllowed = (Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles]).map(r => String(r).toLowerCase());
+
+    if (!normalizedAllowed.includes(normalizedCurrent)) {
       return res.status(403).json({
-        error: `Access Denied. Role '${req.user.role}' is not authorized to access this resource. Required: ${allowedRoles.join(', ')}`
+        error: `Access Denied. Role '${currentRole}' is not authorized to access this resource. Required: ${normalizedAllowed.join(', ')}`
       });
     }
     next();
@@ -265,6 +367,7 @@ module.exports = {
   generateToken,
   verifyToken,
   authenticateToken,
+  authenticateSession: authenticateToken,
   optionalAuth,
   requireRole,
   getProjectRole,

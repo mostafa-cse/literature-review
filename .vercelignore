@@ -1,10 +1,4 @@
-# Ignore backend, scripts, and python tools during Vercel static build
+# Ignore backend, database, and local environment during Vercel static build
 Backend/
-scripts/
-*.py
-*.pptx
-requirements.txt
 literature*
 .venv/
-scratch/
-test_admin_route.js

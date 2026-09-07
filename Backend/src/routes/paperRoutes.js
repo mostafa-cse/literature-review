@@ -4,29 +4,33 @@ const path = require('path');
 const fs = require('fs');
 const { getDb } = require('../db');
 const { getProjectRole, recalculateUserStorage, logAuditEvent } = require('../utils/auth');
+const cacheService = require('../services/cacheService');
 
 // ==========================================
 // PAPERS CRUD & FILTERING API
 // ==========================================
 
-// Get papers with filtering & search
-router.get('/papers', (req, res) => {
+// Get papers with filtering & search (with sub-millisecond cache-aside for benchmark matrix)
+router.get('/papers', async (req, res) => {
   try {
-    const db = getDb();
     const { cluster_id, project_id, search, domain, status, year, sort } = req.query;
 
-    let sql = `
-      WITH numbered_papers AS (
-        SELECT p.*,
-               ROW_NUMBER() OVER (PARTITION BY p.project_id ORDER BY p.id ASC) as serial_no
-        FROM papers p
-      )
-      SELECT p.*, c.name as cluster_name, c.color as cluster_color
-      FROM numbered_papers p
-      LEFT JOIN clusters c ON c.id = p.cluster_id
-      WHERE 1=1
-    `;
-    const params = [];
+    const isMatrixQuery = project_id && !search && (!cluster_id || cluster_id === 'all') && (!domain || domain === 'all') && (!status || status === 'all') && !year && (!sort || sort === 'year_desc');
+
+    const fetchPapersFromDb = () => {
+      const db = getDb();
+      let sql = `
+        WITH numbered_papers AS (
+          SELECT p.*,
+                 ROW_NUMBER() OVER (PARTITION BY p.project_id ORDER BY p.id ASC) as serial_no
+          FROM papers p
+        )
+        SELECT p.*, c.name as cluster_name, c.color as cluster_color
+        FROM numbered_papers p
+        LEFT JOIN clusters c ON c.id = p.cluster_id
+        WHERE 1=1
+      `;
+      const params = [];
 
     if (cluster_id === 'unassigned') {
       sql += ` AND p.cluster_id IS NULL `;
@@ -163,12 +167,24 @@ router.get('/papers', (req, res) => {
           p.gaps_list = p.gaps ? [p.gaps] : [];
         }
 
-        p.advantages = (p.advantages && p.advantages !== '-') ? p.advantages : (p.strengths || '-');
-        p.criticism = (p.criticism && p.criticism !== '-') ? p.criticism : (p.gaps || '-');
-        p.future_directions = p.future_directions || '-';
+          p.advantages = (p.advantages && p.advantages !== '-') ? p.advantages : (p.strengths || '-');
+          p.criticism = (p.criticism && p.criticism !== '-') ? p.criticism : (p.gaps || '-');
+          p.future_directions = p.future_directions || '-';
+        }
       }
+
+      return papers;
+    };
+
+    if (isMatrixQuery) {
+      const { data, cached } = await cacheService.getSurveyMatrix(project_id, async () => {
+        return fetchPapersFromDb();
+      });
+      res.setHeader('X-Cache', cached ? 'HIT' : 'MISS');
+      return res.json(data);
     }
 
+    const papers = fetchPapersFromDb();
     res.json(papers);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -296,7 +312,7 @@ router.get('/papers/:id/pdf', (req, res) => {
 });
 
 // Create paper
-router.post('/papers', (req, res) => {
+router.post('/papers', async (req, res) => {
   try {
     const {
       cluster_id, project_id, title, authors, year, pub, domain, doi, pdf_url,
@@ -399,6 +415,9 @@ router.post('/papers', (req, res) => {
       }
     }
 
+    const targetProjectId = project_id ? parseInt(project_id, 10) : (targetCluster ? targetCluster.project_id : 1);
+    await cacheService.invalidateSurveyCache(targetProjectId);
+
     res.status(201).json({ id: paperId, message: 'Paper added successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -406,7 +425,7 @@ router.post('/papers', (req, res) => {
 });
 
 // Update paper
-router.put('/papers/:id', (req, res) => {
+router.put('/papers/:id', async (req, res) => {
   try {
     const {
       cluster_id, title, authors, year, pub, domain, doi, pdf_url,
@@ -554,6 +573,7 @@ router.put('/papers/:id', (req, res) => {
     }
 
     const updated = db.prepare('SELECT * FROM papers WHERE id = ?').get(paperId);
+    await cacheService.invalidateSurveyCache(existing.project_id);
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -561,15 +581,17 @@ router.put('/papers/:id', (req, res) => {
 });
 
 // Fast Status Toggle (unread / in_progress / read)
-router.patch('/papers/:id/status', (req, res) => {
+router.patch('/papers/:id/status', async (req, res) => {
   try {
     const { status } = req.body;
     if (!['unread', 'in_progress', 'read'].includes(status)) {
       return res.status(400).json({ error: 'Status must be unread, in_progress, or read' });
     }
     const db = getDb();
+    const paper = db.prepare('SELECT project_id FROM papers WHERE id = ?').get(req.params.id);
     const result = db.prepare('UPDATE papers SET status = ? WHERE id = ?').run(status, req.params.id);
     if (result.changes === 0) return res.status(404).json({ error: 'Paper not found' });
+    if (paper) await cacheService.invalidateSurveyCache(paper.project_id);
     res.json({ success: true, id: req.params.id, status });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -577,7 +599,7 @@ router.patch('/papers/:id/status', (req, res) => {
 });
 
 // Bulk Reassign Papers to a Cluster (or unassign)
-router.post('/papers/bulk-reassign', (req, res) => {
+router.post('/papers/bulk-reassign', async (req, res) => {
   try {
     const { paper_ids, cluster_id } = req.body;
     if (!Array.isArray(paper_ids) || paper_ids.length === 0) {
@@ -604,6 +626,7 @@ router.post('/papers/bulk-reassign', (req, res) => {
         updateStmt.run(targetClusterId, pid);
       }
       db.exec('COMMIT;');
+      if (firstPaper) await cacheService.invalidateSurveyCache(firstPaper.project_id);
       res.json({ success: true, count: paper_ids.length, cluster_id: targetClusterId });
     } catch (e) {
       db.exec('ROLLBACK;');
@@ -615,7 +638,7 @@ router.post('/papers/bulk-reassign', (req, res) => {
 });
 
 // Delete paper
-router.delete('/papers/:id', (req, res) => {
+router.delete('/papers/:id', async (req, res) => {
   try {
     const db = getDb();
     const existing = db.prepare('SELECT id, project_id, title, pdf_url FROM papers WHERE id = ?').get(req.params.id);
@@ -644,6 +667,8 @@ router.delete('/papers/:id', (req, res) => {
     const result = db.prepare('DELETE FROM papers WHERE id = ?').run(req.params.id);
     if (result.changes === 0) return res.status(404).json({ error: 'Paper not found' });
 
+    await cacheService.invalidateSurveyCache(existing.project_id);
+
     if (req.user && req.user.id) {
       recalculateUserStorage(req.user.id);
       if (typeof logAuditEvent === 'function') {
@@ -652,6 +677,71 @@ router.delete('/papers/:id', (req, res) => {
     }
 
     res.json({ success: true, message: 'Paper deleted successfully', id: req.params.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// ASYNC BACKGROUND JOB TRIGGERS (BullMQ)
+// ==========================================
+
+// Trigger async PDF processing worker for an existing paper
+router.post('/papers/:id/process-pdf', async (req, res) => {
+  try {
+    const queueService = require('../services/queueService');
+    const db = getDb();
+    const paper = db.prepare('SELECT id, project_id, title, pdf_url FROM papers WHERE id = ?').get(req.params.id);
+    if (!paper) return res.status(404).json({ error: 'Paper not found' });
+
+    const job = await queueService.addJob(queueService.QUEUES.PDF_PROCESSING, {
+      paperId: paper.id,
+      projectId: paper.project_id,
+      originalFilename: (paper.title || 'manuscript') + '.pdf',
+    });
+
+    res.status(202).json({
+      success: true,
+      message: 'PDF processing job enqueued successfully',
+      jobId: job.id,
+      queueName: queueService.QUEUES.PDF_PROCESSING,
+      paperId: paper.id,
+      statusUrl: `/api/jobs/${queueService.QUEUES.PDF_PROCESSING}/${job.id}`,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Trigger async CrossRef DOI enrichment worker for a paper
+router.post('/papers/:id/enrich-async', async (req, res) => {
+  try {
+    const queueService = require('../services/queueService');
+    const db = getDb();
+    const paper = db.prepare('SELECT id, project_id, title, doi FROM papers WHERE id = ?').get(req.params.id);
+    if (!paper) return res.status(404).json({ error: 'Paper not found' });
+
+    const targetDoi = (req.body && req.body.doi) || paper.doi;
+    if (!targetDoi || targetDoi === '-') {
+      return res.status(400).json({ error: 'Paper has no DOI to enrich. Please provide a DOI in the request body.' });
+    }
+
+    const job = await queueService.addJob(queueService.QUEUES.CROSSREF_ENRICHMENT, {
+      paperId: paper.id,
+      doi: targetDoi,
+      title: paper.title,
+      projectId: paper.project_id,
+    });
+
+    res.status(202).json({
+      success: true,
+      message: 'CrossRef enrichment job enqueued successfully',
+      jobId: job.id,
+      queueName: queueService.QUEUES.CROSSREF_ENRICHMENT,
+      paperId: paper.id,
+      doi: targetDoi,
+      statusUrl: `/api/jobs/${queueService.QUEUES.CROSSREF_ENRICHMENT}/${job.id}`,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

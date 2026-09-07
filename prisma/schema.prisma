@@ -1,0 +1,411 @@
+// ==============================================================================
+// LITSPHERE ENTERPRISE RELATIONAL SCHEMA (POSTGRESQL + PRISMA)
+// ==============================================================================
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ------------------------------------------------------------------------------
+// ENUMS
+// ------------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  USER
+  REVIEWER
+  SUPERVISOR
+}
+
+enum UserStatus {
+  ACTIVE
+  DEACTIVATED
+  BANNED
+}
+
+enum ProjectRole {
+  OWNER
+  EDITOR
+  REVIEWER
+  VIEWER
+}
+
+enum PaperStatus {
+  UNREAD
+  READING
+  COMPLETED
+}
+
+enum ScreeningDecision {
+  INCLUDED
+  EXCLUDED
+  UNCERTAIN
+  PENDING
+}
+
+enum ColumnType {
+  TEXT
+  NUMBER
+  LATEX
+  TAGS
+  SELECT
+}
+
+enum AuditStatus {
+  SUCCESS
+  FAILURE
+  DENIED
+}
+
+// ------------------------------------------------------------------------------
+// USER & IDENTITY MANAGEMENT
+// ------------------------------------------------------------------------------
+
+model User {
+  id              Int         @id @default(autoincrement())
+  name            String
+  username        String?     @unique
+  email           String      @unique
+  passwordHash    String      @map("password_hash")
+  role            Role        @default(USER)
+  institution     String      @default("Academic Research Institute")
+  status          UserStatus  @default(ACTIVE)
+  bio             String?
+  orcid           String?
+  googleScholar   String?     @map("google_scholar")
+  phone           String?
+  avatarUrl       String?     @map("avatar_url")
+  tokenVersion    Int         @default(1) @map("token_version")
+  firebaseUid     String?     @map("firebase_uid")
+  aiTokenQuota    Int         @default(100000) @map("ai_token_quota")
+  aiTokensUsed    Int         @default(0) @map("ai_tokens_used")
+  storageQuotaMb  Int         @default(500) @map("storage_quota_mb")
+  storageUsedMb   Float       @default(0.0) @map("storage_used_mb")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  lastLogin       DateTime?   @map("last_login")
+
+  // Relations
+  ownedProjects   Project[]        @relation("ProjectOwner")
+  memberships     ProjectMember[]
+  sessions        Session[]
+  passwordResets  PasswordReset[]
+  auditLogs       AuditLog[]
+  comments        PaperComment[]
+  highlights      PaperHighlight[]
+  screenings      PaperScreening[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    Int      @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("sessions")
+}
+
+model PasswordReset {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  email     String
+  code      String
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([token])
+  @@map("password_resets")
+}
+
+// ------------------------------------------------------------------------------
+// RESEARCH SURVEY PROJECTS & COLLABORATION RBAC
+// ------------------------------------------------------------------------------
+
+model Project {
+  id          Int      @id @default(autoincrement())
+  ownerId     Int      @map("owner_id")
+  name        String
+  description String?
+  domain      String   @default("Computer Science")
+  isPublic    Boolean  @default(false) @map("is_public")
+  shareToken  String?  @unique @map("share_token")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  owner       User              @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     ProjectMember[]
+  clusters    TaxonomyCluster[]
+  papers      Paper[]
+
+  @@index([ownerId])
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        Int         @id @default(autoincrement())
+  projectId Int         @map("project_id")
+  userId    Int         @map("user_id")
+  role      ProjectRole @default(VIEWER)
+  invitedBy Int?        @map("invited_by")
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+  @@index([projectId])
+  @@map("project_members")
+}
+
+// ------------------------------------------------------------------------------
+// TAXONOMY CLUSTERS & DYNAMIC BENCHMARK COLUMNS
+// ------------------------------------------------------------------------------
+
+model TaxonomyCluster {
+  id          Int             @id @default(autoincrement())
+  projectId   Int             @map("project_id")
+  name        String
+  description String?
+  color       String?
+  position    Int             @default(0)
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  columns     DynamicColumn[]
+  papers      Paper[]
+
+  @@index([projectId])
+  @@map("clusters")
+}
+
+model DynamicColumn {
+  id             Int                @id @default(autoincrement())
+  clusterId      Int                @map("cluster_id")
+  columnName     String             @map("column_name")
+  parentColumnId Int?               @map("parent_column_id")
+  colType        ColumnType         @default(TEXT) @map("col_type")
+  createdAt      DateTime           @default(now()) @map("created_at")
+
+  cluster        TaxonomyCluster    @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+  parent         DynamicColumn?     @relation("ColumnHierarchy", fields: [parentColumnId], references: [id], onDelete: Cascade)
+  children       DynamicColumn[]    @relation("ColumnHierarchy")
+  values         PaperColumnValue[]
+
+  @@index([clusterId])
+  @@index([parentColumnId])
+  @@map("dynamic_columns")
+}
+
+model PaperColumnValue {
+  id        Int           @id @default(autoincrement())
+  paperId   Int           @map("paper_id")
+  columnId  Int           @map("column_id")
+  value     String?
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @default(now()) @updatedAt @map("updated_at")
+
+  paper     Paper         @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  column    DynamicColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+
+  @@unique([paperId, columnId])
+  @@index([paperId])
+  @@index([columnId])
+  @@map("paper_column_values")
+}
+
+// ------------------------------------------------------------------------------
+// PAPERS, MANUSCRIPTS & CITATIONS
+// ------------------------------------------------------------------------------
+
+model Paper {
+  id                Int               @id @default(autoincrement())
+  projectId         Int               @default(1) @map("project_id")
+  clusterId         Int?              @map("cluster_id")
+  title             String
+  authors           String?
+  year              Int?
+  pub               String?
+  domain            String?
+  doi               String?
+  pdfUrl            String?           @map("pdf_url")
+  status            PaperStatus       @default(UNREAD)
+  intuition         String?
+  equation          String?
+  strengths         String?
+  gaps              String?
+  advantages        String?
+  criticism         String?
+  futureDirections  String?           @map("future_directions")
+  screeningDecision ScreeningDecision @default(PENDING) @map("screening_decision")
+  screeningReason   String?           @map("screening_reason")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  project           Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  cluster           TaxonomyCluster?  @relation(fields: [clusterId], references: [id], onDelete: SetNull)
+  columnValues      PaperColumnValue[]
+  keywords          PaperKeyword[]
+  file              PaperFile?
+  comments          PaperComment[]
+  highlights        PaperHighlight[]
+  screenings        PaperScreening[]
+
+  @@index([projectId])
+  @@index([clusterId])
+  @@index([doi])
+  @@map("papers")
+}
+
+model PaperFile {
+  id          Int      @id @default(autoincrement())
+  paperId     Int      @unique @map("paper_id")
+  filename    String
+  mimetype    String   @default("application/pdf")
+  fileSize    Int      @map("file_size")
+  r2ObjectKey String?  @map("r2_object_key")
+  r2Bucket    String?  @map("r2_bucket")
+  sha256      String?
+  publicUrl   String?  @map("public_url")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  paper       Paper    @relation(fields: [paperId], references: [id], onDelete: Cascade)
+
+  @@map("paper_files")
+}
+
+model PaperKeyword {
+  id        Int      @id @default(autoincrement())
+  paperId   Int      @map("paper_id")
+  keyword   String
+
+  paper     Paper    @relation(fields: [paperId], references: [id], onDelete: Cascade)
+
+  @@index([paperId])
+  @@index([keyword])
+  @@map("keywords")
+}
+
+// ------------------------------------------------------------------------------
+// ANNOTATIONS, PRISMA SCREENING & COMMENTS
+// ------------------------------------------------------------------------------
+
+model PaperComment {
+  id          Int      @id @default(autoincrement())
+  paperId     Int      @map("paper_id")
+  userId      Int?     @map("user_id")
+  userName    String?  @map("user_name")
+  userRole    String?  @default("reviewer") @map("user_role")
+  commentText String   @map("comment_text")
+  quoteText   String?  @map("quote_text")
+  pageNumber  Int?     @map("page_number")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  paper       Paper    @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([paperId])
+  @@index([userId])
+  @@map("paper_comments")
+}
+
+model PaperHighlight {
+  id           Int      @id @default(autoincrement())
+  paperId      Int      @map("paper_id")
+  userId       Int?     @map("user_id")
+  userName     String?  @map("user_name")
+  userRole     String?  @default("reviewer") @map("user_role")
+  pageNumber   Int      @map("page_number")
+  color        String
+  colorLabel   String?  @map("color_label")
+  selectedText String   @map("selected_text")
+  quadsJson    String?  @map("quads_json")
+  note         String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  paper        Paper    @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([paperId])
+  @@index([userId])
+  @@map("paper_highlights")
+}
+
+model PaperScreening {
+  id              Int               @id @default(autoincrement())
+  paperId         Int               @map("paper_id")
+  userId          Int?              @map("user_id")
+  userName        String?           @map("user_name")
+  decision        ScreeningDecision
+  exclusionReason String?           @map("exclusion_reason")
+  notes           String?
+  updatedAt       DateTime          @default(now()) @updatedAt @map("updated_at")
+
+  paper           Paper             @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([paperId, userId])
+  @@index([paperId])
+  @@index([userId])
+  @@map("paper_screening")
+}
+
+// ------------------------------------------------------------------------------
+// SYSTEM TELEMETRY, AUDIT LOGS & TEMPLATES
+// ------------------------------------------------------------------------------
+
+model AuditLog {
+  id        Int         @id @default(autoincrement())
+  userId    Int?        @map("user_id")
+  userEmail String?     @map("user_email")
+  action    String
+  ipAddress String?     @map("ip_address")
+  details   String?
+  status    AuditStatus @default(SUCCESS)
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  user      User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+model MasterTemplate {
+  id           Int      @id @default(autoincrement())
+  name         String
+  category     String
+  description  String?
+  clustersJson String   @map("clusters_json")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("master_templates")
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}

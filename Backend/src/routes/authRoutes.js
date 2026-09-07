@@ -3,9 +3,18 @@ const router = express.Router();
 const { getDb, hashPassword, verifyPassword } = require('../db');
 const { generateToken, authenticateToken, logAuditEvent, recalculateUserStorage } = require('../utils/auth');
 const { sendPasswordResetEmail } = require('../utils/emailService');
+const {
+  createSession,
+  destroySession,
+  revokeAllUserSessions,
+  getUserActiveSessions,
+  attachSessionCookie,
+  clearSessionCookie,
+  unsignCookieValue,
+} = require('../services/sessionService');
 
 // POST /api/auth/register - Register new researcher account
-router.post('/register', (req, res) => {
+router.post('/register', async (req, res) => {
   const { username, email, password, confirmPassword, name, institution } = req.body;
 
   const cleanUsername = (username || name || '').trim();
@@ -69,12 +78,14 @@ router.post('/register', (req, res) => {
       storage_used_mb: 0.0
     };
 
-    const token = generateToken(newUser);
+    const sessionResult = await createSession(newUser, req);
+    attachSessionCookie(res, sessionResult.token);
     logAuditEvent(req, 'USER_REGISTER', `New user registered: ${cleanUsername} (${cleanEmail})`, 'SUCCESS', newUser.id, cleanEmail);
 
     res.status(201).json({
       message: 'Account registered successfully.',
-      token,
+      token: sessionResult.token,
+      session_id: sessionResult.sessionId,
       user: newUser
     });
   } catch (err) {
@@ -154,7 +165,7 @@ router.get('/firebase-config', (req, res) => {
 });
 
 // POST /api/auth/google - Authenticate or Register via Firebase / Google Single Sign-On
-router.post('/google', (req, res) => {
+router.post('/google', async (req, res) => {
   const { email, name, displayName, avatar_url, avatar, photoURL, google_id, firebase_uid, firebaseUid, uid, id_token, idToken } = req.body;
 
   const rawEmail = (email || '').trim().toLowerCase();
@@ -255,12 +266,14 @@ router.post('/google', (req, res) => {
       logAuditEvent(req, 'FIREBASE_GOOGLE_LOGIN_SUCCESS', `User signed in with Firebase Google SSO: ${user.username || user.email} [UID: ${rawUid || user.firebase_uid || 'N/A'}]`, 'SUCCESS', user.id, rawEmail);
     }
 
-    const token = generateToken(user);
+    const sessionResult = await createSession(user, req);
+    attachSessionCookie(res, sessionResult.token);
 
     res.json({
       success: true,
       message: isNewUser ? 'Account created successfully via Firebase Google SSO.' : 'Signed in with Google successfully via Firebase.',
-      token,
+      token: sessionResult.token,
+      session_id: sessionResult.sessionId,
       user: {
         id: user.id,
         username: user.username || user.email.split('@')[0],
@@ -285,7 +298,7 @@ router.post('/google', (req, res) => {
 });
 
 // POST /api/auth/orcid - Authenticate or Register via ORCID Identifier Single Sign-On
-router.post('/orcid', (req, res) => {
+router.post('/orcid', async (req, res) => {
   const { orcid, name, email } = req.body;
 
   if (!orcid && !email) {
@@ -354,11 +367,13 @@ router.post('/orcid', (req, res) => {
       logAuditEvent(req, 'ORCID_LOGIN_SUCCESS', `User signed in with ORCID: ${cleanOrcid || cleanEmail}`, 'SUCCESS', user.id, cleanEmail);
     }
 
-    const token = generateToken(user);
+    const sessionResult = await createSession(user, req);
+    attachSessionCookie(res, sessionResult.token);
 
     res.json({
       message: isNewUser ? 'Account created successfully with ORCID.' : 'Signed in with ORCID successfully.',
-      token,
+      token: sessionResult.token,
+      session_id: sessionResult.sessionId,
       user,
       is_new_user: isNewUser
     });
@@ -369,7 +384,7 @@ router.post('/orcid', (req, res) => {
 });
 
 // POST /api/auth/login - Authenticate user credentials via Username or Email
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { identifier, email, username, password } = req.body;
   const rawId = (identifier || email || username || '').trim();
 
@@ -409,7 +424,8 @@ router.post('/login', (req, res) => {
     // Update last_login timestamp
     db.prepare("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?").run(user.id);
 
-    const token = generateToken(user);
+    const sessionResult = await createSession(user, req);
+    attachSessionCookie(res, sessionResult.token);
     logAuditEvent(req, 'LOGIN_SUCCESS', `User signed in successfully: ${user.username || user.email} (Role: ${user.role})`, 'SUCCESS', user.id, user.email);
 
     const safeUser = {
@@ -428,7 +444,8 @@ router.post('/login', (req, res) => {
 
     res.json({
       message: 'Signed in successfully.',
-      token,
+      token: sessionResult.token,
+      session_id: sessionResult.sessionId,
       user: safeUser
     });
   } catch (err) {
@@ -486,20 +503,29 @@ router.put('/profile', authenticateToken, (req, res) => {
 });
 
 // POST /api/auth/revoke-sessions - Invalidate all other active login tokens/devices
-router.post('/revoke-sessions', authenticateToken, (req, res) => {
+router.post('/revoke-sessions', authenticateToken, async (req, res) => {
   const db = getDb();
   try {
     const newVersion = (req.user.token_version || 1) + 1;
     db.prepare("UPDATE users SET token_version = ? WHERE id = ?").run(newVersion, req.user.id);
     
+    // Invalidate all previous sessions in Redis for this user
+    await revokeAllUserSessions(req.user.id);
+
     const refreshedUser = db.prepare("SELECT id, username, name, email, role, institution, bio, orcid, google_scholar, phone, avatar_url, token_version, status, ai_token_quota, ai_tokens_used, storage_quota_mb, storage_used_mb FROM users WHERE id = ?").get(req.user.id);
-    const newToken = generateToken(refreshedUser);
+    refreshedUser.token_version = newVersion;
+    refreshedUser.tokenVersion = newVersion;
+
+    // Issue a fresh Redis session for this device
+    const sessionResult = await createSession(refreshedUser, req);
+    attachSessionCookie(res, sessionResult.token);
     
     logAuditEvent(req, 'REVOKE_SESSIONS', 'User revoked all other active device sessions', 'SUCCESS', req.user.id, req.user.email);
     res.json({
       success: true,
       message: 'All other device sessions have been revoked successfully. Only this device remains authenticated.',
-      token: newToken
+      token: sessionResult.token,
+      session_id: sessionResult.sessionId
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to revoke sessions: ' + err.message });
@@ -688,7 +714,7 @@ router.post('/verify-reset-code', (req, res) => {
 });
 
 // POST /api/auth/reset-password - Complete password reset with verification code
-router.post('/reset-password', (req, res) => {
+router.post('/reset-password', async (req, res) => {
   const { identifier, email, code, new_password, newPassword, confirm_password, confirmPassword } = req.body;
   const rawId = (identifier || email || '').trim().toLowerCase();
   const cleanCode = (code || '').trim();
@@ -750,12 +776,14 @@ router.post('/reset-password', (req, res) => {
       storage_used_mb: record.storage_used_mb
     };
 
-    const token = generateToken(safeUser);
+    const sessionResult = await createSession(safeUser, req);
+    attachSessionCookie(res, sessionResult.token);
 
     res.json({
       success: true,
       message: 'Password reset successfully! You are now logged in.',
-      token,
+      token: sessionResult.token,
+      session_id: sessionResult.sessionId,
       user: safeUser
     });
   } catch (err) {
@@ -765,9 +793,60 @@ router.post('/reset-password', (req, res) => {
 });
 
 // POST /api/auth/logout - Session sign-out
-router.post('/logout', authenticateToken, (req, res) => {
+router.post('/logout', authenticateToken, async (req, res) => {
+  const token =
+    req.session?.token ||
+    req.signedCookies?.litsphere_session ||
+    (req.cookies?.litsphere_session ? unsignCookieValue(req.cookies.litsphere_session) || req.cookies.litsphere_session : null) ||
+    (req.headers['authorization'] ? (req.headers['authorization'].startsWith('Bearer ') ? req.headers['authorization'].slice(7).trim() : req.headers['authorization'].trim()) : null) ||
+    req.headers['x-auth-token'] ||
+    req.headers['x-session-id'];
+
+  if (token) {
+    await destroySession(token);
+  }
+  clearSessionCookie(res);
+
   logAuditEvent(req, 'LOGOUT', 'User signed out', 'SUCCESS');
   res.json({ message: 'Signed out successfully.' });
+});
+
+// GET /api/auth/sessions - Device session inventory for current user
+router.get('/sessions', authenticateToken, async (req, res) => {
+  try {
+    const currentToken = req.session?.token || null;
+    const activeSessions = await getUserActiveSessions(req.user.id, currentToken);
+    res.json({
+      success: true,
+      sessions: activeSessions,
+      count: activeSessions.length,
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve active sessions: ' + err.message });
+  }
+});
+
+// DELETE /api/auth/sessions/:sessionId - Terminate specific remote device session
+router.delete('/sessions/:sessionId', authenticateToken, async (req, res) => {
+  try {
+    const targetSessionId = req.params.sessionId;
+    const activeSessions = await getUserActiveSessions(req.user.id);
+    const targetSession = activeSessions.find(s => s.id === targetSessionId || s.token === targetSessionId);
+
+    if (!targetSession) {
+      return res.status(404).json({ error: 'Session not found or already expired.' });
+    }
+
+    await destroySession(targetSession.token);
+    logAuditEvent(req, 'SESSION_TERMINATED', `User terminated session ${targetSessionId}`, 'SUCCESS', req.user.id);
+
+    res.json({
+      success: true,
+      message: 'Device session terminated successfully.',
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to terminate session: ' + err.message });
+  }
 });
 
 module.exports = router;

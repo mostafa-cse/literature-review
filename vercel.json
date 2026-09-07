@@ -13,8 +13,6 @@
     { "source": "/projects", "destination": "/dashboard" },
     { "source": "/reader", "destination": "/review" },
     { "source": "/paper-preview", "destination": "/review" },
-    { "source": "/react-review", "destination": "/review_react" },
-    { "source": "/review-react", "destination": "/review_react" },
     { "source": "/admin-dashboard", "destination": "/admin" },
     { "source": "/control-center", "destination": "/admin" },
     { "source": "/database", "destination": "/db" },

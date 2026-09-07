@@ -11,6 +11,9 @@ const adminRoutes = require('./src/routes/adminRoutes');
 const collaborationRoutes = require('./src/routes/collaborationRoutes');
 const reviewRoutes = require('./src/routes/reviewRoutes');
 
+const cookieParser = require('cookie-parser');
+const { env } = require('./src/config/env');
+
 const app = express();
 const DEFAULT_PORT = parseInt(process.env.PORT || '3000', 10);
 
@@ -18,7 +21,8 @@ const DEFAULT_PORT = parseInt(process.env.PORT || '3000', 10);
 initDb();
 
 // Middlewares
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
+app.use(cookieParser(env.SESSION_SECRET));
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
@@ -118,15 +122,6 @@ app.get(['/review', '/reader', '/paper-preview'], (req, res) => {
   res.sendFile(path.join(frontendDir, 'workspace.html'));
 });
 
-// React-Powered Dynamic Component-Based Review Page
-app.get(['/review-react', '/react-review'], (req, res) => {
-  const reactReviewFile = path.join(frontendDir, 'review_react.html');
-  if (fs.existsSync(reactReviewFile)) {
-    return res.sendFile(reactReviewFile);
-  }
-  res.sendFile(path.join(frontendDir, 'review.html'));
-});
-
 // User Researcher Dashboard Route
 app.get(['/dashboard', '/surveys', '/my-surveys', '/projects'], (req, res) => {
   const dashboardFile = path.join(frontendDir, 'dashboard.html');
@@ -188,6 +183,23 @@ app.get('/shared/:token', (req, res) => {
     return res.sendFile(wsFile);
   }
   res.sendFile(path.join(frontendDir, 'index.html'));
+});
+
+// Catch-all 404 for unmatched API routes
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl}` });
+});
+
+// Global error handling middleware
+app.use((err, req, res, next) => {
+  console.error(`[Server Error] ${req.method} ${req.originalUrl}:`, err);
+  if (res.headersSent) {
+    return next(err);
+  }
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal Server Error',
+    code: err.code || 'INTERNAL_ERROR'
+  });
 });
 
 function startServer(port, maxAttempts = 10) {

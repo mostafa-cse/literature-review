@@ -445,7 +445,12 @@ function initDb() {
       ON CONFLICT(project_id, user_id) DO NOTHING
     `);
     allProjects.forEach(p => {
-      insertMember.run(p.id, p.owner_id || 1, 'owner');
+      if (p.owner_id) {
+        const userExists = db.prepare("SELECT id FROM users WHERE id = ?").get(p.owner_id);
+        if (userExists) {
+          insertMember.run(p.id, p.owner_id, 'owner');
+        }
+      }
     });
 
     // Seed default system settings

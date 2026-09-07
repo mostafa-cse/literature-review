@@ -72,21 +72,32 @@ async function runClusterReorderTests() {
     const db = getDb();
 
     // 1. Create a dedicated test project and users
-    const ownerToken = generateToken({ id: 1, email: 'admin@litsphere.ac', role: 'admin', name: 'Platform Admin' });
-    const viewerUser = db.prepare("SELECT * FROM users WHERE email = 'test_viewer_reorder@litsphere.ac'").get();
+    let adminUser = db.prepare("SELECT * FROM users WHERE role = 'admin' LIMIT 1").get() || db.prepare("SELECT * FROM users LIMIT 1").get();
+    let adminId;
+    if (!adminUser) {
+      const aRes = db.prepare("INSERT INTO users (username, name, email, password_hash, role, status) VALUES ('admin_reorder', 'Platform Admin', 'admin_reorder@litsphere.ac', 'hash', 'admin', 'active')").run();
+      adminId = aRes.lastInsertRowid;
+      adminUser = db.prepare("SELECT * FROM users WHERE id = ?").get(adminId);
+    } else {
+      adminId = adminUser.id;
+    }
+    const ownerToken = generateToken(adminUser);
+
+    let viewerUser = db.prepare("SELECT * FROM users WHERE email = 'test_viewer_reorder@litsphere.ac'").get();
     let viewerId;
     if (!viewerUser) {
       const vRes = db.prepare("INSERT INTO users (name, email, password_hash, role) VALUES ('Viewer Test', 'test_viewer_reorder@litsphere.ac', 'hash', 'user')").run();
       viewerId = vRes.lastInsertRowid;
+      viewerUser = db.prepare("SELECT * FROM users WHERE id = ?").get(viewerId);
     } else {
       viewerId = viewerUser.id;
     }
-    const viewerToken = generateToken({ id: viewerId, email: 'test_viewer_reorder@litsphere.ac', role: 'user', name: 'Viewer Test' });
+    const viewerToken = generateToken(viewerUser || { id: viewerId, email: 'test_viewer_reorder@litsphere.ac', role: 'user', name: 'Viewer Test' });
 
     // Create a new test project
-    const pRes = db.prepare("INSERT INTO projects (name, description, owner_id) VALUES ('Cluster Reorder Test Project', 'Testing cluster repositioning', 1)").run();
+    const pRes = db.prepare("INSERT INTO projects (name, description, owner_id) VALUES ('Cluster Reorder Test Project', 'Testing cluster repositioning', ?)").run(adminId);
     const testProjectId = pRes.lastInsertRowid;
-    db.prepare("INSERT OR REPLACE INTO project_members (project_id, user_id, role) VALUES (?, 1, 'owner')").run(testProjectId);
+    db.prepare("INSERT OR REPLACE INTO project_members (project_id, user_id, role) VALUES (?, ?, 'owner')").run(testProjectId, adminId);
     db.prepare("INSERT OR REPLACE INTO project_members (project_id, user_id, role) VALUES (?, ?, 'viewer')").run(testProjectId, viewerId);
 
     // 2. Create 3 clusters

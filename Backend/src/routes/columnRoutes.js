@@ -2,73 +2,81 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db');
 const { authenticateToken, getProjectRole } = require('../utils/auth');
+const cacheService = require('../services/cacheService');
 
 // ==========================================
 // DYNAMIC COLUMNS & HIERARCHICAL SPLITTING API
 // ==========================================
 
-// Get dynamic columns for a cluster or project
-router.get(['/dynamic-columns', '/columns'], (req, res) => {
+// Get dynamic columns for a cluster or project with sub-millisecond cache-aside
+router.get(['/dynamic-columns', '/columns'], async (req, res) => {
   try {
     const { cluster_id, project_id } = req.query;
-    const db = getDb();
-    let cols = [];
+    const surveyKey = project_id || 'all';
 
-    if (cluster_id && cluster_id !== 'all') {
-      cols = db.prepare(`
-        SELECT dc.id, dc.cluster_id, dc.column_name, dc.column_name as name, dc.parent_column_id, dc.col_type, p.column_name as parent_column_name
-        FROM dynamic_columns dc
-        LEFT JOIN dynamic_columns p ON p.id = dc.parent_column_id
-        WHERE dc.cluster_id = ?
-        ORDER BY dc.parent_column_id ASC, dc.id ASC
-      `).all(cluster_id);
+    const { data, cached } = await cacheService.getSurveyColumns(surveyKey, cluster_id, async () => {
+      const db = getDb();
+      let cols = [];
 
-      // Fallback: If cluster has no custom columns, retrieve project-level dynamic columns
-      if (cols.length === 0) {
-        const cl = db.prepare('SELECT project_id FROM clusters WHERE id = ?').get(cluster_id);
-        const pid = project_id || (cl ? cl.project_id : null);
-        if (pid) {
-          cols = db.prepare(`
-            SELECT MIN(dc.id) as id, MIN(dc.cluster_id) as cluster_id, dc.column_name, dc.column_name as name, dc.parent_column_id, dc.col_type, p.column_name as parent_column_name
-            FROM dynamic_columns dc
-            LEFT JOIN clusters c ON c.id = dc.cluster_id
-            LEFT JOIN dynamic_columns p ON p.id = dc.parent_column_id
-            WHERE c.project_id = ?
-               OR dc.id IN (SELECT pcv.column_id FROM paper_column_values pcv JOIN papers pa ON pa.id = pcv.paper_id WHERE pa.project_id = ?)
-            GROUP BY dc.column_name
-            ORDER BY dc.parent_column_id ASC, MIN(dc.id) ASC
-          `).all(pid, pid);
+      if (cluster_id && cluster_id !== 'all') {
+        cols = db.prepare(`
+          SELECT dc.id, dc.cluster_id, dc.column_name, dc.column_name as name, dc.parent_column_id, dc.col_type, p.column_name as parent_column_name
+          FROM dynamic_columns dc
+          LEFT JOIN dynamic_columns p ON p.id = dc.parent_column_id
+          WHERE dc.cluster_id = ?
+          ORDER BY dc.parent_column_id ASC, dc.id ASC
+        `).all(cluster_id);
+
+        // Fallback: If cluster has no custom columns, retrieve project-level dynamic columns
+        if (cols.length === 0) {
+          const cl = db.prepare('SELECT project_id FROM clusters WHERE id = ?').get(cluster_id);
+          const pid = project_id || (cl ? cl.project_id : null);
+          if (pid) {
+            cols = db.prepare(`
+              SELECT MIN(dc.id) as id, MIN(dc.cluster_id) as cluster_id, dc.column_name, dc.column_name as name, dc.parent_column_id, dc.col_type, p.column_name as parent_column_name
+              FROM dynamic_columns dc
+              LEFT JOIN clusters c ON c.id = dc.cluster_id
+              LEFT JOIN dynamic_columns p ON p.id = dc.parent_column_id
+              WHERE c.project_id = ?
+                 OR dc.id IN (SELECT pcv.column_id FROM paper_column_values pcv JOIN papers pa ON pa.id = pcv.paper_id WHERE pa.project_id = ?)
+              GROUP BY dc.column_name
+              ORDER BY dc.parent_column_id ASC, MIN(dc.id) ASC
+            `).all(pid, pid);
+          }
         }
+      } else if (project_id) {
+        cols = db.prepare(`
+          SELECT MIN(dc.id) as id, MIN(dc.cluster_id) as cluster_id, dc.column_name, dc.column_name as name, dc.parent_column_id, dc.col_type, p.column_name as parent_column_name
+          FROM dynamic_columns dc
+          LEFT JOIN clusters c ON c.id = dc.cluster_id
+          LEFT JOIN dynamic_columns p ON p.id = dc.parent_column_id
+          WHERE c.project_id = ?
+             OR dc.id IN (SELECT pcv.column_id FROM paper_column_values pcv JOIN papers pa ON pa.id = pcv.paper_id WHERE pa.project_id = ?)
+          GROUP BY dc.column_name
+          ORDER BY dc.parent_column_id ASC, MIN(dc.id) ASC
+        `).all(project_id, project_id);
+      } else {
+        cols = db.prepare(`
+          SELECT MIN(dc.id) as id, MIN(dc.cluster_id) as cluster_id, dc.column_name, dc.column_name as name, dc.parent_column_id, dc.col_type, p.column_name as parent_column_name
+          FROM dynamic_columns dc
+          LEFT JOIN dynamic_columns p ON p.id = dc.parent_column_id
+          GROUP BY dc.column_name
+          ORDER BY dc.parent_column_id ASC, MIN(dc.id) ASC
+        `).all();
       }
-    } else if (project_id) {
-      cols = db.prepare(`
-        SELECT MIN(dc.id) as id, MIN(dc.cluster_id) as cluster_id, dc.column_name, dc.column_name as name, dc.parent_column_id, dc.col_type, p.column_name as parent_column_name
-        FROM dynamic_columns dc
-        LEFT JOIN clusters c ON c.id = dc.cluster_id
-        LEFT JOIN dynamic_columns p ON p.id = dc.parent_column_id
-        WHERE c.project_id = ?
-           OR dc.id IN (SELECT pcv.column_id FROM paper_column_values pcv JOIN papers pa ON pa.id = pcv.paper_id WHERE pa.project_id = ?)
-        GROUP BY dc.column_name
-        ORDER BY dc.parent_column_id ASC, MIN(dc.id) ASC
-      `).all(project_id, project_id);
-    } else {
-      cols = db.prepare(`
-        SELECT MIN(dc.id) as id, MIN(dc.cluster_id) as cluster_id, dc.column_name, dc.column_name as name, dc.parent_column_id, dc.col_type, p.column_name as parent_column_name
-        FROM dynamic_columns dc
-        LEFT JOIN dynamic_columns p ON p.id = dc.parent_column_id
-        GROUP BY dc.column_name
-        ORDER BY dc.parent_column_id ASC, MIN(dc.id) ASC
-      `).all();
-    }
 
-    res.json(cols);
+      return cols;
+    });
+
+    res.setHeader('X-Cache', cached ? 'HIT' : 'MISS');
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // Add dynamic column or Split column
-router.post(['/dynamic-columns', '/columns'], authenticateToken, (req, res) => {
+router.post(['/dynamic-columns', '/columns'], authenticateToken, async (req, res) => {
   try {
     const { parent_column_id, sub_columns } = req.body;
     let cluster_id = req.body.cluster_id;
@@ -129,6 +137,7 @@ router.post(['/dynamic-columns', '/columns'], authenticateToken, (req, res) => {
         }
 
         db.exec('COMMIT;');
+        await cacheService.invalidateSurveyColumns(pid);
         return res.status(201).json({ success: true, parent_id: parentId, sub_columns: createdSubs });
       } catch (e) {
         db.exec('ROLLBACK;');
@@ -176,6 +185,7 @@ router.post(['/dynamic-columns', '/columns'], authenticateToken, (req, res) => {
       .run(firstCl.id, column_name, parent_column_id || null, col_type);
 
     const created = db.prepare('SELECT dc.*, dc.column_name as name FROM dynamic_columns dc WHERE dc.id = ?').get(result.lastInsertRowid);
+    await cacheService.invalidateSurveyColumns(pid);
     res.status(201).json(created);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -183,7 +193,7 @@ router.post(['/dynamic-columns', '/columns'], authenticateToken, (req, res) => {
 });
 
 // Dedicated Split Column endpoint (Owner, Editor)
-router.post('/dynamic-columns/split', authenticateToken, (req, res) => {
+router.post('/dynamic-columns/split', authenticateToken, async (req, res) => {
   try {
     let { cluster_id, project_id, parent_column_name, parent_column_id, column_id, column_name, sub_columns } = req.body;
     parent_column_id = parent_column_id || column_id;
@@ -304,6 +314,7 @@ router.post('/dynamic-columns/split', authenticateToken, (req, res) => {
       }
 
       db.exec('COMMIT;');
+      await cacheService.invalidateSurveyColumns(pid);
       return res.status(201).json({ success: true, parent_column_name, sub_columns: createdSubs });
     } catch (e) {
       db.exec('ROLLBACK;');
@@ -315,7 +326,7 @@ router.post('/dynamic-columns/split', authenticateToken, (req, res) => {
 });
 
 // Dedicated Unsplit Column endpoint (Owner, Editor)
-router.post('/dynamic-columns/unsplit', authenticateToken, (req, res) => {
+router.post('/dynamic-columns/unsplit', authenticateToken, async (req, res) => {
   try {
     let { cluster_id, project_id, parent_column_name, parent_column_id, column_id, column_name } = req.body;
     parent_column_id = parent_column_id || column_id;
@@ -354,6 +365,7 @@ router.post('/dynamic-columns/unsplit', authenticateToken, (req, res) => {
         }
       }
       db.exec('COMMIT;');
+      await cacheService.invalidateSurveyColumns(pid);
       res.json({ success: true, message: 'Column unsplit successfully' });
     } catch (e) {
       db.exec('ROLLBACK;');
@@ -365,7 +377,7 @@ router.post('/dynamic-columns/unsplit', authenticateToken, (req, res) => {
 });
 
 // Update dynamic column (Owner, Editor)
-router.put('/dynamic-columns/:id', authenticateToken, (req, res) => {
+router.put('/dynamic-columns/:id', authenticateToken, async (req, res) => {
   try {
     const { column_name, col_type } = req.body;
     const db = getDb();
@@ -379,6 +391,7 @@ router.put('/dynamic-columns/:id', authenticateToken, (req, res) => {
       .run(column_name, col_type, req.params.id);
     if (result.changes === 0) return res.status(404).json({ error: 'Column not found' });
     const updated = db.prepare('SELECT * FROM dynamic_columns WHERE id = ?').get(req.params.id);
+    if (col && col.project_id) await cacheService.invalidateSurveyColumns(col.project_id);
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -386,7 +399,7 @@ router.put('/dynamic-columns/:id', authenticateToken, (req, res) => {
 });
 
 // Rename dynamic column across project by name or ID (Owner, Editor)
-router.post('/dynamic-columns/rename-by-name', authenticateToken, (req, res) => {
+router.post('/dynamic-columns/rename-by-name', authenticateToken, async (req, res) => {
   try {
     let { old_column_name, new_column_name, column_id, project_id, cluster_id } = req.body;
     if ((!old_column_name && !column_id) || !new_column_name) {
@@ -436,6 +449,7 @@ router.post('/dynamic-columns/rename-by-name', authenticateToken, (req, res) => 
       }
     }
 
+    if (pid) await cacheService.invalidateSurveyColumns(pid);
     res.json({ success: true, new_column_name, updatedCount });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -443,7 +457,7 @@ router.post('/dynamic-columns/rename-by-name', authenticateToken, (req, res) => 
 });
 
 // Delete dynamic column (Owner, Editor)
-router.delete('/dynamic-columns/:id', authenticateToken, (req, res) => {
+router.delete('/dynamic-columns/:id', authenticateToken, async (req, res) => {
   try {
     const db = getDb();
     const id = parseInt(req.params.id, 10);
@@ -460,6 +474,7 @@ router.delete('/dynamic-columns/:id', authenticateToken, (req, res) => {
     db.prepare(`DELETE FROM paper_column_values WHERE column_id IN (${placeholders})`).run(...allIds);
     const result = db.prepare(`DELETE FROM dynamic_columns WHERE id IN (${placeholders})`).run(...allIds);
     if (result.changes === 0) return res.status(404).json({ error: 'Column not found' });
+    if (col && col.project_id) await cacheService.invalidateSurveyColumns(col.project_id);
     res.json({ success: true, message: 'Column deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -467,7 +482,7 @@ router.delete('/dynamic-columns/:id', authenticateToken, (req, res) => {
 });
 
 // Delete dynamic column across project by name or ID (Owner, Editor)
-router.post('/dynamic-columns/delete-by-name', authenticateToken, (req, res) => {
+router.post('/dynamic-columns/delete-by-name', authenticateToken, async (req, res) => {
   try {
     let { column_name, column_id, project_id, cluster_id } = req.body;
     if (!column_name && !column_id) return res.status(400).json({ error: 'column_name or column_id is required' });
@@ -513,6 +528,10 @@ router.post('/dynamic-columns/delete-by-name', authenticateToken, (req, res) => 
         db.prepare(`DELETE FROM dynamic_columns WHERE id IN (${allPlaceholders})`).run(...allIdsToDelete);
       }
       db.exec('COMMIT;');
+      if (pid) {
+          await cacheService.invalidateSurveyColumns(pid);
+          await cacheService.invalidateSurveyMatrix(pid);
+      }
       res.json({ success: true, deletedCount: colIds.length });
     } catch (e) {
       db.exec('ROLLBACK;');
@@ -528,7 +547,7 @@ router.post('/dynamic-columns/delete-by-name', authenticateToken, (req, res) => 
 // ==========================================
 
 // Upsert a column value for a paper
-router.post('/paper-column-values', (req, res) => {
+router.post('/paper-column-values', async (req, res) => {
   try {
     const { paper_id, column_name } = req.body;
     const value = req.body.value !== undefined ? req.body.value : req.body.value_text;
@@ -593,6 +612,7 @@ router.post('/paper-column-values', (req, res) => {
     upsert.run(paper_id, column_id, value !== undefined ? String(value) : '');
 
     const record = db.prepare('SELECT * FROM paper_column_values WHERE paper_id = ? AND column_id = ?').get(paper_id, column_id);
+    await cacheService.invalidateSurveyMatrix(paper.project_id);
     res.json({ success: true, ...record });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -600,7 +620,7 @@ router.post('/paper-column-values', (req, res) => {
 });
 
 // Batch Upsert column values
-router.post('/paper-column-values/batch', (req, res) => {
+router.post('/paper-column-values/batch', async (req, res) => {
   try {
     const rawUpdates = req.body.updates || req.body.values || (Array.isArray(req.body) ? req.body : null);
     const globalPaperId = req.body.paper_id;
@@ -663,8 +683,9 @@ router.post('/paper-column-values/batch', (req, res) => {
       }
     }
 
+    let samplePaper = null;
     if (normalizedUpdates.length > 0) {
-      const samplePaper = db.prepare('SELECT project_id FROM papers WHERE id = ?').get(normalizedUpdates[0].paper_id);
+      samplePaper = db.prepare('SELECT project_id FROM papers WHERE id = ?').get(normalizedUpdates[0].paper_id);
       if (samplePaper) {
         const role = req.user ? getProjectRole(req.user.id, samplePaper.project_id) : 'owner';
         if (!['owner', 'editor'].includes(role)) {
@@ -673,24 +694,31 @@ router.post('/paper-column-values/batch', (req, res) => {
       }
     }
 
-    db.exec('BEGIN TRANSACTION;');
-    try {
-      const upsert = db.prepare(`
-        INSERT INTO paper_column_values (paper_id, column_id, value)
-        VALUES (?, ?, ?)
-        ON CONFLICT(paper_id, column_id) DO UPDATE SET value = excluded.value
-      `);
-      for (const u of normalizedUpdates) {
-        upsert.run(u.paper_id, u.column_id, u.value);
+    const targetProjectId = samplePaper ? samplePaper.project_id : (req.body.project_id || 1);
+    const lockResource = `survey:${targetProjectId}:matrix`;
+
+    await cacheService.withLock(lockResource, 15, async () => {
+      db.exec('BEGIN TRANSACTION;');
+      try {
+        const upsert = db.prepare(`
+          INSERT INTO paper_column_values (paper_id, column_id, value)
+          VALUES (?, ?, ?)
+          ON CONFLICT(paper_id, column_id) DO UPDATE SET value = excluded.value
+        `);
+        for (const u of normalizedUpdates) {
+          upsert.run(u.paper_id, u.column_id, u.value);
+        }
+        db.exec('COMMIT;');
+      } catch (e) {
+        db.exec('ROLLBACK;');
+        throw e;
       }
-      db.exec('COMMIT;');
-      res.json({ success: true, count: normalizedUpdates.length });
-    } catch (e) {
-      db.exec('ROLLBACK;');
-      throw e;
-    }
+    });
+
+    await cacheService.invalidateSurveyMatrix(targetProjectId);
+    res.json({ success: true, count: normalizedUpdates.length });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.statusCode || 500).json({ error: err.message });
   }
 });
 

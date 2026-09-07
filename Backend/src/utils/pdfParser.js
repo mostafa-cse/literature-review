@@ -9,21 +9,23 @@ try {
 
 /**
  * Smart PDF metadata and first-page content extractor
- * @param {string} filePath - Absolute or relative path to PDF file
+ * @param {string|Buffer} input - Absolute/relative path to PDF file, or Buffer
  * @param {string} originalName - Original filename for heuristic fallback
- * @returns {Promise<Object>} Extracted metadata (title, authors, year, doi, intuition)
+ * @returns {Promise<Object>} Extracted metadata (title, authors, year, doi, intuition, pageCount)
  */
-async function parsePdfMetadata(filePath, originalName = '') {
+async function parsePdfMetadata(input, originalName = '') {
   try {
-    const dataBuffer = fs.readFileSync(filePath);
+    const dataBuffer = Buffer.isBuffer(input) ? input : fs.readFileSync(input);
     let text = '';
     let info = {};
+    let pageCount = 1;
 
     if (PDFParseLib) {
       if (typeof PDFParseLib === 'function' && !PDFParseLib.prototype?.getText) {
         const res = await PDFParseLib(dataBuffer, { max: 1 });
         text = (res.text || '').trim();
         info = res.info || {};
+        pageCount = res.numpages || info.Pages || 1;
       } else {
         const uint8 = new Uint8Array(dataBuffer.buffer, dataBuffer.byteOffset, dataBuffer.byteLength);
         const parser = new PDFParseLib(uint8);
@@ -37,6 +39,7 @@ async function parsePdfMetadata(filePath, originalName = '') {
         if (infoRes.status === 'fulfilled') {
           info = infoRes.value || {};
         }
+        pageCount = info.Pages || 1;
       }
     }
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
@@ -129,6 +132,7 @@ async function parsePdfMetadata(filePath, originalName = '') {
       year: extractedYear || new Date().getFullYear(),
       doi: extractedDoi,
       intuition: extractedAbstract,
+      pageCount: Math.max(1, parseInt(pageCount || 1, 10)),
       first_page_text: text.substring(0, 1000)
     };
   } catch (err) {
@@ -141,6 +145,7 @@ async function parsePdfMetadata(filePath, originalName = '') {
       year: yearMatch ? parseInt(yearMatch[0], 10) : new Date().getFullYear(),
       doi: '',
       intuition: '',
+      pageCount: 1,
       first_page_text: ''
     };
   }

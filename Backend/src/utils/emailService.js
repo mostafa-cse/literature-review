@@ -25,9 +25,9 @@ const getTransporter = () => {
  * @param {string} name - (Optional) User's name
  */
 async function sendPasswordResetEmail(toEmail, resetCode, name = 'Researcher') {
-  // If no SMTP credentials are provided, we simulate the dispatch in console.
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.warn('\n⚠️ [EMAIL SERVICE WARNING] SMTP Credentials not found in .env.');
+  // If no live SMTP credentials are provided or running in test, simulate the dispatch in console.
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS || process.env.EMAIL_PASS.includes('your_16_char_app_password') || process.env.NODE_ENV === 'test') {
+    console.warn('\n⚠️ [EMAIL SERVICE WARNING] Live SMTP credentials not configured in .env.');
     console.log(`📧 Simulated Email Dispatch to: ${toEmail} | Code: ${resetCode}\n`);
     return true; // Simulate success
   }

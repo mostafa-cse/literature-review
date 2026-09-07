@@ -4,13 +4,28 @@
   "description": "Deep Analytical Benchmark & Literature Review System with Express and SQLite",
   "main": "Backend/server.js",
   "scripts": {
+    "build": "npx prisma generate",
     "start": "node Backend/server.js",
     "dev": "node --watch Backend/server.js",
     "test": "node Backend/tests/run_all.js",
+    "test:infra": "node Backend/tests/infrastructure_phase1.test.js",
+    "test:prisma": "node Backend/tests/prisma_phase2.test.js",
+    "test:search": "node Backend/tests/search_phase3.test.js",
+    "test:storage": "node Backend/tests/storage_phase4.test.js",
+    "test:session": "node Backend/tests/session_phase5.test.js",
+    "test:cache": "node Backend/tests/cache_phase6.test.js",
+    "test:queue": "node Backend/tests/queue_phase7.test.js",
+    "test:validation": "node Backend/tests/validation_phase8.test.js",
     "test:users": "node Backend/tests/user_credentials_rbac.test.js",
     "test:rbac": "node Backend/tests/collaboration_rbac.test.js",
     "test:audit": "node Backend/tests/audit.test.js",
-    "seed": "node Backend/src/seed.js"
+    "health": "node Backend/src/config/health.js",
+    "seed": "node Backend/src/seed.js",
+    "seed:dev": "node prisma/seed.js",
+    "migrate:sqlite": "node Backend/src/scripts/migrate_sqlite_to_postgres.js",
+    "verify:migration": "node Backend/src/scripts/verify_migration_consistency.js",
+    "test:migration": "node Backend/tests/migration_phase9.test.js",
+    "test:integration": "node Backend/tests/integration_phase10.test.js"
   },
   "keywords": [
     "literature-review",
@@ -25,14 +40,49 @@
     "node": ">=22.5.0"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1127.0",
+    "@aws-sdk/s3-request-presigner": "^3.1127.0",
+    "@prisma/client": "^6.4.1",
+    "bullmq": "^6.3.4",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^4.21.2",
+    "ioredis": "^6.0.0",
+    "katex": "^0.18.6",
+    "lucide-react": "^1.41.0",
     "multer": "^1.4.5-lts.1",
+    "next": "^16.3.4",
+    "next-themes": "^0.4.6",
     "nodemailer": "^9.1.0",
     "pdf-parse": "^2.4.5",
-    "pptxgenjs": "^4.0.1",
-    "puppeteer-core": "^25.10.0",
-    "xlsx": "^0.18.5"
+    "pg": "^8.23.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "reflect-metadata": "^0.2.2",
+    "tailwind-merge": "^3.6.0",
+    "xlsx": "^0.18.5",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
+    "@types/ioredis": "^4.28.10",
+    "@types/katex": "^0.16.8",
+    "@types/node": "^26.4.1",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "autoprefixer": "^10.5.5",
+    "postcss": "^8.5.28",
+    "prisma": "^6.4.1",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^7.0.2"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   }
 }

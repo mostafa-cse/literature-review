@@ -3,6 +3,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const { getDb } = require('../db');
 const { authenticateToken, getProjectRole, logAuditEvent } = require('../utils/auth');
+const cacheService = require('../services/cacheService');
 
 // ==========================================
 // 1. PROJECTS CRUD & DASHBOARD METRICS
@@ -306,6 +307,65 @@ router.get('/projects/:id', (req, res) => {
   }
 });
 
+// Dedicated Full Survey Benchmark Matrix endpoint (Sub-millisecond Redis Cache-Aside)
+router.get('/projects/:id/matrix', async (req, res) => {
+  try {
+    const pid = req.params.id;
+    const db = getDb();
+    const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(pid);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+
+    if (!project.is_public && req.user) {
+      const role = getProjectRole(req.user.id, pid);
+      if (!role && req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Access Denied. You are not a member of this project.' });
+      }
+    }
+
+    const { data, cached } = await cacheService.getSurveyMatrix(pid, async () => {
+      const clusters = db.prepare('SELECT * FROM clusters WHERE project_id = ? ORDER BY COALESCE(position, id) ASC, id ASC').all(pid);
+      const dynamicColumns = db.prepare(`
+        SELECT dc.* 
+        FROM dynamic_columns dc
+        JOIN clusters c ON c.id = dc.cluster_id
+        WHERE c.project_id = ?
+        ORDER BY dc.parent_column_id ASC, dc.id ASC
+      `).all(pid);
+
+      const papers = db.prepare('SELECT * FROM papers WHERE project_id = ? ORDER BY year DESC, id ASC').all(pid);
+      const paperIds = papers.map(p => p.id);
+
+      let keywords = [];
+      let columnValues = [];
+
+      if (paperIds.length > 0) {
+        const placeholders = paperIds.map(() => '?').join(',');
+        keywords = db.prepare(`SELECT * FROM keywords WHERE paper_id IN (${placeholders})`).all(...paperIds);
+        columnValues = db.prepare(`SELECT * FROM paper_column_values WHERE paper_id IN (${placeholders})`).all(...paperIds);
+      }
+
+      return {
+        project: {
+          id: project.id,
+          name: project.name,
+          description: project.description,
+          domain: project.domain
+        },
+        clusters,
+        dynamic_columns: dynamicColumns,
+        papers,
+        keywords,
+        column_values: columnValues
+      };
+    });
+
+    res.setHeader('X-Cache', cached ? 'HIT' : 'MISS');
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Create project — requires authentication with unique title check
 router.post('/projects', (req, res) => {
   try {
@@ -345,7 +405,7 @@ router.post('/projects', (req, res) => {
 });
 
 // Update project — requires owner or editor role
-router.put('/projects/:id', (req, res) => {
+router.put('/projects/:id', async (req, res) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Authentication required.' });
 
@@ -378,6 +438,7 @@ router.put('/projects/:id', (req, res) => {
       .run(cleanName, description !== undefined ? description : null, domain !== undefined ? domain : null, pid);
     if (result.changes === 0) return res.status(404).json({ error: 'Project not found' });
     const updated = db.prepare('SELECT * FROM projects WHERE id = ?').get(pid);
+    await cacheService.invalidateSurveyCache(pid);
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -385,7 +446,7 @@ router.put('/projects/:id', (req, res) => {
 });
 
 // Delete project
-router.delete('/projects/:id', (req, res) => {
+router.delete('/projects/:id', async (req, res) => {
   try {
     const db = getDb();
     const pid = req.params.id;
@@ -407,6 +468,7 @@ router.delete('/projects/:id', (req, res) => {
       const result = db.prepare('DELETE FROM projects WHERE id = ?').run(pid);
       db.exec('COMMIT;');
       if (result.changes === 0) return res.status(404).json({ error: 'Project not found' });
+      await cacheService.invalidateSurveyCache(pid);
       res.json({ success: true, message: 'Project and all related data purged' });
     } catch (e) {
       db.exec('ROLLBACK;');
@@ -572,8 +634,8 @@ router.post('/projects/:id/duplicate', authenticateToken, (req, res) => {
   }
 });
 
-// Reset/Clear all extracted paper column values in master matrix (Owner only)
-router.post('/projects/:id/reset-matrix', authenticateToken, (req, res) => {
+// Reset/Clear all extracted paper column values in master matrix (Owner only, with Distributed Lock protection)
+router.post('/projects/:id/reset-matrix', authenticateToken, async (req, res) => {
   try {
     const db = getDb();
     const pid = req.params.id;
@@ -586,28 +648,35 @@ router.post('/projects/:id/reset-matrix', authenticateToken, (req, res) => {
       return res.status(403).json({ error: `Access Denied. Only the project Owner can reset the master matrix (Your role: ${role}).` });
     }
 
-    db.exec('BEGIN TRANSACTION;');
-    try {
-      // 1. Delete all cell extractions for papers in this project
-      const delValues = db.prepare('DELETE FROM paper_column_values WHERE paper_id IN (SELECT id FROM papers WHERE project_id = ?)').run(pid);
-      
-      // 2. Reset paper statuses to 'unread'
-      db.prepare("UPDATE papers SET status = 'unread' WHERE project_id = ?").run(pid);
+    let delChanges = 0;
+    await cacheService.withLock(`survey:${pid}:matrix`, 15, async () => {
+      db.exec('BEGIN TRANSACTION;');
+      try {
+        // 1. Delete all cell extractions for papers in this project
+        const delValues = db.prepare('DELETE FROM paper_column_values WHERE paper_id IN (SELECT id FROM papers WHERE project_id = ?)').run(pid);
+        delChanges = delValues.changes;
+        
+        // 2. Reset paper statuses to 'unread'
+        db.prepare("UPDATE papers SET status = 'unread' WHERE project_id = ?").run(pid);
 
-      db.exec('COMMIT;');
+        db.exec('COMMIT;');
+      } catch (e) {
+        db.exec('ROLLBACK;');
+        throw e;
+      }
+    });
 
-      logAuditEvent(req, 'PROJECT_MATRIX_RESET', `Reset matrix cell values and paper status on project ${pid} (${project.name})`, 'SUCCESS');
+    // Invalidate cached survey matrix & stats
+    await cacheService.invalidateSurveyCache(pid);
 
-      res.json({
-        success: true,
-        message: `Master Matrix cells successfully reset (${delValues.changes} values cleared). Papers and columns preserved.`
-      });
-    } catch (e) {
-      db.exec('ROLLBACK;');
-      throw e;
-    }
+    logAuditEvent(req, 'PROJECT_MATRIX_RESET', `Reset matrix cell values and paper status on project ${pid} (${project.name})`, 'SUCCESS');
+
+    res.json({
+      success: true,
+      message: `Master Matrix cells successfully reset (${delChanges} values cleared). Papers and columns preserved.`
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.statusCode || 500).json({ error: err.message });
   }
 });
 

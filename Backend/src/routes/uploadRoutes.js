@@ -147,10 +147,6 @@ async function handlePdfUpload(req, res) {
       });
     }
 
-    if (req.user && req.user.id) {
-      recalculateUserStorage(req.user.id);
-    }
-
     res.status(201).json({
       success: true,
       ingested_count: uploaded.length,
@@ -165,7 +161,82 @@ async function handlePdfUpload(req, res) {
   }
 }
 
+// ==========================================
+// ASYNC PDF INGESTION (BullMQ Queue Dispatch)
+// ==========================================
+async function handleAsyncPdfUpload(req, res) {
+  try {
+    const files = req.files || [];
+    if (files.length === 0) {
+      return res.status(400).json({ error: 'No PDF files uploaded' });
+    }
+
+    const queueService = require('../services/queueService');
+    const { project_id, cluster_id, domain } = req.body;
+    const pid = project_id ? parseInt(project_id, 10) : 1;
+    const targetClusterId = (cluster_id && cluster_id !== 'unassigned' && cluster_id !== 'null' && cluster_id !== '') ? parseInt(cluster_id, 10) : null;
+    const db = getDb();
+
+    const jobs = [];
+    for (const file of files) {
+      const pRes = db.prepare(`
+        INSERT INTO papers (
+          project_id, cluster_id, title, authors, year, pub, doi, pdf_url,
+          status, domain, intuition, equation, strengths, gaps
+        )
+        VALUES (?, ?, ?, ?, ?, '', '', ?, 'unread', ?, '', '', '', '')
+      `).run(
+        pid,
+        targetClusterId,
+        file.originalname ? file.originalname.replace(/\.pdf$/i, '') : 'Processing Manuscript...',
+        'Extracting Authors...',
+        String(new Date().getFullYear()),
+        `/uploads/${file.filename}`,
+        domain || 'General'
+      );
+
+      const paperId = pRes.lastInsertRowid;
+
+      try {
+        const buffer = fs.readFileSync(file.path);
+        db.prepare(`
+          INSERT INTO paper_files (paper_id, filename, mimetype, file_size, data)
+          VALUES (?, ?, ?, ?, ?)
+        `).run(paperId, file.filename, file.mimetype || 'application/pdf', file.size, buffer);
+      } catch (err) {}
+
+      const job = await queueService.addJob(queueService.QUEUES.PDF_PROCESSING, {
+        paperId,
+        projectId: pid,
+        localPath: file.path,
+        originalFilename: file.originalname,
+      });
+
+      jobs.push({
+        paperId,
+        jobId: job.id,
+        queueName: queueService.QUEUES.PDF_PROCESSING,
+        statusUrl: `/api/jobs/${queueService.QUEUES.PDF_PROCESSING}/${job.id}`,
+        filename: file.originalname,
+      });
+    }
+
+    res.status(202).json({
+      success: true,
+      message: 'PDF processing job(s) enqueued successfully',
+      count: jobs.length,
+      jobs,
+      job: jobs[0],
+    });
+  } catch (err) {
+    console.error('Async PDF upload error:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
 router.post('/upload', upload.any(), handlePdfUpload);
+router.post('/upload/async', upload.any(), handleAsyncPdfUpload);
+router.post('/upload-async', upload.any(), handleAsyncPdfUpload);
 router.post('/papers/bulk-upload', upload.any(), handlePdfUpload);
 router.post('/papers/bulk-assign', (req, res) => {
   res.redirect(307, '/api/papers/bulk-reassign');
