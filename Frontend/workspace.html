@@ -1531,6 +1531,25 @@
             </div>
           </div>
 
+          <!-- Single Upload Progress & Speed Tracker -->
+          <div class="upload-tracker-card" id="single-upload-tracker" style="display: none;">
+            <div class="upload-tracker-header">
+              <div class="upload-tracker-info">
+                <span class="upload-tracker-badge">PDF</span>
+                <span class="upload-tracker-name" id="single-tracker-name">Uploading file...</span>
+              </div>
+              <span class="upload-tracker-pct" id="single-tracker-pct">0%</span>
+            </div>
+            <div class="upload-tracker-progress-bg">
+              <div class="upload-tracker-progress-fill" id="single-tracker-fill"></div>
+            </div>
+            <div class="upload-tracker-telemetry">
+              <span class="upload-telemetry-pill rate" id="single-tracker-rate">⚡ 0 KB/s</span>
+              <span class="upload-telemetry-pill bytes" id="single-tracker-bytes">0 MB / 0 MB</span>
+              <span class="upload-telemetry-pill eta" id="single-tracker-eta">⏱ ETA: --</span>
+            </div>
+          </div>
+
           <div id="add-paper-status-msg" style="font-size: 0.88rem; margin-bottom: 0.85rem; line-height: 1.45;"></div>
 
           <!-- Footer Actions -->
@@ -1574,6 +1593,25 @@
         <!-- Selected Files List -->
         <div id="selected-files-list"
           style="max-height: 140px; overflow-y: auto; margin-bottom: 1.15rem; font-size: 0.86rem; color: var(--text-secondary); display: none; background: var(--bg-canvas); border: 1px solid var(--border-base); border-radius: 8px; padding: 0.6rem;">
+        </div>
+
+        <!-- Bulk Upload Progress & Speed Tracker -->
+        <div class="upload-tracker-card" id="bulk-upload-tracker" style="display: none;">
+          <div class="upload-tracker-header">
+            <div class="upload-tracker-info">
+              <span class="upload-tracker-badge">BATCH</span>
+              <span class="upload-tracker-name" id="bulk-tracker-name">Uploading batch manuscripts...</span>
+            </div>
+            <span class="upload-tracker-pct" id="bulk-tracker-pct">0%</span>
+          </div>
+          <div class="upload-tracker-progress-bg">
+            <div class="upload-tracker-progress-fill" id="bulk-tracker-fill"></div>
+          </div>
+          <div class="upload-tracker-telemetry">
+            <span class="upload-telemetry-pill rate" id="bulk-tracker-rate">⚡ 0 KB/s</span>
+            <span class="upload-telemetry-pill bytes" id="bulk-tracker-bytes">0 MB / 0 MB</span>
+            <span class="upload-telemetry-pill eta" id="bulk-tracker-eta">⏱ ETA: --</span>
+          </div>
         </div>
 
         <div id="upload-status" style="font-size: 0.88rem; margin-bottom: 0.85rem; line-height: 1.45;"></div>
@@ -1649,6 +1687,25 @@
                 title="Browse PDF">Upload</button>
               <input type="file" id="reader-pdf-upload-input" accept=".pdf" style="display: none;"
                 onchange="handleReaderDirectPdfUpload(this)">
+            </div>
+          </div>
+
+          <!-- Reader Upload Progress & Speed Tracker -->
+          <div class="upload-tracker-card reader-upload-tracker" id="reader-upload-tracker" style="display: none; margin: 12px 16px;">
+            <div class="upload-tracker-header">
+              <div class="upload-tracker-info">
+                <span class="upload-tracker-badge">MANUSCRIPT</span>
+                <span class="upload-tracker-name" id="reader-tracker-name">Uploading PDF...</span>
+              </div>
+              <span class="upload-tracker-pct" id="reader-tracker-pct">0%</span>
+            </div>
+            <div class="upload-tracker-progress-bg">
+              <div class="upload-tracker-progress-fill" id="reader-tracker-fill"></div>
+            </div>
+            <div class="upload-tracker-telemetry">
+              <span class="upload-telemetry-pill rate" id="reader-tracker-rate">⚡ 0 KB/s</span>
+              <span class="upload-telemetry-pill bytes" id="reader-tracker-bytes">0 MB / 0 MB</span>
+              <span class="upload-telemetry-pill eta" id="reader-tracker-eta">⏱ ETA: --</span>
             </div>
           </div>
 

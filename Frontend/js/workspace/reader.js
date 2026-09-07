@@ -920,20 +920,59 @@
     const formData = new FormData();
     formData.append('pdf', file);
 
+    const tracker = document.getElementById('reader-upload-tracker');
+    const nameEl = document.getElementById('reader-tracker-name');
+    const fillEl = document.getElementById('reader-tracker-fill');
+    const pctEl = document.getElementById('reader-tracker-pct');
+    const rateEl = document.getElementById('reader-tracker-rate');
+    const bytesEl = document.getElementById('reader-tracker-bytes');
+    const etaEl = document.getElementById('reader-tracker-eta');
+
+    if (tracker) {
+      tracker.style.display = 'block';
+      if (nameEl) nameEl.textContent = file.name;
+      if (fillEl) fillEl.style.width = '0%';
+      if (pctEl) pctEl.textContent = '0%';
+      if (rateEl) rateEl.textContent = '⚡ Starting...';
+      const fileMb = (file.size / (1024 * 1024)).toFixed(1);
+      if (bytesEl) bytesEl.textContent = `0 MB / ${fileMb} MB`;
+      if (etaEl) etaEl.textContent = '⏱ ETA: --';
+    }
+
     try {
-      const res = await fetch(`/api/papers/${activePaper.id}/pdf`, {
-        method: 'POST',
-        headers: (typeof getAuthHeadersOnlyToken === 'function') ? getAuthHeadersOnlyToken() : {},
-        body: formData
-      });
-      if (res.ok) {
-        const data = await res.json();
+      let data;
+      if (typeof window.uploadWithProgress === 'function') {
+        data = await window.uploadWithProgress({
+          url: `/api/papers/${activePaper.id}/pdf`,
+          method: 'POST',
+          formData,
+          onProgress: ({ percent, rateStr, bytesStr, etaStr, isComplete }) => {
+            if (fillEl) fillEl.style.width = `${percent}%`;
+            if (pctEl) pctEl.textContent = `${percent}%`;
+            if (rateEl) rateEl.textContent = isComplete ? '⚡ Uploaded' : rateStr;
+            if (bytesEl) bytesEl.textContent = bytesStr;
+            if (etaEl) etaEl.textContent = isComplete ? '⏱ Preparing layout...' : etaStr;
+          }
+        });
+      } else {
+        const res = await fetch(`/api/papers/${activePaper.id}/pdf`, {
+          method: 'POST',
+          headers: (typeof getAuthHeadersOnlyToken === 'function') ? getAuthHeadersOnlyToken() : {},
+          body: formData
+        });
+        if (!res.ok) throw new Error('Failed to upload PDF manuscript');
+        data = await res.json();
+      }
+
+      if (data && data.pdf_url) {
         activePaper.pdf_url = data.pdf_url;
         loadReaderPdf(data.pdf_url);
         if (typeof showToast === 'function') showToast('PDF manuscript uploaded successfully!', 'success');
       }
     } catch (err) {
       if (typeof showToast === 'function') showToast('Failed to upload PDF: ' + err.message, 'error');
+    } finally {
+      if (tracker) tracker.style.display = 'none';
     }
   };
 

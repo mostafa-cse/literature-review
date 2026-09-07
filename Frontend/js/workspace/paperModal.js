@@ -48,6 +48,12 @@ window.openAddPaperModal = function(tab = 'single') {
   const bulkStatus = document.getElementById('upload-status');
   if (bulkStatus) bulkStatus.innerHTML = '';
 
+  // Reset upload trackers
+  const singleTracker = document.getElementById('single-upload-tracker');
+  if (singleTracker) singleTracker.style.display = 'none';
+  const bulkTracker = document.getElementById('bulk-upload-tracker');
+  if (bulkTracker) bulkTracker.style.display = 'none';
+
   clearSelectedAddPaperFile();
   switchAddPaperTab('single');
   openModal('upload-modal-overlay');
@@ -388,10 +394,19 @@ window.submitAddPaperForm = async function(e) {
     btnSubmit.textContent = hasFile ? 'Uploading Research Paper...' : 'Adding Research Paper...';
   }
 
+  const singleTracker = document.getElementById('single-upload-tracker');
+  const singleNameEl = document.getElementById('single-tracker-name');
+  const singleFillEl = document.getElementById('single-tracker-fill');
+  const singlePctEl = document.getElementById('single-tracker-pct');
+  const singleRateEl = document.getElementById('single-tracker-rate');
+  const singleBytesEl = document.getElementById('single-tracker-bytes');
+  const singleEtaEl = document.getElementById('single-tracker-eta');
+
   try {
     if (hasFile) {
+      const file = fileInput.files[0];
       const formData = new FormData();
-      formData.append('pdf', fileInput.files[0]);
+      formData.append('pdf', file);
       formData.append('project_id', activeProjectId);
       formData.append('title', title);
       formData.append('authors', authors);
@@ -401,15 +416,41 @@ window.submitAddPaperForm = async function(e) {
       formData.append('domain', domain);
       formData.append('doi', doi);
 
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        headers: getAuthHeaders(false),
-        body: formData
-      });
+      if (singleTracker) {
+        singleTracker.style.display = 'block';
+        if (singleNameEl) singleNameEl.textContent = file.name;
+        if (singleFillEl) singleFillEl.style.width = '0%';
+        if (singlePctEl) singlePctEl.textContent = '0%';
+        if (singleRateEl) singleRateEl.textContent = '⚡ Starting...';
+        const fileMb = (file.size / (1024 * 1024)).toFixed(1);
+        if (singleBytesEl) singleBytesEl.textContent = `0 MB / ${fileMb} MB`;
+        if (singleEtaEl) singleEtaEl.textContent = '⏱ ETA: --';
+      }
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'Failed to upload paper');
+      if (typeof window.uploadWithProgress === 'function') {
+        await window.uploadWithProgress({
+          url: '/api/upload',
+          method: 'POST',
+          formData,
+          onProgress: ({ percent, rateStr, bytesStr, etaStr, isComplete }) => {
+            if (singleFillEl) singleFillEl.style.width = `${percent}%`;
+            if (singlePctEl) singlePctEl.textContent = `${percent}%`;
+            if (singleRateEl) singleRateEl.textContent = isComplete ? '⚡ Uploaded' : rateStr;
+            if (singleBytesEl) singleBytesEl.textContent = bytesStr;
+            if (singleEtaEl) singleEtaEl.textContent = isComplete ? '⏱ Extracting metadata...' : etaStr;
+          }
+        });
+      } else {
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          headers: getAuthHeaders(false),
+          body: formData
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to upload paper');
+        }
       }
     } else {
       const payload = {
@@ -447,6 +488,7 @@ window.submitAddPaperForm = async function(e) {
   } catch (err) {
     showToast('Failed to add paper: ' + err.message, 'error');
   } finally {
+    if (singleTracker) singleTracker.style.display = 'none';
     if (btnSubmit) {
       btnSubmit.disabled = false;
       btnSubmit.textContent = 'Add Research Paper to Matrix';
@@ -490,13 +532,35 @@ window.submitBulkPdfUpload = async function() {
 
   const btnSubmit = document.getElementById('btn-submit-upload');
   const statusEl = document.getElementById('upload-status');
+  const bulkTracker = document.getElementById('bulk-upload-tracker');
+  const bulkNameEl = document.getElementById('bulk-tracker-name');
+  const bulkFillEl = document.getElementById('bulk-tracker-fill');
+  const bulkPctEl = document.getElementById('bulk-tracker-pct');
+  const bulkRateEl = document.getElementById('bulk-tracker-rate');
+  const bulkBytesEl = document.getElementById('bulk-tracker-bytes');
+  const bulkEtaEl = document.getElementById('bulk-tracker-eta');
+
+  let totalBatchBytes = 0;
+  for (let i = 0; i < files.length; i++) {
+    totalBatchBytes += files[i].size || 0;
+  }
+  const totalBatchMb = (totalBatchBytes / (1024 * 1024)).toFixed(1);
 
   if (btnSubmit) {
     btnSubmit.disabled = true;
     btnSubmit.textContent = `Ingesting ${files.length} Research PDFs...`;
   }
   if (statusEl) {
-    statusEl.innerHTML = `<span style="color: var(--accent-gold);">Ingesting and extracting metadata from ${files.length} files...</span>`;
+    statusEl.innerHTML = `<span style="color: var(--accent-gold);">Starting upload of ${files.length} files (${totalBatchMb} MB)...</span>`;
+  }
+  if (bulkTracker) {
+    bulkTracker.style.display = 'block';
+    if (bulkNameEl) bulkNameEl.textContent = `${files.length} Manuscript PDFs (${totalBatchMb} MB)`;
+    if (bulkFillEl) bulkFillEl.style.width = '0%';
+    if (bulkPctEl) bulkPctEl.textContent = '0%';
+    if (bulkRateEl) bulkRateEl.textContent = '⚡ Starting...';
+    if (bulkBytesEl) bulkBytesEl.textContent = `0 MB / ${totalBatchMb} MB`;
+    if (bulkEtaEl) bulkEtaEl.textContent = '⏱ ETA: --';
   }
 
   try {
@@ -512,18 +576,40 @@ window.submitBulkPdfUpload = async function() {
       formData.append('pdf', files[i]);
     }
 
-    const res = await fetch('/api/upload', {
-      method: 'POST',
-      headers: getAuthHeaders(false),
-      body: formData
-    });
+    let resData;
+    if (typeof window.uploadWithProgress === 'function') {
+      resData = await window.uploadWithProgress({
+        url: '/api/upload',
+        method: 'POST',
+        formData,
+        onProgress: ({ percent, rateStr, bytesStr, etaStr, isComplete }) => {
+          if (bulkFillEl) bulkFillEl.style.width = `${percent}%`;
+          if (bulkPctEl) bulkPctEl.textContent = `${percent}%`;
+          if (bulkRateEl) bulkRateEl.textContent = isComplete ? '⚡ Batch Uploaded' : rateStr;
+          if (bulkBytesEl) bulkBytesEl.textContent = bytesStr;
+          if (bulkEtaEl) bulkEtaEl.textContent = isComplete ? '⏱ Extracting metadata...' : etaStr;
+          if (statusEl) {
+            statusEl.innerHTML = isComplete
+              ? `<span style="color: var(--accent-gold);">Server extracting metadata & indexing text for ${files.length} papers...</span>`
+              : `<span style="color: var(--accent-primary);">Uploading ${files.length} PDFs (${percent}% at ${rateStr})...</span>`;
+          }
+        }
+      });
+    } else {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: getAuthHeaders(false),
+        body: formData
+      });
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Failed to upload batch PDFs');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to upload batch PDFs');
+      }
+
+      resData = await res.json();
     }
 
-    const resData = await res.json();
     closeModal('upload-modal-overlay');
     showToast(`Successfully ingested ${resData.ingested_count || files.length} PDF papers into the Master Matrix!`, 'success');
 
@@ -536,6 +622,7 @@ window.submitBulkPdfUpload = async function() {
     }
     showToast('Batch ingestion failed: ' + err.message, 'error');
   } finally {
+    if (bulkTracker) bulkTracker.style.display = 'none';
     if (btnSubmit) {
       btnSubmit.disabled = false;
       btnSubmit.textContent = 'Batch Add PDFs';

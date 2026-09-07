@@ -2373,17 +2373,21 @@
   /* ────────────────────────────────────────────────────────────────
      11. PDF.js EMBEDDED VIEWER, TEXT SELECTION & MULTI-COLOR HIGHLIGHTS
   ──────────────────────────────────────────────────────────────── */
-  function showPdfLoader(title = 'Opening Manuscript...', subtitle = 'Streaming PDF & preparing high-resolution layout') {
+  function showPdfLoader(title = 'Opening Manuscript...', subtitle = 'Streaming PDF & preparing high-resolution layout', isUploading = false) {
     const overlay = document.getElementById('pdf-loader');
     const titleEl = document.getElementById('pdf-loader-title');
     const subEl = document.getElementById('pdf-loader-subtitle');
     const bar = document.getElementById('pdf-loader-bar');
     const pct = document.getElementById('pdf-loader-pct');
+    const telemetry = document.getElementById('pdf-loader-telemetry');
 
     if (titleEl) titleEl.textContent = title;
     if (subEl) subEl.textContent = subtitle;
-    if (bar) bar.style.width = '12%';
-    if (pct) pct.textContent = '12%';
+    if (bar) bar.style.width = isUploading ? '0%' : '12%';
+    if (pct) pct.textContent = isUploading ? '0%' : '12%';
+    if (telemetry) {
+      telemetry.style.display = isUploading ? 'flex' : 'none';
+    }
 
     if (overlay) {
       overlay.style.display = 'flex';
@@ -2397,7 +2401,7 @@
     const pct = document.getElementById('pdf-loader-pct');
     const subEl = document.getElementById('pdf-loader-subtitle');
 
-    const clamped = Math.min(Math.max(Math.round(percent), 5), 100);
+    const clamped = Math.min(Math.max(Math.round(percent), 0), 100);
     if (bar) bar.style.width = `${clamped}%`;
     if (pct) pct.textContent = `${clamped}%`;
     if (statusText && subEl) subEl.textContent = statusText;
@@ -2405,8 +2409,10 @@
 
   function hidePdfLoader() {
     const overlay = document.getElementById('pdf-loader');
+    const telemetry = document.getElementById('pdf-loader-telemetry');
     if (!overlay) return;
     updatePdfLoaderProgress(100, 'Manuscript ready');
+    if (telemetry) telemetry.style.display = 'none';
     overlay.classList.remove('active');
     setTimeout(() => {
       if (!overlay.classList.contains('active')) {
@@ -3248,19 +3254,44 @@
     const formData = new FormData();
     formData.append('pdf', file);
 
-    showPdfLoader('Uploading Manuscript...', 'Uploading & processing document on server...');
+    showPdfLoader('Uploading Manuscript...', `Uploading ${file.name}...`, true);
+
+    const speedEl = document.getElementById('pdf-loader-speed');
+    const bytesEl = document.getElementById('pdf-loader-bytes');
+    const etaEl = document.getElementById('pdf-loader-eta');
+    const initialMb = (file.size / (1024 * 1024)).toFixed(1);
+    if (speedEl) speedEl.textContent = '⚡ Starting...';
+    if (bytesEl) bytesEl.textContent = `0 MB / ${initialMb} MB`;
+    if (etaEl) etaEl.textContent = '⏱ ETA: --';
 
     try {
-      const token = localStorage.getItem('litsphere_auth_token') || localStorage.getItem('token') || localStorage.getItem('jwt');
-      const res = await fetch(`/api/papers/${activePaper.id}/pdf`, {
-        method: 'POST',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-        body: formData
-      });
-      if (res.ok) {
-        const data = await res.json();
+      let data;
+      if (typeof window.uploadWithProgress === 'function') {
+        data = await window.uploadWithProgress({
+          url: `/api/papers/${activePaper.id}/pdf`,
+          method: 'POST',
+          formData,
+          onProgress: ({ percent, rateStr, bytesStr, etaStr, isComplete }) => {
+            updatePdfLoaderProgress(percent, isComplete ? 'Indexing text & extracting metadata on server...' : `Uploading ${file.name}...`);
+            if (speedEl) speedEl.textContent = isComplete ? '⚡ Uploaded' : rateStr;
+            if (bytesEl) bytesEl.textContent = bytesStr;
+            if (etaEl) etaEl.textContent = etaStr;
+          }
+        });
+      } else {
+        const token = localStorage.getItem('litsphere_auth_token') || localStorage.getItem('token') || localStorage.getItem('jwt');
+        const res = await fetch(`/api/papers/${activePaper.id}/pdf`, {
+          method: 'POST',
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+          body: formData
+        });
+        if (!res.ok) throw new Error('Failed to upload PDF manuscript.');
+        data = await res.json();
+      }
+
+      if (data && data.pdf_url) {
         activePaper.pdf_url = data.pdf_url;
-        showPdfLoader('Opening Manuscript...', 'Parsing uploaded manuscript...');
+        showPdfLoader('Opening Manuscript...', 'Parsing uploaded manuscript...', false);
         loadPdfPreview(data.pdf_url);
         showToast('PDF manuscript uploaded successfully!');
       } else {
@@ -3269,7 +3300,7 @@
       }
     } catch (err) {
       hidePdfLoader();
-      showToast('Failed to upload PDF: ' + err.message);
+      showToast('Failed to upload PDF: ' + err.message, 'error');
     }
   };
 

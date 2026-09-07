@@ -257,6 +257,12 @@
                     <div class="pdf-loader-progress-track">
                         <div class="pdf-loader-progress-bar" id="pdf-loader-bar"></div>
                     </div>
+                    <!-- Real-Time Upload Rate & Telemetry -->
+                    <div class="pdf-loader-telemetry" id="pdf-loader-telemetry" style="display: none;">
+                        <span class="telemetry-item rate" id="pdf-loader-speed">⚡ 0 KB/s</span>
+                        <span class="telemetry-item bytes" id="pdf-loader-bytes">0 MB / 0 MB</span>
+                        <span class="telemetry-item eta" id="pdf-loader-eta">⏱ ETA: --</span>
+                    </div>
                     <div class="pdf-loader-percentage" id="pdf-loader-pct">0%</div>
                 </div>
             </div>
@@ -719,6 +725,7 @@
 <div id="review-toast"></div>
 
 <!-- Client-Side Engine for Review Page -->
+<script src="/js/core/api.js"></script>
 <script src="/js/review.js?v=2.2"></script>
 </body>
 </html>

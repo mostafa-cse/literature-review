@@ -9019,3 +9019,181 @@ body.light-mode .pdf-placeholder-hero {
 body.light-mode .pdf-placeholder-sub {
   color: #64748b !important;
 }
+
+/* ==========================================================================
+   REAL-TIME UPLOAD TRACKER & TRANSFER RATE TELEMETRY (SINGLE & BULK)
+   ========================================================================== */
+.upload-tracker-card {
+  margin: 1rem 0;
+  padding: 12px 16px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(8px);
+  animation: fadeInTracker 0.22s ease-out forwards;
+}
+
+@keyframes fadeInTracker {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.upload-tracker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.upload-tracker-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.upload-tracker-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  flex-shrink: 0;
+}
+
+.upload-tracker-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-primary, #f8fafc);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 280px;
+}
+
+.upload-tracker-pct {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-gold, #d4af37);
+  flex-shrink: 0;
+}
+
+.upload-tracker-progress-bg {
+  height: 7px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.upload-tracker-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #0284c7, #38bdf8, #d4af37);
+  border-radius: 999px;
+  transition: width 0.15s ease-out;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+}
+
+.upload-tracker-telemetry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+
+.upload-telemetry-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2.5px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.upload-telemetry-pill.rate {
+  color: #38bdf8;
+  font-weight: 700;
+  border-color: rgba(56, 189, 248, 0.25);
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.upload-telemetry-pill.bytes {
+  color: var(--text-secondary, #cbd5e1);
+  font-weight: 500;
+}
+
+.upload-telemetry-pill.eta {
+  color: var(--accent-gold, #d4af37);
+  font-weight: 600;
+  border-color: rgba(212, 175, 55, 0.25);
+  background: rgba(212, 175, 55, 0.08);
+}
+
+/* Light mode overrides */
+[data-theme="light"] .upload-tracker-card,
+body.light-mode .upload-tracker-card {
+  background: rgba(248, 250, 252, 0.95);
+  border-color: rgba(2, 132, 199, 0.25);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .upload-tracker-name,
+body.light-mode .upload-tracker-name {
+  color: #0f172a;
+}
+
+[data-theme="light"] .upload-tracker-badge,
+body.light-mode .upload-tracker-badge {
+  background: rgba(2, 132, 199, 0.1);
+  color: #0284c7;
+  border-color: rgba(2, 132, 199, 0.25);
+}
+
+[data-theme="light"] .upload-tracker-progress-bg,
+body.light-mode .upload-tracker-progress-bg {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .upload-telemetry-pill,
+body.light-mode .upload-telemetry-pill {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .upload-telemetry-pill.bytes,
+body.light-mode .upload-telemetry-pill.bytes {
+  color: #475569;
+}
+
+[data-theme="light"] .upload-telemetry-pill.rate,
+body.light-mode .upload-telemetry-pill.rate {
+  color: #0284c7;
+  background: rgba(2, 132, 199, 0.08);
+  border-color: rgba(2, 132, 199, 0.2);
+}
+
+[data-theme="light"] .upload-telemetry-pill.eta,
+body.light-mode .upload-telemetry-pill.eta {
+  color: #b45309;
+  background: rgba(180, 83, 9, 0.08);
+  border-color: rgba(180, 83, 9, 0.2);
+}
