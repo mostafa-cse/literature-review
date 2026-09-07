@@ -2373,17 +2373,84 @@
   /* ────────────────────────────────────────────────────────────────
      11. PDF.js EMBEDDED VIEWER, TEXT SELECTION & MULTI-COLOR HIGHLIGHTS
   ──────────────────────────────────────────────────────────────── */
+  function showPdfLoader(title = 'Opening Manuscript...', subtitle = 'Streaming PDF & preparing high-resolution layout') {
+    const overlay = document.getElementById('pdf-loader');
+    const titleEl = document.getElementById('pdf-loader-title');
+    const subEl = document.getElementById('pdf-loader-subtitle');
+    const bar = document.getElementById('pdf-loader-bar');
+    const pct = document.getElementById('pdf-loader-pct');
+
+    if (titleEl) titleEl.textContent = title;
+    if (subEl) subEl.textContent = subtitle;
+    if (bar) bar.style.width = '12%';
+    if (pct) pct.textContent = '12%';
+
+    if (overlay) {
+      overlay.style.display = 'flex';
+      void overlay.offsetWidth;
+      overlay.classList.add('active');
+    }
+  }
+
+  function updatePdfLoaderProgress(percent, statusText) {
+    const bar = document.getElementById('pdf-loader-bar');
+    const pct = document.getElementById('pdf-loader-pct');
+    const subEl = document.getElementById('pdf-loader-subtitle');
+
+    const clamped = Math.min(Math.max(Math.round(percent), 5), 100);
+    if (bar) bar.style.width = `${clamped}%`;
+    if (pct) pct.textContent = `${clamped}%`;
+    if (statusText && subEl) subEl.textContent = statusText;
+  }
+
+  function hidePdfLoader() {
+    const overlay = document.getElementById('pdf-loader');
+    if (!overlay) return;
+    updatePdfLoaderProgress(100, 'Manuscript ready');
+    overlay.classList.remove('active');
+    setTimeout(() => {
+      if (!overlay.classList.contains('active')) {
+        overlay.style.display = 'none';
+      }
+    }, 280);
+  }
+
+  function showPageTransitionPill(text = 'Rendering Page...') {
+    const pill = document.getElementById('pdf-page-transition-pill');
+    const textEl = document.getElementById('pdf-pill-text');
+    if (textEl) textEl.textContent = text;
+    if (pill) {
+      pill.style.display = 'flex';
+      void pill.offsetWidth;
+      pill.classList.add('active');
+    }
+  }
+
+  function hidePageTransitionPill() {
+    const pill = document.getElementById('pdf-page-transition-pill');
+    if (!pill) return;
+    pill.classList.remove('active');
+    setTimeout(() => {
+      if (!pill.classList.contains('active')) {
+        pill.style.display = 'none';
+      }
+    }, 240);
+  }
+
   function loadPdfPreview(pdfUrl) {
     const placeholder = document.getElementById('pdf-placeholder-area');
     const viewport = document.getElementById('pdf-viewport');
     const toolbar = document.getElementById('pdf-toolbar');
 
     if (!pdfUrl) {
+      hidePdfLoader();
       if (placeholder) placeholder.style.display = 'flex';
       if (viewport) viewport.style.display = 'none';
       if (toolbar) toolbar.style.display = 'none';
       return;
     }
+
+    showPdfLoader('Opening Manuscript...', 'Fetching document stream from server...');
 
     if (placeholder) placeholder.style.display = 'none';
     if (viewport) viewport.style.display = 'flex';
@@ -2391,7 +2458,10 @@
 
     const fullPdfUrl = pdfUrl.startsWith('http') || pdfUrl.startsWith('/') ? pdfUrl : '/' + pdfUrl;
 
-    if (typeof pdfjsLib === 'undefined') return;
+    if (typeof pdfjsLib === 'undefined') {
+      hidePdfLoader();
+      return;
+    }
 
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     if (pdfjsLib.VerbosityLevel) {
@@ -2406,10 +2476,24 @@
       verbosity: (typeof pdfjsLib !== 'undefined' && pdfjsLib.VerbosityLevel) ? pdfjsLib.VerbosityLevel.ERRORS : 0
     });
 
+    loadingTask.onProgress = function (progress) {
+      if (progress.total > 0) {
+        const percent = Math.round((progress.loaded / progress.total) * 85);
+        const mbLoaded = (progress.loaded / 1048576).toFixed(1);
+        const mbTotal = (progress.total / 1048576).toFixed(1);
+        updatePdfLoaderProgress(percent, `Streaming ${mbLoaded} MB of ${mbTotal} MB...`);
+      } else if (progress.loaded > 0) {
+        const mbLoaded = (progress.loaded / 1048576).toFixed(1);
+        updatePdfLoaderProgress(45, `Streaming ${mbLoaded} MB...`);
+      }
+    };
+
     loadingTask.promise.then(pdf => {
       currentPdfDoc = pdf;
       pdfTotalPages = pdf.numPages;
       pdfCurrentPageNum = 1;
+
+      updatePdfLoaderProgress(90, `Rendering Page 1 of ${pdfTotalPages}...`);
 
       const pageCountEl = document.getElementById('pdf-page-count');
       const pageNumInput = document.getElementById('pdf-page-num');
@@ -2419,6 +2503,7 @@
       renderPdfPage(pdfCurrentPageNum);
     }).catch(err => {
       console.warn('PDF load notice:', err.message);
+      hidePdfLoader();
       if (placeholder) {
         placeholder.style.display = 'flex';
         const sub = document.getElementById('pdf-status-subtext');
@@ -2435,12 +2520,25 @@
     if (!currentPdfDoc) return;
     isRenderingPdf = true;
 
+    const overlay = document.getElementById('pdf-loader');
+    const isInitialLoad = overlay && overlay.classList.contains('active');
+    if (isInitialLoad) {
+      updatePdfLoaderProgress(95, `Rendering high-res Page ${num}...`);
+    } else {
+      showPageTransitionPill(`Rendering Page ${num}...`);
+    }
+
     currentPdfDoc.getPage(num).then(page => {
       const canvas = document.getElementById('pdf-canvas');
       const textLayer = document.getElementById('pdf-text-layer');
       const highlightLayer = document.getElementById('pdf-highlight-layer');
       const container = document.getElementById('pdf-page-container');
-      if (!canvas || !container) return;
+      if (!canvas || !container) {
+        isRenderingPdf = false;
+        hidePdfLoader();
+        hidePageTransitionPill();
+        return;
+      }
 
       const ctx = canvas.getContext('2d');
       const viewport = page.getViewport({ scale: pdfScale });
@@ -2472,6 +2570,8 @@
 
       renderTask.promise.then(() => {
         isRenderingPdf = false;
+        hidePdfLoader();
+        hidePageTransitionPill();
 
         // 2. Render TextLayer for Selection & Copying
         page.getTextContent().then(textContent => {
@@ -2499,7 +2599,17 @@
           renderPdfPage(pdfRenderQueue);
           pdfRenderQueue = null;
         }
+      }).catch(err => {
+        isRenderingPdf = false;
+        hidePdfLoader();
+        hidePageTransitionPill();
+        console.warn('Canvas render notice:', err);
       });
+    }).catch(err => {
+      isRenderingPdf = false;
+      hidePdfLoader();
+      hidePageTransitionPill();
+      console.warn('Page fetch notice:', err);
     });
 
     const pageNumInput = document.getElementById('pdf-page-num');
@@ -3138,6 +3248,8 @@
     const formData = new FormData();
     formData.append('pdf', file);
 
+    showPdfLoader('Uploading Manuscript...', 'Uploading & processing document on server...');
+
     try {
       const token = localStorage.getItem('litsphere_auth_token') || localStorage.getItem('token') || localStorage.getItem('jwt');
       const res = await fetch(`/api/papers/${activePaper.id}/pdf`, {
@@ -3148,10 +3260,15 @@
       if (res.ok) {
         const data = await res.json();
         activePaper.pdf_url = data.pdf_url;
+        showPdfLoader('Opening Manuscript...', 'Parsing uploaded manuscript...');
         loadPdfPreview(data.pdf_url);
         showToast('PDF manuscript uploaded successfully!');
+      } else {
+        hidePdfLoader();
+        showToast('Failed to upload PDF manuscript.', 'error');
       }
     } catch (err) {
+      hidePdfLoader();
       showToast('Failed to upload PDF: ' + err.message);
     }
   };
