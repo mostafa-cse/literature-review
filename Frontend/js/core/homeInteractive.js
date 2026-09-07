@@ -336,7 +336,7 @@
 
     try {
       if (window.katex) {
-        output.innerHTML = window.katex.renderToString(latexCode, { displayMode: true, throwOnError: false });
+        output.innerHTML = window.katex.renderToString(latexCode, { displayMode: true, output: 'html', throwOnError: false });
       } else {
         output.textContent = latexCode;
       }
@@ -703,6 +703,7 @@ ER  -`,
             { left: '$$', right: '$$', display: true },
             { left: '$', right: '$', display: false }
           ],
+          output: 'html',
           throwOnError: false
         });
       }

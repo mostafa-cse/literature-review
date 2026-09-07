@@ -196,6 +196,7 @@
             { left: '$$', right: '$$', display: true },
             { left: '$', right: '$', display: false }
           ],
+          output: 'html',
           throwOnError: false
         });
       }
@@ -210,7 +211,7 @@
     if (!previewBox) return;
 
     if (window.katex) {
-      previewBox.innerHTML = window.katex.renderToString(formulaCode, { displayMode: true, throwOnError: false });
+      previewBox.innerHTML = window.katex.renderToString(formulaCode, { displayMode: true, output: 'html', throwOnError: false });
     } else {
       previewBox.textContent = formulaCode;
     }
@@ -254,6 +255,7 @@
             { left: '$$', right: '$$', display: true },
             { left: '$', right: '$', display: false }
           ],
+          output: 'html',
           throwOnError: false
         });
       }

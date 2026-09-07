@@ -16,6 +16,7 @@ window.triggerMath = function(container) {
           { left: '\\(', right: '\\)', display: false },
           { left: '\\[', right: '\\]', display: true }
         ],
+        output: 'html',
         throwOnError: false
       });
     } else if (window.MathJax && window.MathJax.typesetPromise) {
