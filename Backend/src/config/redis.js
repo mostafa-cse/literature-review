@@ -1,6 +1,28 @@
 const Redis = require('ioredis');
 const { env, isRedisConfigured } = require('./env');
 
+// Deduplicate repetitive BullMQ eviction policy warnings across multiple queue/worker connections
+if (!global.__bullmq_eviction_warning_deduped) {
+  global.__bullmq_eviction_warning_deduped = true;
+  const originalWarn = console.warn;
+  let evictionWarned = false;
+  console.warn = function (...args) {
+    if (typeof args[0] === 'string' && args[0].includes('Eviction policy is')) {
+      if (!evictionWarned) {
+        evictionWarned = true;
+        const match = args[0].match(/is\s+([^\.]+)/);
+        const policy = match ? match[1].trim() : 'volatile-lru';
+        originalWarn.call(
+          console,
+          `ℹ️ [BullMQ] Redis eviction policy is '${policy}'. (Recommended: 'noeviction' in Redis Cloud settings for production queue durability; safely supported in dev/cloud).`
+        );
+      }
+      return; // Suppress duplicate console spam
+    }
+    return originalWarn.apply(console, args);
+  };
+}
+
 let redisClient = null;
 
 function getRedisClient() {
@@ -8,6 +30,9 @@ function getRedisClient() {
     redisClient = new Redis(env.REDIS_URL, {
       maxRetriesPerRequest: 3,
       enableReadyCheck: true,
+      connectTimeout: 20000,
+      keepAlive: 15000,
+      family: 4,
       retryStrategy(times) {
         // Exponential backoff with jitter up to max 3000ms
         const delay = Math.min(times * 150, 3000);
@@ -18,11 +43,8 @@ function getRedisClient() {
         return delay;
       },
       reconnectOnError(err) {
-        const targetError = 'READONLY';
-        if (err.message.includes(targetError)) {
-          return true; // Reconnect if read-only failover occurred
-        }
-        return false;
+        const targetErrors = ['READONLY', 'ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED'];
+        return targetErrors.some(target => (err && err.message ? err.message.includes(target) : false));
       },
       lazyConnect: false,
     });
@@ -111,11 +133,15 @@ function getBullMQConnectionOptions() {
       host: '127.0.0.1',
       port: 6379,
       maxRetriesPerRequest: null,
+      connectTimeout: 20000,
+      keepAlive: 15000,
+      family: 4,
     };
   }
 
   try {
     const parsed = new URL(env.REDIS_URL);
+    const isTls = parsed.protocol === 'rediss:';
     return {
       host: parsed.hostname || '127.0.0.1',
       port: parseInt(parsed.port || '6379', 10),
@@ -123,12 +149,27 @@ function getBullMQConnectionOptions() {
       password: parsed.password || undefined,
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
+      connectTimeout: 30000,
+      keepAlive: 15000,
+      family: 4,
+      ...(isTls ? { tls: { rejectUnauthorized: false } } : {}),
+      retryStrategy(times) {
+        // Capped exponential retry strategy up to 5000ms
+        return Math.min(times * 250, 5000);
+      },
+      reconnectOnError(err) {
+        const targetErrors = ['READONLY', 'ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED'];
+        return targetErrors.some(target => (err && err.message ? err.message.includes(target) : false));
+      },
     };
   } catch {
     return {
       host: '127.0.0.1',
       port: 6379,
       maxRetriesPerRequest: null,
+      connectTimeout: 20000,
+      keepAlive: 15000,
+      family: 4,
     };
   }
 }

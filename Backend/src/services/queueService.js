@@ -33,6 +33,31 @@ const queues = {};
 const workers = {};
 const queueEvents = {};
 
+// Helper to attach resilient error and lifecycle listeners to BullMQ instances
+const lastErrorLogTimes = {};
+function attachErrorHandlers(instance, name, type = 'Queue') {
+  if (!instance) return;
+
+  instance.on('error', (err) => {
+    const now = Date.now();
+    const key = `${type}:${name}`;
+    // Throttle error logging to at most once every 30s per queue/worker to prevent console flooding
+    if (!lastErrorLogTimes[key] || now - lastErrorLogTimes[key] > 30000) {
+      lastErrorLogTimes[key] = now;
+      if (process.env.NODE_ENV !== 'test') {
+        const msg = err ? (err.message || err.code || String(err)) : 'Connection timeout';
+        console.warn(`⚠️ [BullMQ ${type}:${name}] Network/socket notice: ${msg}`);
+      }
+    }
+  });
+
+  if (type === 'Worker') {
+    instance.on('failed', (job, err) => {
+      console.warn(`⚠️ [BullMQ Worker:${name}] Job #${job?.id} failed:`, err?.message || err);
+    });
+  }
+}
+
 /**
  * Initialize BullMQ Queues with retry and dead-letter retention options
  */
@@ -50,6 +75,7 @@ function initQueues() {
         removeOnFail: { count: 1000 }, // Keep in DLQ for inspection
       },
     });
+    attachErrorHandlers(queues[QUEUES.PDF_PROCESSING], QUEUES.PDF_PROCESSING, 'Queue');
   }
 
   // 2. CrossRef Enrichment Queue
@@ -63,6 +89,7 @@ function initQueues() {
         removeOnFail: { count: 1000 },
       },
     });
+    attachErrorHandlers(queues[QUEUES.CROSSREF_ENRICHMENT], QUEUES.CROSSREF_ENRICHMENT, 'Queue');
   }
 
   // 3. Citation Export Queue
@@ -76,6 +103,7 @@ function initQueues() {
         removeOnFail: { count: 1000 },
       },
     });
+    attachErrorHandlers(queues[QUEUES.CITATION_EXPORT], QUEUES.CITATION_EXPORT, 'Queue');
   }
 
   return queues;
@@ -612,6 +640,7 @@ function initWorkers() {
         concurrency: 4,
       }
     );
+    attachErrorHandlers(workers[QUEUES.PDF_PROCESSING], QUEUES.PDF_PROCESSING, 'Worker');
   }
 
   if (!workers[QUEUES.CROSSREF_ENRICHMENT]) {
@@ -627,6 +656,7 @@ function initWorkers() {
         },
       }
     );
+    attachErrorHandlers(workers[QUEUES.CROSSREF_ENRICHMENT], QUEUES.CROSSREF_ENRICHMENT, 'Worker');
   }
 
   if (!workers[QUEUES.CITATION_EXPORT]) {
@@ -638,6 +668,7 @@ function initWorkers() {
         concurrency: 2,
       }
     );
+    attachErrorHandlers(workers[QUEUES.CITATION_EXPORT], QUEUES.CITATION_EXPORT, 'Worker');
   }
 
   return workers;
