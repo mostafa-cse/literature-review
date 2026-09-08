@@ -137,16 +137,28 @@ async function parsePdfMetadata(input, originalName = '') {
     };
   } catch (err) {
     console.warn(`PDF parse fallback for ${originalName}:`, err.message);
+    let fallbackText = '';
+    let parsedTitle = '';
+    let parsedAuthors = '';
+    try {
+      const raw = Buffer.isBuffer(input) ? input.toString('utf-8') : (typeof input === 'string' && fs.existsSync(input) ? fs.readFileSync(input, 'utf-8') : '');
+      fallbackText = raw;
+      const titleMatch = raw.match(/\/Title\s*\(([^)]+)\)/i);
+      if (titleMatch) parsedTitle = titleMatch[1].trim();
+      const authorMatch = raw.match(/\/Author\s*\(([^)]+)\)/i);
+      if (authorMatch) parsedAuthors = authorMatch[1].trim();
+    } catch (_) {}
+
     const baseName = (originalName || 'Uploaded Paper').replace(/\.[^/.]+$/, '').replace(/_/g, ' ');
     const yearMatch = originalName.match(/(19\d{2}|20\d{2})/);
     return {
-      title: baseName,
-      authors: 'Uploaded Author',
+      title: parsedTitle || baseName,
+      authors: parsedAuthors || 'Uploaded Author',
       year: yearMatch ? parseInt(yearMatch[0], 10) : new Date().getFullYear(),
       doi: '',
       intuition: '',
       pageCount: 1,
-      first_page_text: ''
+      first_page_text: fallbackText
     };
   }
 }

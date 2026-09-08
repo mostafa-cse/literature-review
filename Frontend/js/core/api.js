@@ -732,12 +732,227 @@ class ApiClient {
       }
     });
   }
+
+  /**
+   * Reactive Server-Sent Events (SSE) stream for asynchronous BullMQ jobs
+   * Replaces interval polling with instant server push telemetry.
+   * @param {string} queueName - 'pdf-processing-queue' | 'crossref-enrichment-queue' | 'citation-export-queue'
+   * @param {string|number} jobId - Target BullMQ job identifier
+   * @param {Object} options - { onStatus, onProgress, onComplete, onError, timeoutMs = 120000 }
+   * @returns {{ close: Function }} Controller to cancel/close the event stream
+   */
+  streamJobProgress(queueName, jobId, options = {}) {
+    const {
+      onStatus = () => {},
+      onProgress = () => {},
+      onComplete = () => {},
+      onError = () => {},
+      timeoutMs = 120000
+    } = options;
+
+    let isClosed = false;
+    let pollTimer = null;
+    let es = null;
+
+    const cleanup = () => {
+      isClosed = true;
+      if (es) {
+        try { es.close(); } catch (_) {}
+        es = null;
+      }
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    };
+
+    // Polling fallback if SSE is unavailable or fails
+    const startPollingFallback = () => {
+      if (isClosed) return;
+      console.warn(`ℹ️ [SSE] Falling back to reactive HTTP polling for job #${jobId}`);
+      pollTimer = setInterval(async () => {
+        if (isClosed) return;
+        try {
+          const res = await this.get(`/api/jobs/${encodeURIComponent(queueName)}/${encodeURIComponent(jobId)}`);
+          const job = res?.job;
+          if (!job) return;
+
+          if (job.progress) {
+            onProgress(job.progress);
+          }
+
+          if (job.state === 'completed') {
+            cleanup();
+            onComplete(job.returnValue || job);
+          } else if (job.state === 'failed') {
+            cleanup();
+            onError(new Error(job.failedReason || 'Job processing failed'));
+          }
+        } catch (err) {
+          if (!isClosed) {
+            cleanup();
+            onError(err);
+          }
+        }
+      }, 1500);
+    };
+
+    // Check EventSource support
+    if (typeof EventSource !== 'undefined') {
+      try {
+        const token = this.getAuthToken();
+        const url = `/api/jobs/${encodeURIComponent(queueName)}/${encodeURIComponent(jobId)}/stream?token=${encodeURIComponent(token)}`;
+        es = new EventSource(url);
+
+        es.addEventListener('status', (e) => {
+          if (isClosed) return;
+          try {
+            const data = JSON.parse(e.data);
+            onStatus(data);
+            if (data.progress) onProgress(data.progress);
+          } catch (_) {}
+        });
+
+        es.addEventListener('progress', (e) => {
+          if (isClosed) return;
+          try {
+            const data = JSON.parse(e.data);
+            onProgress(data);
+          } catch (_) {}
+        });
+
+        es.addEventListener('completed', (e) => {
+          if (isClosed) return;
+          try {
+            const data = JSON.parse(e.data);
+            cleanup();
+            onComplete(data);
+          } catch (_) {
+            cleanup();
+            onComplete({});
+          }
+        });
+
+        es.addEventListener('failed', (e) => {
+          if (isClosed) return;
+          try {
+            const data = JSON.parse(e.data);
+            cleanup();
+            onError(new Error(data.error || 'Job failed'));
+          } catch (_) {
+            cleanup();
+            onError(new Error('Job failed'));
+          }
+        });
+
+        es.onerror = () => {
+          // If EventSource fails early, close and switch to polling fallback
+          if (!isClosed) {
+            if (es) {
+              try { es.close(); } catch (_) {}
+              es = null;
+            }
+            startPollingFallback();
+          }
+        };
+
+        // Safety timeout
+        setTimeout(() => {
+          if (!isClosed) {
+            cleanup();
+            onError(new Error('Streaming timed out after 2 minutes.'));
+          }
+        }, timeoutMs);
+
+      } catch (err) {
+        startPollingFallback();
+      }
+    } else {
+      startPollingFallback();
+    }
+
+    return { close: cleanup };
+  }
+
+  /**
+   * Reactive Server-Sent Events stream for batch/multi-file uploads
+   */
+  streamBatchProgress(jobIds, options = {}) {
+    const {
+      queueName = 'pdf-processing-queue',
+      onInit = () => {},
+      onProgress = () => {},
+      onJobComplete = () => {},
+      onBatchComplete = () => {},
+      onError = () => {}
+    } = options;
+
+    const ids = Array.isArray(jobIds) ? jobIds : [jobIds];
+    let isClosed = false;
+    let es = null;
+
+    const cleanup = () => {
+      isClosed = true;
+      if (es) {
+        try { es.close(); } catch (_) {}
+        es = null;
+      }
+    };
+
+    if (typeof EventSource !== 'undefined') {
+      try {
+        const token = this.getAuthToken();
+        const url = `/api/jobs/stream/batch?job_ids=${encodeURIComponent(ids.join(','))}&queue=${encodeURIComponent(queueName)}&token=${encodeURIComponent(token)}`;
+        es = new EventSource(url);
+
+        es.addEventListener('batch_init', (e) => {
+          if (isClosed) return;
+          try { onInit(JSON.parse(e.data)); } catch (_) {}
+        });
+
+        es.addEventListener('progress', (e) => {
+          if (isClosed) return;
+          try { onProgress(JSON.parse(e.data)); } catch (_) {}
+        });
+
+        es.addEventListener('completed', (e) => {
+          if (isClosed) return;
+          try { onJobComplete(JSON.parse(e.data)); } catch (_) {}
+        });
+
+        es.addEventListener('batch_completed', (e) => {
+          if (isClosed) return;
+          try {
+            cleanup();
+            onBatchComplete(JSON.parse(e.data));
+          } catch (_) {
+            cleanup();
+            onBatchComplete({});
+          }
+        });
+
+        es.onerror = (err) => {
+          if (!isClosed) {
+            cleanup();
+            onError(err);
+          }
+        };
+      } catch (err) {
+        cleanup();
+        onError(err);
+      }
+    }
+
+    return { close: cleanup };
+  }
 }
 
 window.SwrCache = SwrCache;
 window.ApiError = ApiError;
 window.ApiClient = ApiClient;
 window.api = new ApiClient();
+window.streamJobProgress = (queueName, jobId, opts) => window.api.streamJobProgress(queueName, jobId, opts);
+window.streamBatchProgress = (jobIds, opts) => window.api.streamBatchProgress(jobIds, opts);
 
 window.fetchWithAuth = async function(url, options = {}) {
   const isFormData = options.body instanceof FormData;

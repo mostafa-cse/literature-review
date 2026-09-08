@@ -291,30 +291,114 @@ async function handleAsyncPdfUpload(req, res) {
     }
 
     const queueService = require('../services/queueService');
-    const { project_id, cluster_id, domain } = req.body;
+    const {
+      project_id, cluster_id, domain, new_cluster_name, new_domain_name,
+      title: customTitle, authors: customAuthors, year: customYear, pub: customPub,
+      doi: customDoi, status: customStatus, intuition: customIntuition
+    } = req.body;
     const pid = project_id ? parseInt(project_id, 10) : 1;
-    const targetClusterId = (cluster_id && cluster_id !== 'unassigned' && cluster_id !== 'null' && cluster_id !== '') ? parseInt(cluster_id, 10) : null;
+
+    // RBAC Role Verification
+    if (req.user) {
+      const role = getProjectRole(req.user.id, pid);
+      if (!['owner', 'editor'].includes(role) && req.user.role !== 'admin') {
+        return res.status(403).json({ error: `Access Denied. Role '${role}' cannot upload papers to this survey. Ingestion requires Owner or Editor role.` });
+      }
+    }
+
     const db = getDb();
+
+    // Direct Cluster Creation during upload if requested
+    let targetClusterId = (cluster_id && cluster_id !== 'unassigned' && cluster_id !== '__new__' && cluster_id !== 'null' && cluster_id !== '') ? parseInt(cluster_id, 10) : null;
+    if (new_cluster_name && new_cluster_name.trim()) {
+      const createCluster = db.prepare('INSERT INTO clusters (project_id, name, description, color) VALUES (?, ?, ?, ?)');
+      const cRes = createCluster.run(pid, new_cluster_name.trim(), 'Created during upload', '#38bdf8');
+      targetClusterId = cRes.lastInsertRowid;
+    }
+
+    // Direct Domain Creation
+    let targetDomain = domain || 'General';
+    if (new_domain_name && new_domain_name.trim()) {
+      targetDomain = new_domain_name.trim();
+    } else if (targetDomain === '__new__' && new_domain_name) {
+      targetDomain = new_domain_name.trim();
+    }
+
+    // Parse custom_columns passed from the frontend form
+    let customColumns = {};
+    if (req.body.custom_columns) {
+      try {
+        customColumns = typeof req.body.custom_columns === 'string'
+          ? JSON.parse(req.body.custom_columns)
+          : req.body.custom_columns;
+      } catch (err) {
+        console.warn('Failed to parse custom_columns JSON in async upload:', err.message);
+      }
+    }
+
+    const insertColVal = db.prepare(`
+      INSERT INTO paper_column_values (paper_id, column_id, value)
+      VALUES (?, ?, ?)
+      ON CONFLICT(paper_id, column_id) DO UPDATE SET value = excluded.value
+    `);
 
     const jobs = [];
     for (const file of files) {
+      const rawOriginal = file.originalname ? file.originalname.replace(/\.pdf$/i, '').replace(/[-_]/g, ' ') : '-';
+      const paperTitle = (files.length === 1 && customTitle && customTitle.trim() && customTitle.trim() !== '-')
+        ? customTitle.trim()
+        : (file.originalname ? file.originalname.replace(/\.pdf$/i, '') : 'Processing Manuscript...');
+      const paperAuthors = (files.length === 1 && customAuthors && customAuthors.trim() && customAuthors.trim() !== '-')
+        ? customAuthors.trim()
+        : 'Extracting Authors...';
+      const paperYear = (files.length === 1 && customYear && customYear.trim() && customYear.trim() !== '-')
+        ? customYear.trim()
+        : String(new Date().getFullYear());
+      const paperPub = (files.length === 1 && customPub && customPub.trim() && customPub.trim() !== '-')
+        ? customPub.trim()
+        : '';
+      const paperDoi = (files.length === 1 && customDoi && customDoi.trim() && customDoi.trim() !== '-')
+        ? customDoi.trim()
+        : '';
+      const paperStatus = customStatus || 'unread';
+      const paperIntuition = (files.length === 1 && (customIntuition || req.body.intuition))
+        ? (customIntuition || req.body.intuition)
+        : '';
+
       const pRes = db.prepare(`
         INSERT INTO papers (
           project_id, cluster_id, title, authors, year, pub, doi, pdf_url,
           status, domain, intuition, equation, strengths, gaps
         )
-        VALUES (?, ?, ?, ?, ?, '', '', ?, 'unread', ?, '', '', '', '')
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', '', '')
       `).run(
         pid,
         targetClusterId,
-        file.originalname ? file.originalname.replace(/\.pdf$/i, '') : 'Processing Manuscript...',
-        'Extracting Authors...',
-        String(new Date().getFullYear()),
+        paperTitle,
+        paperAuthors,
+        paperYear,
+        paperPub,
+        paperDoi,
         `/uploads/${file.filename}`,
-        domain || 'General'
+        paperStatus,
+        targetDomain,
+        paperIntuition
       );
 
       const paperId = pRes.lastInsertRowid;
+
+      // Save custom column values if provided for single upload
+      if (files.length === 1 && Object.keys(customColumns).length > 0) {
+        for (const [colId, val] of Object.entries(customColumns)) {
+          if (val) {
+            try {
+              insertColVal.run(paperId, colId, String(val));
+            } catch (colErr) {
+              console.warn('Failed to insert custom column value:', colErr.message);
+            }
+          }
+        }
+      }
 
       try {
         const buffer = fs.readFileSync(file.path);
@@ -336,8 +420,15 @@ async function handleAsyncPdfUpload(req, res) {
         jobId: job.id,
         queueName: queueService.QUEUES.PDF_PROCESSING,
         statusUrl: `/api/jobs/${queueService.QUEUES.PDF_PROCESSING}/${job.id}`,
+        streamUrl: `/api/jobs/${queueService.QUEUES.PDF_PROCESSING}/${job.id}/stream`,
         filename: file.originalname,
       });
+    }
+
+    if (req.user && req.user.id) {
+      try {
+        recalculateUserStorage(req.user.id);
+      } catch (storageErr) {}
     }
 
     res.status(202).json({
@@ -346,6 +437,8 @@ async function handleAsyncPdfUpload(req, res) {
       count: jobs.length,
       jobs,
       job: jobs[0],
+      streamUrl: `/api/jobs/${queueService.QUEUES.PDF_PROCESSING}/${jobs[0].jobId}/stream`,
+      batchStreamUrl: `/api/jobs/stream/batch?job_ids=${jobs.map(j => j.jobId).join(',')}&queue=${queueService.QUEUES.PDF_PROCESSING}`
     });
   } catch (err) {
     console.error('Async PDF upload error:', err);
@@ -445,6 +538,9 @@ async function handlePaperDirectPdfUpload(req, res) {
 router.post('/upload', upload.any(), (req, res, next) => {
   if (req.body && (req.body.paper_id || req.body.id)) {
     return handlePaperDirectPdfUpload(req, res);
+  }
+  if (req.query.async === 'true' || req.body?.async === 'true') {
+    return handleAsyncPdfUpload(req, res);
   }
   return handlePdfUpload(req, res);
 });

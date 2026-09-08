@@ -1572,6 +1572,17 @@
               <span class="upload-telemetry-pill bytes" id="single-tracker-bytes">0 MB / 0 MB</span>
               <span class="upload-telemetry-pill eta" id="single-tracker-eta">⏱ ETA: --</span>
             </div>
+            <!-- Stage Telemetry Pipeline (Phase 5 Live Progress) -->
+            <div class="upload-tracker-stages" id="single-tracker-stages">
+              <div class="upload-stage-pill" id="single-stage-1"><span class="stage-icon">①</span> Metadata</div>
+              <div class="upload-stage-pill" id="single-stage-2"><span class="stage-icon">②</span> Parsing</div>
+              <div class="upload-stage-pill" id="single-stage-3"><span class="stage-icon">③</span> KaTeX</div>
+              <div class="upload-stage-pill" id="single-stage-4"><span class="stage-icon">④</span> Commit</div>
+            </div>
+            <div class="upload-tracker-formula-box" id="single-tracker-formula" style="display: none;">
+              <span style="font-weight: 700; color: var(--accent-gold);">∑ KaTeX:</span>
+              <span id="single-tracker-formula-content"></span>
+            </div>
           </div>
 
           <div id="add-paper-status-msg" style="font-size: 0.88rem; margin-bottom: 0.85rem; line-height: 1.45;"></div>
@@ -1635,6 +1646,17 @@
             <span class="upload-telemetry-pill rate" id="bulk-tracker-rate">⚡ 0 KB/s</span>
             <span class="upload-telemetry-pill bytes" id="bulk-tracker-bytes">0 MB / 0 MB</span>
             <span class="upload-telemetry-pill eta" id="bulk-tracker-eta">⏱ ETA: --</span>
+          </div>
+          <!-- Stage Telemetry Pipeline (Phase 5 Live Progress) -->
+          <div class="upload-tracker-stages" id="bulk-tracker-stages">
+            <div class="upload-stage-pill" id="bulk-stage-1"><span class="stage-icon">①</span> Metadata</div>
+            <div class="upload-stage-pill" id="bulk-stage-2"><span class="stage-icon">②</span> Parsing</div>
+            <div class="upload-stage-pill" id="bulk-stage-3"><span class="stage-icon">③</span> KaTeX</div>
+            <div class="upload-stage-pill" id="bulk-stage-4"><span class="stage-icon">④</span> Commit</div>
+          </div>
+          <div class="upload-tracker-formula-box" id="bulk-tracker-formula" style="display: none;">
+            <span style="font-weight: 700; color: var(--accent-gold);">∑ KaTeX:</span>
+            <span id="bulk-tracker-formula-content"></span>
           </div>
         </div>
 

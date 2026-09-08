@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const queueService = require('../services/queueService');
+const { sseManager } = require('../services/sseService');
 const { validateRequest, jobParamSchema, exportTokenParamSchema } = require('../validation');
 
 // ======================================================================
@@ -47,6 +48,60 @@ router.get('/jobs/:queueName/failed', async (req, res) => {
 });
 
 /**
+ * GET /api/jobs/stream/batch
+ * Multi-job SSE streaming channel for bulk uploads
+ * Query params: ?job_ids=1,2,3&queue=pdf-processing-queue
+ */
+router.get('/jobs/stream/batch', async (req, res) => {
+  try {
+    const rawIds = req.query.job_ids || req.query.jobs || '';
+    const queueName = req.query.queue || queueService.QUEUES.PDF_PROCESSING;
+    const jobIds = String(rawIds).split(',').map(s => s.trim()).filter(Boolean);
+
+    if (jobIds.length === 0) {
+      return res.status(400).json({ error: 'job_ids query parameter required' });
+    }
+
+    sseManager.initSseHeaders(res);
+
+    // Send initial status for all requested jobs
+    const initialStatuses = [];
+    for (const jid of jobIds) {
+      const j = await queueService.getJob(queueName, jid);
+      if (j) {
+        initialStatuses.push({
+          jobId: jid,
+          state: j.state,
+          progress: j.progress
+        });
+        if (j.state !== 'completed' && j.state !== 'failed') {
+          sseManager.addJobSubscriber(jid, res);
+        }
+      }
+    }
+
+    sseManager.sendEvent(res, 'batch_init', {
+      count: jobIds.length,
+      jobs: initialStatuses,
+      timestamp: new Date().toISOString()
+    });
+
+    // If all jobs are already terminated, end stream
+    const allDone = initialStatuses.length === jobIds.length && initialStatuses.every(s => s.state === 'completed' || s.state === 'failed');
+    if (allDone) {
+      return res.end();
+    }
+  } catch (err) {
+    console.error('Batch SSE stream error:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message });
+    } else {
+      res.end();
+    }
+  }
+});
+
+/**
  * GET /api/jobs/:queueName/:jobId
  * Real-time job status tracking, state, progress percentage, and results
  */
@@ -67,6 +122,56 @@ router.get('/jobs/:queueName/:jobId', validateRequest({ params: jobParamSchema }
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/jobs/:queueName/:jobId/stream
+ * Real-time Server-Sent Events (SSE) stream for step-by-step job progress
+ */
+router.get('/jobs/:queueName/:jobId/stream', validateRequest({ params: jobParamSchema }), async (req, res) => {
+  try {
+    const { queueName, jobId } = req.params;
+    const job = await queueService.getJob(queueName, jobId);
+
+    if (!job) {
+      return res.status(404).json({
+        error: `Job #${jobId} not found in queue '${queueName}'`,
+      });
+    }
+
+    // Initialize SSE headers
+    sseManager.initSseHeaders(res);
+
+    // Send initial snapshot frame
+    sseManager.sendEvent(res, 'status', {
+      jobId,
+      queueName,
+      state: job.state,
+      progress: job.progress,
+      failedReason: job.failedReason,
+      returnValue: job.returnValue || job.returnvalue || null,
+      timestamp: new Date().toISOString()
+    });
+
+    // If job has already completed or failed, close stream immediately
+    if (job.state === 'completed') {
+      sseManager.sendEvent(res, 'completed', job.returnValue || job.returnvalue || job);
+      return res.end();
+    } else if (job.state === 'failed') {
+      sseManager.sendEvent(res, 'failed', { error: job.failedReason || 'Job failed' });
+      return res.end();
+    }
+
+    // Register active client for real-time push
+    sseManager.addJobSubscriber(jobId, res);
+  } catch (err) {
+    console.error('Job SSE stream error:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message });
+    } else {
+      res.end();
+    }
   }
 });
 

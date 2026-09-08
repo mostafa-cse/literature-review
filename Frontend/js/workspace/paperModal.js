@@ -4,6 +4,55 @@
  * Symmetrical Domain & Cluster creation, and Bulk PDF Batch Ingestion.
  */
 
+function resetStageTracker(prefix = 'single') {
+  for (let i = 1; i <= 4; i++) {
+    const pill = document.getElementById(`${prefix}-stage-${i}`);
+    if (pill) {
+      pill.classList.remove('active', 'completed');
+    }
+  }
+  const formulaBox = document.getElementById(`${prefix}-tracker-formula`);
+  if (formulaBox) formulaBox.style.display = 'none';
+  const formulaContent = document.getElementById(`${prefix}-tracker-formula-content`);
+  if (formulaContent) formulaContent.innerHTML = '';
+}
+
+function updateStageTracker(prefix, step, percent, message, details) {
+  for (let i = 1; i <= 4; i++) {
+    const pill = document.getElementById(`${prefix}-stage-${i}`);
+    if (!pill) continue;
+    if (i < step) {
+      pill.classList.remove('active');
+      pill.classList.add('completed');
+    } else if (i === step) {
+      pill.classList.add('active');
+      pill.classList.remove('completed');
+    } else {
+      pill.classList.remove('active', 'completed');
+    }
+  }
+
+  // Check for KaTeX formula in details
+  if (details && (details.primaryEquation || details.equation)) {
+    const eq = details.primaryEquation || details.equation;
+    const formulaBox = document.getElementById(`${prefix}-tracker-formula`);
+    const formulaContent = document.getElementById(`${prefix}-tracker-formula-content`);
+    if (formulaBox && formulaContent) {
+      formulaBox.style.display = 'flex';
+      const cleanLatex = String(eq).replace(/^\$\$|\$\$$|^\\\[|\\\]$/g, '').trim();
+      if (window.katex && typeof window.katex.renderToString === 'function') {
+        try {
+          formulaContent.innerHTML = window.katex.renderToString(cleanLatex, { throwOnError: false, displayMode: false });
+        } catch (_) {
+          formulaContent.textContent = eq;
+        }
+      } else {
+        formulaContent.textContent = eq;
+      }
+    }
+  }
+}
+
 window.openAddPaperModal = function(tab = 'single') {
   const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
   if (['reviewer', 'viewer'].includes(role)) {
@@ -53,6 +102,8 @@ window.openAddPaperModal = function(tab = 'single') {
   if (singleTracker) singleTracker.style.display = 'none';
   const bulkTracker = document.getElementById('bulk-upload-tracker');
   if (bulkTracker) bulkTracker.style.display = 'none';
+  resetStageTracker('single');
+  resetStageTracker('bulk');
 
   // Reset staged column values and abstract
   window._stagedColumnValues = {};
@@ -559,12 +610,13 @@ window.submitAddPaperForm = async function(e) {
       formData.append('status', 'unread');
       formData.append('domain', domain);
       formData.append('doi', doi);
-      formData.append('skip_extraction', 'true');
+      formData.append('async', 'true');
       if (window._stagedAbstract) formData.append('intuition', window._stagedAbstract);
       if (Object.keys(customCols).length > 0) formData.append('custom_columns', JSON.stringify(customCols));
 
       if (singleTracker) {
         singleTracker.style.display = 'block';
+        resetStageTracker('single');
         if (singleNameEl) singleNameEl.textContent = file.name;
         if (singleFillEl) singleFillEl.style.width = '0%';
         if (singlePctEl) singlePctEl.textContent = '0%';
@@ -574,21 +626,23 @@ window.submitAddPaperForm = async function(e) {
         if (singleEtaEl) singleEtaEl.textContent = '⏱ ETA: --';
       }
 
+      let uploadRes;
       if (typeof window.uploadWithProgress === 'function') {
-        await window.uploadWithProgress({
-          url: '/api/upload',
+        uploadRes = await window.uploadWithProgress({
+          url: '/api/upload?async=true',
           method: 'POST',
           formData,
           onProgress: ({ percent, rateStr, bytesStr, etaStr, isComplete }) => {
-            if (singleFillEl) singleFillEl.style.width = `${percent}%`;
-            if (singlePctEl) singlePctEl.textContent = `${percent}%`;
-            if (singleRateEl) singleRateEl.textContent = isComplete ? '⚡ Complete' : rateStr;
+            const transferPct = Math.min(25, Math.round(percent * 0.25));
+            if (singleFillEl) singleFillEl.style.width = `${transferPct}%`;
+            if (singlePctEl) singlePctEl.textContent = `${transferPct}%`;
+            if (singleRateEl) singleRateEl.textContent = isComplete ? '⚡ Upload complete' : rateStr;
             if (singleBytesEl) singleBytesEl.textContent = bytesStr;
-            if (singleEtaEl) singleEtaEl.textContent = isComplete ? '⚡ Saving paper...' : etaStr;
+            if (singleEtaEl) singleEtaEl.textContent = isComplete ? '⚡ Streaming extraction...' : etaStr;
           }
         });
       } else {
-        const res = await fetch('/api/upload', {
+        const res = await fetch('/api/upload?async=true', {
           method: 'POST',
           headers: getAuthHeaders(false),
           body: formData
@@ -598,6 +652,50 @@ window.submitAddPaperForm = async function(e) {
           const errData = await res.json().catch(() => ({}));
           throw new Error(errData.error || 'Failed to upload paper');
         }
+        uploadRes = await res.json();
+      }
+
+      // Stream background ingestion telemetry via SSE
+      const job = uploadRes && (uploadRes.job || (uploadRes.jobs && uploadRes.jobs[0]));
+      if (job && (job.jobId || job.id) && window.api && typeof window.api.streamJobProgress === 'function') {
+        const queueName = job.queueName || 'pdf-processing-queue';
+        const jobId = job.jobId || job.id;
+
+        if (singleRateEl) singleRateEl.textContent = '⚡ Ingesting';
+        if (singleEtaEl) singleEtaEl.textContent = '⏱ Live Telemetry';
+
+        await new Promise((resolve) => {
+          window.api.streamJobProgress(queueName, jobId, {
+            onProgress: (progressData) => {
+              const step = progressData.step || 1;
+              const pct = progressData.percent || Math.round((step / 4) * 100);
+              if (singleFillEl) singleFillEl.style.width = `${pct}%`;
+              if (singlePctEl) singlePctEl.textContent = `${pct}%`;
+              if (singleNameEl && progressData.message) singleNameEl.textContent = progressData.message;
+              updateStageTracker('single', step, pct, progressData.message, progressData.details);
+            },
+            onComplete: (resultData) => {
+              for (let i = 1; i <= 4; i++) {
+                const pill = document.getElementById(`single-stage-${i}`);
+                if (pill) {
+                  pill.classList.remove('active');
+                  pill.classList.add('completed');
+                }
+              }
+              if (singleFillEl) singleFillEl.style.width = '100%';
+              if (singlePctEl) singlePctEl.textContent = '100%';
+              if (singleNameEl) singleNameEl.textContent = 'Ingestion complete!';
+              if (resultData && resultData.equation) {
+                updateStageTracker('single', 4, 100, '', { primaryEquation: resultData.equation });
+              }
+              setTimeout(resolve, 650);
+            },
+            onError: (err) => {
+              console.warn('SSE stream notice:', err.message);
+              resolve();
+            }
+          });
+        });
       }
     } else {
       const payload = {
@@ -628,7 +726,7 @@ window.submitAddPaperForm = async function(e) {
     }
 
     closeModal('upload-modal-overlay');
-    showToast(hasFile ? 'Research Paper & PDF Document uploaded successfully!' : 'Research Paper added successfully!', 'success');
+    showToast(hasFile ? 'Research Paper & PDF Document ingested successfully!' : 'Research Paper added successfully!', 'success');
 
     if (typeof loadPapers === 'function') await loadPapers();
     if (typeof loadClusters === 'function') await loadClusters();
@@ -704,6 +802,7 @@ window.submitBulkPdfUpload = async function() {
   }
   if (bulkTracker) {
     bulkTracker.style.display = 'block';
+    resetStageTracker('bulk');
     if (bulkNameEl) bulkNameEl.textContent = `${files.length} Manuscript PDFs (${totalBatchMb} MB)`;
     if (bulkFillEl) bulkFillEl.style.width = '0%';
     if (bulkPctEl) bulkPctEl.textContent = '0%';
@@ -720,7 +819,7 @@ window.submitBulkPdfUpload = async function() {
     if (newClusterName) formData.append('new_cluster_name', newClusterName);
     formData.append('domain', domain || 'General');
     if (newDomainName) formData.append('new_domain_name', newDomainName);
-    formData.append('skip_extraction', 'true');
+    formData.append('async', 'true');
 
     for (let i = 0; i < files.length; i++) {
       formData.append('pdf', files[i]);
@@ -729,24 +828,25 @@ window.submitBulkPdfUpload = async function() {
     let resData;
     if (typeof window.uploadWithProgress === 'function') {
       resData = await window.uploadWithProgress({
-        url: '/api/upload',
+        url: '/api/upload?async=true',
         method: 'POST',
         formData,
         onProgress: ({ percent, rateStr, bytesStr, etaStr, isComplete }) => {
-          if (bulkFillEl) bulkFillEl.style.width = `${percent}%`;
-          if (bulkPctEl) bulkPctEl.textContent = `${percent}%`;
-          if (bulkRateEl) bulkRateEl.textContent = isComplete ? '⚡ Complete' : rateStr;
+          const transferPct = Math.min(25, Math.round(percent * 0.25));
+          if (bulkFillEl) bulkFillEl.style.width = `${transferPct}%`;
+          if (bulkPctEl) bulkPctEl.textContent = `${transferPct}%`;
+          if (bulkRateEl) bulkRateEl.textContent = isComplete ? '⚡ Upload complete' : rateStr;
           if (bulkBytesEl) bulkBytesEl.textContent = bytesStr;
-          if (bulkEtaEl) bulkEtaEl.textContent = isComplete ? '⚡ Saving papers...' : etaStr;
+          if (bulkEtaEl) bulkEtaEl.textContent = isComplete ? '⚡ Streaming batch ingestion...' : etaStr;
           if (statusEl) {
             statusEl.innerHTML = isComplete
-              ? `<span style="color: var(--accent-gold);">⚡ Saving batch papers to database...</span>`
+              ? `<span style="color: var(--accent-gold);">⚡ Processing batch manuscripts through pipeline...</span>`
               : `<span style="color: var(--accent-primary);">Uploading ${files.length} PDFs (${percent}% at ${rateStr})...</span>`;
           }
         }
       });
     } else {
-      const res = await fetch('/api/upload', {
+      const res = await fetch('/api/upload?async=true', {
         method: 'POST',
         headers: getAuthHeaders(false),
         body: formData
@@ -760,8 +860,59 @@ window.submitBulkPdfUpload = async function() {
       resData = await res.json();
     }
 
+    if (resData && resData.jobs && resData.jobs.length > 0 && window.api && typeof window.api.streamBatchProgress === 'function') {
+      const jobIds = resData.jobs.map(j => j.jobId || j.id).filter(Boolean);
+      if (bulkRateEl) bulkRateEl.textContent = '⚡ Batch Ingest';
+      if (bulkEtaEl) bulkEtaEl.textContent = '⏱ Live Telemetry';
+
+      let completedCount = 0;
+      await new Promise((resolve) => {
+        window.api.streamBatchProgress(jobIds, {
+          queueName: 'pdf-processing-queue',
+          onProgress: (progressData) => {
+            const step = progressData.step || 1;
+            const pct = Math.min(95, 25 + Math.round((completedCount / jobIds.length) * 70));
+            if (bulkFillEl) bulkFillEl.style.width = `${pct}%`;
+            if (bulkPctEl) bulkPctEl.textContent = `${pct}%`;
+            if (statusEl && progressData.message) {
+              statusEl.innerHTML = `<span style="color: var(--accent-primary);">⚡ [Manuscript #${completedCount + 1}/${jobIds.length}] ${escapeHtml(progressData.message)}</span>`;
+            }
+            updateStageTracker('bulk', step, pct, progressData.message, progressData.details);
+          },
+          onJobComplete: (jobResult) => {
+            completedCount++;
+            const pct = Math.min(98, 25 + Math.round((completedCount / jobIds.length) * 75));
+            if (bulkFillEl) bulkFillEl.style.width = `${pct}%`;
+            if (bulkPctEl) bulkPctEl.textContent = `${pct}%`;
+            if (statusEl) {
+              statusEl.innerHTML = `<span style="color: var(--accent-gold);">✓ Ingested ${completedCount}/${jobIds.length} manuscripts</span>`;
+            }
+            if (jobResult && (jobResult.equation || jobResult.primaryEquation)) {
+              updateStageTracker('bulk', 4, pct, '', { primaryEquation: jobResult.equation || jobResult.primaryEquation });
+            }
+          },
+          onBatchComplete: () => {
+            for (let i = 1; i <= 4; i++) {
+              const pill = document.getElementById(`bulk-stage-${i}`);
+              if (pill) {
+                pill.classList.remove('active');
+                pill.classList.add('completed');
+              }
+            }
+            if (bulkFillEl) bulkFillEl.style.width = '100%';
+            if (bulkPctEl) bulkPctEl.textContent = '100%';
+            setTimeout(resolve, 650);
+          },
+          onError: (err) => {
+            console.warn('Batch SSE stream notice:', err);
+            resolve();
+          }
+        });
+      });
+    }
+
     closeModal('upload-modal-overlay');
-    showToast(`Successfully ingested ${resData.ingested_count || files.length} PDF papers into the Master Matrix!`, 'success');
+    showToast(`Successfully ingested ${resData.ingested_count || (resData.jobs ? resData.jobs.length : files.length)} PDF papers into the Master Matrix!`, 'success');
 
     if (typeof loadPapers === 'function') await loadPapers();
     if (typeof loadStats === 'function') await loadStats();

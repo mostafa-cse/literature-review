@@ -9209,3 +9209,105 @@ body.light-mode .upload-telemetry-pill.eta {
   background: rgba(180, 83, 9, 0.08);
   border-color: rgba(180, 83, 9, 0.2);
 }
+
+/* ==========================================================================
+   PHASE 5: REAL-TIME STREAMING & BACKGROUND INGESTION PROGRESS
+   ========================================================================== */
+.upload-tracker-stages {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.upload-stage-pill {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-tertiary, #64748b);
+  transition: all 0.25s ease;
+  white-space: nowrap;
+}
+
+.upload-stage-pill .stage-icon {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.upload-stage-pill.active {
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.5);
+  background: rgba(56, 189, 248, 0.12);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+  animation: pulseStage 1.3s infinite ease-in-out;
+}
+
+.upload-stage-pill.completed {
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+@keyframes pulseStage {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(0.98); }
+}
+
+.upload-tracker-formula-box {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  color: #fef08a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+[data-theme="light"] .upload-tracker-stages,
+body.light-mode .upload-tracker-stages {
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .upload-stage-pill,
+body.light-mode .upload-stage-pill {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #64748b;
+}
+
+[data-theme="light"] .upload-stage-pill.active,
+body.light-mode .upload-stage-pill.active {
+  color: #0284c7;
+  background: rgba(2, 132, 199, 0.1);
+  border-color: rgba(2, 132, 199, 0.35);
+  box-shadow: 0 0 10px rgba(2, 132, 199, 0.18);
+}
+
+[data-theme="light"] .upload-stage-pill.completed,
+body.light-mode .upload-stage-pill.completed {
+  color: #059669;
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+[data-theme="light"] .upload-tracker-formula-box,
+body.light-mode .upload-tracker-formula-box {
+  background: rgba(254, 240, 138, 0.15);
+  border-color: rgba(212, 175, 55, 0.4);
+  color: #854d0e;
+}

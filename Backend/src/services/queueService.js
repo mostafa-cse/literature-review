@@ -11,6 +11,7 @@ const { getDb } = require('../db');
 const searchService = require('./searchService');
 const cacheService = require('./cacheService');
 const storageService = require('./storageService');
+const { sseManager } = require('./sseService');
 const {
   validateDomainDto,
   ProcessPdfJobDto,
@@ -110,139 +111,257 @@ function initQueues() {
 }
 
 /**
- * PDF Processing Worker logic
+ * Scans text for mathematical expressions (LaTeX formulas, Big-O complexity, matrices, summations)
+ * and formats them for KaTeX rendering.
  */
-async function processPdfJob(job) {
-  // Validate worker job payload with class-validator DTO
-  if (job.data && job.data.paperId) {
-    await validateDomainDto(ProcessPdfJobDto, job.data);
+function extractKatexEquations(text) {
+  if (!text || typeof text !== 'string') return [];
+  const formulas = [];
+
+  // 1. Explicit display math ($$...$$ or \[...\])
+  const displayMatches = [...text.matchAll(/\$\$([\s\S]*?)\$\$|\\\[([\s\S]*?)\\\]/g)];
+  for (const m of displayMatches) {
+    const raw = (m[1] || m[2] || '').trim();
+    if (raw.length >= 2) formulas.push({ latex: raw, type: 'display' });
   }
 
-  const { paperId, originalFilename, localPath, projectId } = job.data;
-
-  // Step 1: Progress 10% - Locating and retrieving file buffer
-  await job.updateProgress(10);
-
-  let buffer = null;
-
-  // Attempt 1: Fetch via storageService if paperId provided
-  if (paperId) {
-    try {
-      const fileStreamObj = await storageService.getPaperFileStream(paperId);
-      if (fileStreamObj && fileStreamObj.stream) {
-        buffer = await streamToBuffer(fileStreamObj.stream);
-      }
-    } catch (err) {
-      // Stream fetch failed, try other methods
+  // 2. Inline math ($...$)
+  const inlineMatches = [...text.matchAll(/(?<!\$)\$([^\$\n]{2,120})\$(?!\$)/g)];
+  for (const m of inlineMatches) {
+    const raw = (m[1] || '').trim();
+    if (!/^\d+(\.\d+)?(\s*[KkMmBb])?$/.test(raw) && !formulas.some(f => f.latex === raw)) {
+      formulas.push({ latex: raw, type: 'inline' });
     }
   }
 
-  // Attempt 2: Read from localPath if provided
-  if (!buffer && localPath && fs.existsSync(localPath)) {
-    buffer = fs.readFileSync(localPath);
+  // 3. Mathematical command patterns without explicit dollar signs (e.g. \mathcal{O}(N \log K), \sum_{i=1}^n, \frac{a}{b})
+  const cmdMatches = [...text.matchAll(/(\\mathcal\{[A-Za-z]\}[^\n,;]{0,50}|\\sum_\{[^\}]+\}[^\n,;]{0,50}|\\frac\{[^\}]+\}\{[^\}]+\}|\\arg\s*\\max|\\min_\{[^\}]+\}|\\mathbb\{[A-Za-z]\})/g)];
+  for (const m of cmdMatches) {
+    const raw = (m[1] || '').trim();
+    if (raw.length >= 3 && !formulas.some(f => f.latex.includes(raw))) {
+      formulas.push({ latex: raw, type: 'command' });
+    }
   }
 
-  // Attempt 3: SQLite paper_files table fallback
-  if (!buffer && paperId) {
-    try {
-      const db = getDb();
-      const row = db.prepare('SELECT data FROM paper_files WHERE paper_id = ?').get(paperId);
-      if (row && row.data) {
-        buffer = Buffer.from(row.data);
+  return formulas;
+}
+
+/**
+ * PDF Processing Worker logic with 4-stage real-time telemetry streaming
+ */
+async function processPdfJob(job) {
+  try {
+    // Validate worker job payload with class-validator DTO
+    if (job.data && job.data.paperId) {
+      await validateDomainDto(ProcessPdfJobDto, job.data);
+    }
+
+    const { paperId, originalFilename, localPath, projectId } = job.data;
+
+    let buffer = null;
+
+    // Attempt 1: Fetch via storageService if paperId provided
+    if (paperId) {
+      try {
+        const fileStreamObj = await storageService.getPaperFileStream(paperId);
+        if (fileStreamObj && fileStreamObj.stream) {
+          buffer = await streamToBuffer(fileStreamObj.stream);
+        }
+      } catch (err) {
+        // Stream fetch failed, try other methods
       }
-    } catch (err) {}
-  }
+    }
 
-  // Attempt 4: Search uploads directory
-  if (!buffer) {
-    const uploadDirs = [
-      path.resolve(__dirname, '../../../uploads'),
-      path.resolve(__dirname, '../../uploads'),
-      path.resolve(__dirname, '../../../uploads/papers'),
-    ];
-    for (const dir of uploadDirs) {
-      if (fs.existsSync(dir)) {
-        const files = fs.readdirSync(dir);
-        const match = files.find(f => (paperId && f.startsWith(`${paperId}_`)) || (originalFilename && f.endsWith(originalFilename)));
-        if (match) {
-          buffer = fs.readFileSync(path.join(dir, match));
-          break;
+    // Attempt 2: Read from localPath if provided
+    if (!buffer && localPath && fs.existsSync(localPath)) {
+      buffer = fs.readFileSync(localPath);
+    }
+
+    // Attempt 3: SQLite paper_files table fallback
+    if (!buffer && paperId) {
+      try {
+        const db = getDb();
+        const row = db.prepare('SELECT data FROM paper_files WHERE paper_id = ?').get(paperId);
+        if (row && row.data) {
+          buffer = Buffer.from(row.data);
+        }
+      } catch (err) {}
+    }
+
+    // Attempt 4: Search uploads directory
+    if (!buffer) {
+      const uploadDirs = [
+        path.resolve(__dirname, '../../../uploads'),
+        path.resolve(__dirname, '../../uploads'),
+        path.resolve(__dirname, '../../../uploads/papers'),
+      ];
+      for (const dir of uploadDirs) {
+        if (fs.existsSync(dir)) {
+          const files = fs.readdirSync(dir);
+          const match = files.find(f => (paperId && f.startsWith(`${paperId}_`)) || (originalFilename && f.endsWith(originalFilename)));
+          if (match) {
+            buffer = fs.readFileSync(path.join(dir, match));
+            break;
+          }
         }
       }
     }
-  }
 
-  // If no real file exists (e.g. mock test payload), generate a minimal valid PDF-like buffer
-  if (!buffer) {
-    buffer = Buffer.from(`%PDF-1.4\n% LitSphere Synthetic Manuscript\n1 0 obj\n<< /Title (${originalFilename || 'Manuscript'}) /Author (LitSphere Researcher) >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF`);
-  }
-
-  // Step 2: Progress 40% - Extracting text, page count, and metadata
-  await job.updateProgress(40);
-  const parsed = await parsePdfMetadata(buffer, originalFilename || 'manuscript.pdf');
-
-  // Step 3: Progress 75% - Persisting extracted metadata to PostgreSQL / SQLite
-  await job.updateProgress(75);
-  const db = getDb();
-  let updatedPaper = null;
-
-  if (paperId) {
-    const existing = db.prepare('SELECT * FROM papers WHERE id = ?').get(paperId);
-    if (existing) {
-      // Only update if existing is generic or unpopulated
-      const newTitle = (!existing.title || existing.title.startsWith('Paper (') || existing.title === 'Untitled Paper')
-        ? (parsed.title || existing.title)
-        : existing.title;
-      const newAuthors = (!existing.authors || existing.authors === 'Academic Researchers' || existing.authors === 'Uploaded Author')
-        ? (parsed.authors || existing.authors)
-        : existing.authors;
-      const newYear = (!existing.year || existing.year === '-' || String(existing.year).length < 4)
-        ? (parsed.year ? String(parsed.year) : existing.year)
-        : existing.year;
-      const newDoi = (!existing.doi || existing.doi === '-')
-        ? (parsed.doi || existing.doi)
-        : existing.doi;
-      const newIntuition = (!existing.intuition || existing.intuition.trim().length === 0)
-        ? (parsed.intuition || existing.intuition)
-        : existing.intuition;
-
-      db.prepare(`
-        UPDATE papers 
-        SET title = ?, authors = ?, year = ?, doi = ?, intuition = ?
-        WHERE id = ?
-      `).run(newTitle, newAuthors, newYear, newDoi, newIntuition, paperId);
-
-      updatedPaper = db.prepare('SELECT * FROM papers WHERE id = ?').get(paperId);
+    // If no real file exists (e.g. mock test payload), generate a minimal valid PDF-like buffer
+    if (!buffer) {
+      buffer = Buffer.from(`%PDF-1.4\n% LitSphere Synthetic Manuscript\n1 0 obj\n<< /Title (${originalFilename || 'Manuscript'}) /Author (LitSphere Researcher) >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF`);
     }
-  }
 
-  // Step 4: Progress 90% - Update PostgreSQL search vector & Invalidate Cache
-  await job.updateProgress(90);
-  if (paperId) {
-    try {
-      await searchService.updatePaperSearchVector(paperId);
-    } catch (err) {}
+    // =========================================================================
+    // STAGE 1: METADATA EXTRACTION (25%)
+    // =========================================================================
+    const step1Telemetry = {
+      step: 1,
+      totalSteps: 4,
+      stage: 'metadata_extraction',
+      percent: 25,
+      message: 'Extracting title, authors, publication year, and DOI from PDF header...',
+      details: { filename: originalFilename || 'manuscript.pdf' }
+    };
+    await job.updateProgress(step1Telemetry);
+    sseManager.emitJobProgress(QUEUES.PDF_PROCESSING, job.id, step1Telemetry);
 
-    const pid = projectId || (updatedPaper ? updatedPaper.project_id : 1);
-    if (pid) {
-      await cacheService.invalidateSurveyCache(pid).catch(() => {});
+    const parsed = await parsePdfMetadata(buffer, originalFilename || 'manuscript.pdf');
+
+    // =========================================================================
+    // STAGE 2: TEXT PARSING & SECTION SEGMENTATION (50%)
+    // =========================================================================
+    const step2Telemetry = {
+      step: 2,
+      totalSteps: 4,
+      stage: 'text_parsing',
+      percent: 50,
+      message: 'Parsing document layout, abstract section, and full-text word stream...',
+      details: {
+        pageCount: parsed.pageCount || 1,
+        charsParsed: (parsed.first_page_text || '').length,
+        hasAbstract: Boolean(parsed.intuition)
+      }
+    };
+    await job.updateProgress(step2Telemetry);
+    sseManager.emitJobProgress(QUEUES.PDF_PROCESSING, job.id, step2Telemetry);
+
+    // =========================================================================
+    // STAGE 3: KATEX EQUATION FORMATTING & MATHEMATICAL BOUNDS (75%)
+    // =========================================================================
+    const textToScan = (parsed && parsed.first_page_text) || (buffer ? buffer.toString('utf-8') : '');
+    const extractedEquations = extractKatexEquations(textToScan);
+    const rawPrimaryEq = extractedEquations[0]?.latex || '';
+    const formattedEquation = rawPrimaryEq
+      ? (rawPrimaryEq.startsWith('$') ? rawPrimaryEq : `$$${rawPrimaryEq}$$`)
+      : '';
+
+    const step3Telemetry = {
+      step: 3,
+      totalSteps: 4,
+      stage: 'katex_formatting',
+      percent: 75,
+      message: extractedEquations.length > 0
+        ? `Extracted and formatted ${extractedEquations.length} KaTeX mathematical formula(s)`
+        : 'Verified mathematical typesetting and formula formatting...',
+      details: {
+        equationsCount: extractedEquations.length,
+        primaryEquation: formattedEquation || null
+      }
+    };
+    await job.updateProgress(step3Telemetry);
+    sseManager.emitJobProgress(QUEUES.PDF_PROCESSING, job.id, step3Telemetry);
+
+    // =========================================================================
+    // STAGE 4: DATABASE COMMIT & CACHE INVALIDATION (95%)
+    // =========================================================================
+    const step4Telemetry = {
+      step: 4,
+      totalSteps: 4,
+      stage: 'database_commit',
+      percent: 95,
+      message: 'Committing paper record to SQLite, indexing search vector & invalidating survey cache...',
+      details: { paperId }
+    };
+    await job.updateProgress(step4Telemetry);
+    sseManager.emitJobProgress(QUEUES.PDF_PROCESSING, job.id, step4Telemetry);
+
+    const db = getDb();
+    let updatedPaper = null;
+
+    if (paperId) {
+      const existing = db.prepare('SELECT * FROM papers WHERE id = ?').get(paperId);
+      if (existing) {
+        const isPlaceholderTitle = !existing.title ||
+          existing.title.startsWith('Paper (') ||
+          existing.title === 'Untitled Paper' ||
+          existing.title === 'Processing Manuscript...' ||
+          existing.title.startsWith('Processing ') ||
+          (originalFilename && existing.title === originalFilename.replace(/\.pdf$/i, ''));
+        const newTitle = isPlaceholderTitle ? (parsed.title || existing.title) : existing.title;
+
+        const isPlaceholderAuthors = !existing.authors ||
+          existing.authors === 'Academic Researchers' ||
+          existing.authors === 'Uploaded Author' ||
+          existing.authors === 'Extracting Authors...';
+        const newAuthors = isPlaceholderAuthors ? (parsed.authors || existing.authors) : existing.authors;
+        const newYear = (!existing.year || existing.year === '-' || String(existing.year).length < 4)
+          ? (parsed.year ? String(parsed.year) : existing.year)
+          : existing.year;
+        const newDoi = (!existing.doi || existing.doi === '-')
+          ? (parsed.doi || existing.doi)
+          : existing.doi;
+        const newIntuition = (!existing.intuition || existing.intuition.trim().length === 0)
+          ? (parsed.intuition || existing.intuition)
+          : existing.intuition;
+        const newEquation = (!existing.equation || existing.equation.trim().length === 0 || existing.equation === '-')
+          ? (formattedEquation || existing.equation)
+          : existing.equation;
+
+        db.prepare(`
+          UPDATE papers 
+          SET title = ?, authors = ?, year = ?, doi = ?, intuition = ?, equation = ?
+          WHERE id = ?
+        `).run(newTitle, newAuthors, newYear, newDoi, newIntuition, newEquation, paperId);
+
+        updatedPaper = db.prepare('SELECT * FROM papers WHERE id = ?').get(paperId);
+      }
     }
+
+    if (paperId) {
+      try {
+        await searchService.updatePaperSearchVector(paperId);
+      } catch (err) {}
+
+      const pid = projectId || (updatedPaper ? updatedPaper.project_id : 1);
+      if (pid) {
+        await cacheService.invalidateSurveyCache(pid).catch(() => {});
+        await cacheService.invalidateTag('stats').catch(() => {});
+      }
+    }
+
+    // Step 5: Finished (100%)
+    const finalResult = {
+      success: true,
+      paperId: paperId || null,
+      title: parsed.title,
+      authors: parsed.authors,
+      year: parsed.year,
+      doi: parsed.doi,
+      equation: formattedEquation || '',
+      pageCount: parsed.pageCount || 1,
+      textLength: (parsed.first_page_text || '').length,
+      processedAt: new Date().toISOString(),
+    };
+
+    await job.updateProgress(100);
+    sseManager.emitJobCompleted(QUEUES.PDF_PROCESSING, job.id, finalResult);
+
+    return finalResult;
+  } catch (err) {
+    sseManager.emitJobFailed(QUEUES.PDF_PROCESSING, job.id, err);
+    throw err;
   }
-
-  // Step 5: Progress 100% - Done
-  await job.updateProgress(100);
-
-  return {
-    success: true,
-    paperId: paperId || null,
-    title: parsed.title,
-    authors: parsed.authors,
-    year: parsed.year,
-    doi: parsed.doi,
-    pageCount: parsed.pageCount || 1,
-    textLength: (parsed.first_page_text || '').length,
-    processedAt: new Date().toISOString(),
-  };
 }
 
 /**
@@ -641,6 +760,15 @@ function initWorkers() {
       }
     );
     attachErrorHandlers(workers[QUEUES.PDF_PROCESSING], QUEUES.PDF_PROCESSING, 'Worker');
+    workers[QUEUES.PDF_PROCESSING].on('progress', (job, progress) => {
+      sseManager.emitJobProgress(QUEUES.PDF_PROCESSING, job.id, progress);
+    });
+    workers[QUEUES.PDF_PROCESSING].on('completed', (job, result) => {
+      sseManager.emitJobCompleted(QUEUES.PDF_PROCESSING, job.id, result);
+    });
+    workers[QUEUES.PDF_PROCESSING].on('failed', (job, err) => {
+      sseManager.emitJobFailed(QUEUES.PDF_PROCESSING, job.id, err);
+    });
   }
 
   if (!workers[QUEUES.CROSSREF_ENRICHMENT]) {
@@ -657,6 +785,15 @@ function initWorkers() {
       }
     );
     attachErrorHandlers(workers[QUEUES.CROSSREF_ENRICHMENT], QUEUES.CROSSREF_ENRICHMENT, 'Worker');
+    workers[QUEUES.CROSSREF_ENRICHMENT].on('progress', (job, progress) => {
+      sseManager.emitJobProgress(QUEUES.CROSSREF_ENRICHMENT, job.id, progress);
+    });
+    workers[QUEUES.CROSSREF_ENRICHMENT].on('completed', (job, result) => {
+      sseManager.emitJobCompleted(QUEUES.CROSSREF_ENRICHMENT, job.id, result);
+    });
+    workers[QUEUES.CROSSREF_ENRICHMENT].on('failed', (job, err) => {
+      sseManager.emitJobFailed(QUEUES.CROSSREF_ENRICHMENT, job.id, err);
+    });
   }
 
   if (!workers[QUEUES.CITATION_EXPORT]) {
@@ -669,6 +806,15 @@ function initWorkers() {
       }
     );
     attachErrorHandlers(workers[QUEUES.CITATION_EXPORT], QUEUES.CITATION_EXPORT, 'Worker');
+    workers[QUEUES.CITATION_EXPORT].on('progress', (job, progress) => {
+      sseManager.emitJobProgress(QUEUES.CITATION_EXPORT, job.id, progress);
+    });
+    workers[QUEUES.CITATION_EXPORT].on('completed', (job, result) => {
+      sseManager.emitJobCompleted(QUEUES.CITATION_EXPORT, job.id, result);
+    });
+    workers[QUEUES.CITATION_EXPORT].on('failed', (job, err) => {
+      sseManager.emitJobFailed(QUEUES.CITATION_EXPORT, job.id, err);
+    });
   }
 
   return workers;
@@ -716,6 +862,7 @@ async function getJob(queueName, jobId) {
     progress: job.progress || 0,
     data: job.data,
     returnvalue: job.returnvalue || null,
+    returnValue: job.returnvalue || null,
     failedReason: job.failedReason || null,
     attemptsMade: job.attemptsMade,
     maxAttempts: job.opts?.attempts || 1,
@@ -877,4 +1024,5 @@ module.exports = {
   processPdfJob,
   processCrossRefJob,
   processCitationExportJob,
+  extractKatexEquations,
 };
