@@ -12,19 +12,14 @@ window.loadDynamicColumns = async function() {
       url += `&cluster_id=${window.currentClusterId}`;
     }
 
-    const res = await fetch(url, { headers: getAuthHeaders() });
-    if (!res.ok) throw new Error('Failed to load dynamic columns');
-    let cols = await res.json();
+    let cols = await window.api.get(url, { abortKey: 'workspace-columns' });
 
     // If cluster query returned empty, fall back to survey project's dynamic columns
     if ((!Array.isArray(cols) || cols.length === 0) && isCluster) {
       try {
-        const fallbackRes = await fetch(`/api/dynamic-columns?project_id=${projId}`, { headers: getAuthHeaders() });
-        if (fallbackRes.ok) {
-          const pCols = await fallbackRes.json();
-          if (Array.isArray(pCols) && pCols.length > 0) {
-            cols = pCols;
-          }
+        const pCols = await window.api.get(`/api/dynamic-columns?project_id=${projId}`);
+        if (Array.isArray(pCols) && pCols.length > 0) {
+          cols = pCols;
         }
       } catch (_) {}
     }

@@ -61,12 +61,7 @@ window.init = async function () {
 
 window.loadSharedProject = async function (token) {
   try {
-    const res = await fetch(`/api/public/shared/${token}`);
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Shared research review not found or link has expired.');
-    }
-    const data = await res.json();
+    const data = await window.api.get(`/api/public/shared/${token}`, { skipAuthRedirect: true });
     const p = data.project;
 
     activeProjectId = p.id;
@@ -182,9 +177,7 @@ function escapeHtml(str) {
 
 window.loadProjects = async function () {
   try {
-    const res = await fetch('/api/projects', { headers: getAuthHeaders() });
-    if (!res.ok) throw new Error('Failed to load surveys');
-    allProjects = await res.json();
+    allProjects = await window.api.get('/api/projects', { abortKey: 'workspace-projects' });
 
     const projSelect = document.getElementById('active-project-select');
     const surveyTitleEl = document.getElementById('project-title') || document.getElementById('hero-survey-title');
@@ -198,14 +191,11 @@ window.loadProjects = async function () {
     // Direct fallback fetch if specific survey not present in initial array
     if (!curProj && activeProjectId) {
       try {
-        const singleRes = await fetch(`/api/projects/${activeProjectId}`, { headers: getAuthHeaders() });
-        if (singleRes.ok) {
-          curProj = await singleRes.json();
-          if (Array.isArray(allProjects)) {
-            allProjects.unshift(curProj);
-          } else {
-            allProjects = [curProj];
-          }
+        curProj = await window.api.get(`/api/projects/${activeProjectId}`);
+        if (Array.isArray(allProjects)) {
+          allProjects.unshift(curProj);
+        } else {
+          allProjects = [curProj];
         }
       } catch (_) { }
     }
@@ -252,18 +242,16 @@ window.loadProjects = async function () {
 
     // Try to get effective role from /api/projects/:id/my-role
     try {
-      const myRoleRes = await fetch(`/api/projects/${activeProjectId}/my-role`, { headers: getAuthHeaders() });
-      if (myRoleRes.ok) {
-        const roleData = await myRoleRes.json();
-        if (roleData.role) {
-          currentProjectRole = roleData.role.toLowerCase();
-          window.currentProjectRole = currentProjectRole;
-        }
+      const roleData = await window.api.get(`/api/projects/${activeProjectId}/my-role`);
+      if (roleData && roleData.role) {
+        currentProjectRole = roleData.role.toLowerCase();
+        window.currentProjectRole = currentProjectRole;
       }
     } catch (_) { }
 
     applyWorkspaceRolePermissions();
   } catch (err) {
+    if (err && err.isAborted) return;
     showToast(err.message, 'error');
   }
 };
@@ -348,9 +336,7 @@ window.applyWorkspaceRolePermissions = function () {
 window.loadPapers = async function () {
   try {
     const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
-    const res = await fetch(`/api/papers?project_id=${pid}`, { headers: getAuthHeaders() });
-    if (!res.ok) throw new Error('Failed to load papers');
-    allPapers = await res.json();
+    allPapers = await window.api.get(`/api/papers?project_id=${pid}`, { abortKey: 'workspace-papers' });
 
     // Ensure deterministic static serial_no on each paper across the whole survey
     const sorted = [...allPapers].sort((a, b) => (a.id || 0) - (b.id || 0));
@@ -825,15 +811,7 @@ window.submitAddKeyword = async function (e) {
   // 1. If assigned to specific paper, call API
   if (paperId) {
     try {
-      const res = await fetch('/api/keywords', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ paper_id: parseInt(paperId, 10), keyword: rawKeyword })
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to assign keyword to paper');
-      }
+      await window.api.post('/api/keywords', { paper_id: parseInt(paperId, 10), keyword: rawKeyword });
     } catch (err) {
       showToast(err.message, 'error');
       return;
@@ -1297,16 +1275,12 @@ window.quickAssignSinglePaper = async function (paperId, clusterId, event) {
   if (row) row.classList.add('paper-vanish-animating');
 
   try {
-    const res = await fetch('/api/papers/bulk-reassign', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({
-        paper_ids: [paperId],
-        cluster_id: cId
-      })
+    await window.api.post('/api/papers/bulk-reassign', {
+      paper_ids: [paperId],
+      cluster_id: cId
     });
 
-    if (res.ok) {
+    if (true) {
       if (card) card.classList.add('paper-vanished');
       if (row) row.classList.add('paper-vanished');
 
@@ -1402,12 +1376,8 @@ window.assignSingleUnassignedPaper = async function (paperId) {
   });
 
   try {
-    const res = await fetch(`/api/papers/${paperId}`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ cluster_id: clusterId })
-    });
-    if (res.ok) {
+    await window.api.put(`/api/papers/${paperId}`, { cluster_id: clusterId });
+    if (true) {
       targetElems.forEach(el => {
         el.classList.add('paper-vanished');
       });
@@ -1576,15 +1546,11 @@ window.submitBulkUnassignedMove = async function () {
   });
 
   try {
-    const res = await fetch('/api/papers/bulk-reassign', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({
-        paper_ids: checked,
-        cluster_id: clusterId
-      })
+    await window.api.post('/api/papers/bulk-reassign', {
+      paper_ids: checked,
+      cluster_id: clusterId
     });
-    if (res.ok) {
+    if (true) {
       targetElems.forEach(el => el.classList.add('paper-vanished'));
 
       // Update in memory

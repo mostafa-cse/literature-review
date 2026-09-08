@@ -146,13 +146,12 @@ window.loadClusters = async function () {
       if (btnCards) btnCards.classList.toggle('active', window.clustersViewMode === 'cards');
       if (btnTable) btnTable.classList.toggle('active', window.clustersViewMode === 'table');
     }
-    const res = await fetch(`/api/clusters?project_id=${pid}`, { headers: getAuthHeaders() });
-    if (!res.ok) throw new Error('Failed to load taxonomy clusters');
-    allClusters = await res.json();
+    allClusters = await window.api.get(`/api/clusters?project_id=${pid}`, { abortKey: 'workspace-clusters' });
     window.allClusters = allClusters;
     renderClusters();
     populateClusterDropdowns();
   } catch (err) {
+    if (err && err.isAborted) return;
     showToast(err.message, 'error');
   }
 };

@@ -156,63 +156,43 @@
       // 1. Fetch Single Active Paper Info FIRST (if paper ID is provided)
       if (currentPaperId) {
         try {
-          const paperRes = await fetch(`/api/papers/${currentPaperId}`, {
-            headers: getAuthHeaders()
-          });
-          if (paperRes.ok) {
-            activePaper = await paperRes.json();
-            if (activePaper && activePaper.project_id) {
-              currentProjectId = parseInt(activePaper.project_id, 10);
-            }
+          activePaper = await window.api.get(`/api/papers/${currentPaperId}`, { abortKey: 'review-active-paper' });
+          if (activePaper && activePaper.project_id) {
+            currentProjectId = parseInt(activePaper.project_id, 10);
           }
         } catch (e) {
-          console.warn('Notice: Error fetching paper by id', e);
+          if (!e?.isAborted) console.warn('Notice: Error fetching paper by id', e);
         }
       }
 
       // 2. Fetch Clusters for this survey/project
       try {
-        const clustersRes = await fetch(`/api/clusters?project_id=${currentProjectId}`, {
-          headers: getAuthHeaders()
-        });
-        if (clustersRes.ok) {
-          allClusters = await clustersRes.json();
-        } else {
-          allClusters = [];
-        }
+        allClusters = (await window.api.get(`/api/clusters?project_id=${currentProjectId}`, { abortKey: 'review-clusters' })) || [];
       } catch (e) {
-        console.warn('Notice: Error fetching clusters', e);
+        if (!e?.isAborted) console.warn('Notice: Error fetching clusters', e);
         allClusters = [];
       }
 
       // 3. Fetch Project Info
       try {
-        const projRes = await fetch(`/api/projects/${currentProjectId}`, {
-          headers: getAuthHeaders()
-        });
-        if (projRes.ok) {
-          const projData = await projRes.json();
+        const projData = await window.api.get(`/api/projects/${currentProjectId}`);
+        if (projData) {
           currentProjectTitle = projData.name || projData.title || 'Survey';
           const badge = document.getElementById('project-title-indicator');
           if (badge) badge.textContent = `${currentProjectTitle} • Review Workspace`;
         }
       } catch (e) {
-        console.warn('Notice: Error fetching project info', e);
+        if (!e?.isAborted) console.warn('Notice: Error fetching project info', e);
       }
 
       // 3.5 Fetch Effective User Project Role
       try {
-        const roleRes = await fetch(`/api/projects/${currentProjectId}/my-role`, {
-          headers: getAuthHeaders()
-        });
-        if (roleRes.ok) {
-          const roleData = await roleRes.json();
-          if (roleData && roleData.role) {
-            currentUserRole = roleData.role.toLowerCase();
-          }
+        const roleData = await window.api.get(`/api/projects/${currentProjectId}/my-role`);
+        if (roleData && roleData.role) {
+          currentUserRole = roleData.role.toLowerCase();
         }
       } catch (e) {
-        console.warn('Notice: Error fetching user project role in review', e);
+        if (!e?.isAborted) console.warn('Notice: Error fetching user project role in review', e);
       }
 
       // 4. Fetch Dynamic Columns for this survey and this paper's cluster
@@ -222,59 +202,42 @@
       const paperClusterId = activePaper ? activePaper.cluster_id : null;
       if (paperClusterId && paperClusterId !== 'unassigned') {
         try {
-          const clusterColsRes = await fetch(`/api/dynamic-columns?cluster_id=${paperClusterId}`, {
-            headers: getAuthHeaders()
-          });
-          if (clusterColsRes.ok) {
-            const cCols = await clusterColsRes.json();
-            if (Array.isArray(cCols)) {
-              cCols.forEach(col => {
-                const name = col.column_name || col.name;
-                if (name && !fetchedColsMap.has(name)) {
-                  fetchedColsMap.set(name, col);
-                }
-              });
-            }
-          }
-        } catch (e) {
-          console.warn('Notice: Error fetching cluster-specific columns', e);
-        }
-      }
-
-      // B. Fetch project-wide dynamic columns
-      try {
-        const colsRes = await fetch(`/api/dynamic-columns?project_id=${currentProjectId}`, {
-          headers: getAuthHeaders()
-        });
-        if (colsRes.ok) {
-          const pCols = await colsRes.json();
-          if (Array.isArray(pCols)) {
-            pCols.forEach(col => {
+          const cCols = await window.api.get(`/api/dynamic-columns?cluster_id=${paperClusterId}`);
+          if (Array.isArray(cCols)) {
+            cCols.forEach(col => {
               const name = col.column_name || col.name;
               if (name && !fetchedColsMap.has(name)) {
                 fetchedColsMap.set(name, col);
               }
             });
           }
+        } catch (e) {
+          if (!e?.isAborted) console.warn('Notice: Error fetching cluster-specific columns', e);
+        }
+      }
+
+      // B. Fetch project-wide dynamic columns
+      try {
+        const pCols = await window.api.get(`/api/dynamic-columns?project_id=${currentProjectId}`);
+        if (Array.isArray(pCols)) {
+          pCols.forEach(col => {
+            const name = col.column_name || col.name;
+            if (name && !fetchedColsMap.has(name)) {
+              fetchedColsMap.set(name, col);
+            }
+          });
         }
       } catch (e) {
-        console.warn('Notice: Error fetching dynamic columns', e);
+        if (!e?.isAborted) console.warn('Notice: Error fetching dynamic columns', e);
       }
 
       surveyDynamicColumns = Array.from(fetchedColsMap.values());
 
       // 5. Fetch All Papers of this survey to aggregate survey-wide domains & keywords
       try {
-        const allPapersRes = await fetch(`/api/papers?project_id=${currentProjectId}`, {
-          headers: getAuthHeaders()
-        });
-        if (allPapersRes.ok) {
-          surveyPapers = await allPapersRes.json();
-        } else {
-          surveyPapers = [];
-        }
+        surveyPapers = (await window.api.get(`/api/papers?project_id=${currentProjectId}`, { abortKey: 'review-survey-papers' })) || [];
       } catch (e) {
-        console.warn('Notice: Error fetching survey papers', e);
+        if (!e?.isAborted) console.warn('Notice: Error fetching survey papers', e);
         surveyPapers = [];
       }
 
@@ -981,24 +944,14 @@
       activePaper.cluster_name = targetCluster ? targetCluster.name : null;
       activePaper.screening_decision = 'included';
 
-      const res = await fetch(`/api/papers/${activePaper.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        },
-        body: JSON.stringify({
-          cluster_id: stagedClusterId,
-          screening_decision: 'included',
-          screening_reason: activePrismaReason
-        })
+      const savedData = await window.api.put(`/api/papers/${activePaper.id}`, {
+        cluster_id: stagedClusterId,
+        screening_decision: 'included',
+        screening_reason: activePrismaReason
       });
 
-      if (res.ok) {
-        const savedData = await res.json();
+      if (savedData) {
         activePaper.cluster_id = savedData.cluster_id;
-        showToast(targetCluster ? `✓ Transferred to "${targetCluster.name}" and linked to Included` : 'Saved as Unassigned');
-      } else {
         showToast(targetCluster ? `✓ Transferred to "${targetCluster.name}" and linked to Included` : 'Saved as Unassigned');
       }
 
@@ -1080,27 +1033,13 @@
     if (!name || !name.trim()) return;
     const cleanName = name.trim();
     try {
-      const res = await fetch('/api/clusters', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        },
-        body: JSON.stringify({ name: cleanName, project_id: currentProjectId })
-      });
-      if (res.ok) {
-        const created = await res.json();
-        allClusters.push(created);
-        stagedClusterId = created.id;
-        renderClustersGrid(created.id);
-        showToast(`+ Added new cluster: "${cleanName}" to survey`);
-        // Auto-save transfer to this newly created cluster
-        await window.saveClusterTransfer();
-      } else {
-        const err = await res.json().catch(() => ({}));
-        showToast(`⚠ ${err.error || 'Failed to create cluster'}`);
-        renderClustersGrid(stagedClusterId);
-      }
+      const created = await window.api.post('/api/clusters', { name: cleanName, project_id: currentProjectId });
+      allClusters.push(created);
+      stagedClusterId = created.id;
+      renderClustersGrid(created.id);
+      showToast(`+ Added new cluster: "${cleanName}" to survey`);
+      // Auto-save transfer to this newly created cluster
+      await window.saveClusterTransfer();
     } catch (err) {
       console.warn('Notice: Cluster creation error', err);
       showToast(`⚠ Failed to create cluster: ${err.message}`);
@@ -2128,24 +2067,14 @@
     };
 
     try {
-      const res = await fetch(`/api/papers/${activePaper.id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) throw new Error(await res.text());
+      await window.api.put(`/api/papers/${activePaper.id}`, payload);
 
       // Batch save custom column values directly to guarantee persistence
       if (columnUpdates.length > 0) {
         try {
-          await fetch('/api/paper-column-values/batch', {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({
-              paper_id: activePaper.id,
-              updates: columnUpdates
-            })
+          await window.api.post('/api/paper-column-values/batch', {
+            paper_id: activePaper.id,
+            updates: columnUpdates
           });
         } catch (batchErr) {
           console.warn('Batch column values save warning:', batchErr);
@@ -3655,36 +3584,16 @@
     showToast('Deleting paper from survey...');
 
     try {
-      const res = await fetch(`/api/papers/${paperIdToDelete}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-      });
-
-      if (res.ok) {
-        setHeaderSaveStatus('saved');
-        showToast('Paper deleted successfully! Returning to workspace...');
-        window.closeDeleteModal();
-        setTimeout(() => {
-          window.location.href = `/workspace?project=${targetProjectId}`;
-        }, 600);
-      } else {
-        setHeaderSaveStatus('error');
-        let errMessage = 'Failed to delete paper.';
-        try {
-          const errData = await res.json();
-          if (errData.error) errMessage = errData.error;
-        } catch (_) {
-          errMessage = await res.text();
-        }
-        showToast(`Deletion failed: ${errMessage}`);
-        if (confirmBtn) confirmBtn.disabled = false;
-        if (confirmText) confirmText.textContent = 'Yes, Delete Paper';
-        if (headerBtn) headerBtn.disabled = false;
-        if (paneBtn) paneBtn.disabled = false;
-      }
+      await window.api.delete(`/api/papers/${paperIdToDelete}`);
+      setHeaderSaveStatus('saved');
+      showToast('Paper deleted successfully! Returning to workspace...');
+      window.closeDeleteModal();
+      setTimeout(() => {
+        window.location.href = `/workspace?project=${targetProjectId}`;
+      }, 600);
     } catch (err) {
       setHeaderSaveStatus('error');
-      showToast(`Network error: ${err.message}`);
+      showToast(`Deletion failed: ${err.message}`);
       if (confirmBtn) confirmBtn.disabled = false;
       if (confirmText) confirmText.textContent = 'Yes, Delete Paper';
       if (headerBtn) headerBtn.disabled = false;

@@ -141,6 +141,241 @@ window.getAuthHeaders = function(extraHeaders = {}) {
   return headers;
 };
 
+/**
+ * Standardized API Error carrying HTTP status, URL, response payload, and cancellation state.
+ */
+class ApiError extends Error {
+  constructor(message, status = 0, data = null, url = '', isAborted = false) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.data = data;
+    this.url = url;
+    this.isAborted = isAborted;
+  }
+}
+
+/**
+ * Centralized Enterprise HTTP Client with in-flight deduplication, named AbortController
+ * cancellation, automatic session refresh / redirect, and standardized error parsing.
+ */
+class ApiClient {
+  constructor() {
+    this.inFlightRequests = new Map(); // key -> Promise
+    this.abortControllers = new Map(); // abortKey -> AbortController
+    this.timeout = 30000; // 30s default
+  }
+
+  getAuthToken() {
+    return window.getAuthToken ? window.getAuthToken() : (localStorage.getItem('litsphere_auth_token') || '');
+  }
+
+  getAuthHeaders(includeContentType = true, extraHeaders = {}) {
+    if (typeof window.getAuthHeaders === 'function') {
+      return window.getAuthHeaders(includeContentType ? extraHeaders : false);
+    }
+    const token = this.getAuthToken();
+    const headers = {};
+    if (includeContentType) headers['Content-Type'] = 'application/json';
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return Object.assign(headers, extraHeaders);
+  }
+
+  abort(abortKey) {
+    if (!abortKey) return;
+    const controller = this.abortControllers.get(abortKey);
+    if (controller) {
+      try {
+        controller.abort();
+      } catch (_) {}
+      this.abortControllers.delete(abortKey);
+    }
+  }
+
+  abortAll() {
+    for (const [, controller] of this.abortControllers.entries()) {
+      try {
+        controller.abort();
+      } catch (_) {}
+    }
+    this.abortControllers.clear();
+    this.inFlightRequests.clear();
+  }
+
+  async request(url, options = {}) {
+    const {
+      method = 'GET',
+      data,
+      body,
+      headers = {},
+      abortKey,
+      signal,
+      timeout = this.timeout,
+      dedupe = (method.toUpperCase() === 'GET'),
+      skipAuthRedirect = false,
+      ...customFetchOptions
+    } = options;
+
+    const upperMethod = method.toUpperCase();
+    const isGet = upperMethod === 'GET';
+
+    // 1. In-flight request deduplication for identical concurrent GET requests
+    const dedupeKey = `${upperMethod}:${url}`;
+    if (isGet && dedupe && this.inFlightRequests.has(dedupeKey)) {
+      return this.inFlightRequests.get(dedupeKey);
+    }
+
+    // 2. AbortController lifecycle for named abortKey
+    let internalController = null;
+    let requestSignal = signal;
+
+    if (abortKey) {
+      this.abort(abortKey);
+      internalController = new AbortController();
+      this.abortControllers.set(abortKey, internalController);
+      requestSignal = internalController.signal;
+    }
+
+    // 3. Timeout Controller (if no custom signal supplied)
+    let timeoutId = null;
+    if (timeout > 0 && !requestSignal) {
+      internalController = new AbortController();
+      requestSignal = internalController.signal;
+      timeoutId = setTimeout(() => {
+        try {
+          internalController.abort();
+        } catch (_) {}
+      }, timeout);
+    }
+
+    // 4. Request headers & body formatting
+    const isFormData = (data instanceof FormData) || (body instanceof FormData);
+    const requestHeaders = this.getAuthHeaders(!isFormData, headers);
+
+    let requestBody = body;
+    if (data !== undefined) {
+      if (isFormData) {
+        requestBody = data;
+      } else if (typeof data === 'object' && data !== null) {
+        requestBody = JSON.stringify(data);
+      } else {
+        requestBody = data;
+      }
+    }
+
+    const fetchPromise = (async () => {
+      try {
+        const response = await fetch(url, {
+          method: upperMethod,
+          headers: requestHeaders,
+          body: requestBody,
+          signal: requestSignal,
+          ...customFetchOptions
+        });
+
+        if (timeoutId) clearTimeout(timeoutId);
+        if (abortKey && this.abortControllers.get(abortKey) === internalController) {
+          this.abortControllers.delete(abortKey);
+        }
+
+        // Handle 401 Unauthorized
+        if (response.status === 401) {
+          const isPublicShared = window.location.pathname.startsWith('/shared/');
+          const isLoginPage = window.location.pathname === '/login' || window.location.pathname === '/auth';
+          if (!isPublicShared && !isLoginPage && !skipAuthRedirect) {
+            localStorage.removeItem('litsphere_auth_token');
+            localStorage.removeItem('litsphere_user');
+            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search);
+          }
+          let errPayload = null;
+          try { errPayload = await response.json(); } catch (_) {}
+          throw new ApiError(errPayload?.error || errPayload?.message || 'Session expired. Please sign in again.', 401, errPayload, url);
+        }
+
+        // Parse response body
+        let parsedData = null;
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          parsedData = await response.json();
+        } else {
+          parsedData = await response.text();
+        }
+
+        if (!response.ok) {
+          const errMsg = (parsedData && typeof parsedData === 'object' && (parsedData.error || parsedData.message))
+            || `HTTP error ${response.status}: ${response.statusText}`;
+          throw new ApiError(errMsg, response.status, parsedData, url);
+        }
+
+        return parsedData;
+      } catch (err) {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (abortKey && this.abortControllers.get(abortKey) === internalController) {
+          this.abortControllers.delete(abortKey);
+        }
+
+        const isAborted = err.name === 'AbortError' || (requestSignal && requestSignal.aborted);
+        if (isAborted) {
+          throw new ApiError('Request was aborted.', 0, null, url, true);
+        }
+
+        if (err instanceof ApiError) {
+          throw err;
+        }
+
+        throw new ApiError(err.message || 'Network connection failed', 0, null, url);
+      } finally {
+        if (isGet && dedupe) {
+          this.inFlightRequests.delete(dedupeKey);
+        }
+      }
+    })();
+
+    if (isGet && dedupe) {
+      this.inFlightRequests.set(dedupeKey, fetchPromise);
+    }
+
+    return fetchPromise;
+  }
+
+  get(url, options = {}) {
+    return this.request(url, { ...options, method: 'GET' });
+  }
+
+  post(url, data, options = {}) {
+    return this.request(url, { ...options, method: 'POST', data });
+  }
+
+  put(url, data, options = {}) {
+    return this.request(url, { ...options, method: 'PUT', data });
+  }
+
+  patch(url, data, options = {}) {
+    return this.request(url, { ...options, method: 'PATCH', data });
+  }
+
+  delete(url, options = {}) {
+    return this.request(url, { ...options, method: 'DELETE' });
+  }
+
+  upload(url, formData, options = {}) {
+    if (typeof window.uploadWithProgress === 'function' && options && options.onProgress) {
+      return window.uploadWithProgress({
+        url,
+        method: options.method || 'POST',
+        headers: options.headers,
+        formData,
+        onProgress: options.onProgress
+      });
+    }
+    return this.request(url, { ...options, method: options.method || 'POST', data: formData });
+  }
+}
+
+window.ApiError = ApiError;
+window.ApiClient = ApiClient;
+window.api = new ApiClient();
+
 window.fetchWithAuth = async function(url, options = {}) {
   const isFormData = options.body instanceof FormData;
   const authHeaders = window.getAuthHeaders(!isFormData);
@@ -153,9 +388,13 @@ window.fetchWithAuth = async function(url, options = {}) {
   const response = await fetch(url, options);
 
   if (response.status === 401) {
-    localStorage.removeItem('litsphere_auth_token');
-    localStorage.removeItem('litsphere_user');
-    window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search);
+    const isPublicShared = window.location.pathname.startsWith('/shared/');
+    const isLoginPage = window.location.pathname === '/login' || window.location.pathname === '/auth';
+    if (!isPublicShared && !isLoginPage) {
+      localStorage.removeItem('litsphere_auth_token');
+      localStorage.removeItem('litsphere_user');
+      window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search);
+    }
     throw new Error('Session expired. Please sign in again.');
   }
 
