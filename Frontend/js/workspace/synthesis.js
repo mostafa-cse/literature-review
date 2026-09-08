@@ -45,14 +45,13 @@ window.loadStats = async function() {
       // Unique keywords tagged in this cluster's papers
       const kwSet = new Set();
       clPapers.forEach(p => {
-        if (Array.isArray(p.keywords)) {
-          p.keywords.forEach(k => {
-            if (k && typeof k === 'string') {
-              const trimmed = k.trim();
-              if (trimmed) kwSet.add(trimmed.toLowerCase());
-            }
-          });
-        }
+        const kws = Array.isArray(p.keywords) ? p.keywords : (typeof p.keywords === 'string' ? p.keywords.split(/[,;\n]+/).map(s => s.trim().replace(/^#/, '')).filter(Boolean) : []);
+        kws.forEach(k => {
+          if (k && typeof k === 'string') {
+            const trimmed = k.trim().replace(/^#/, '');
+            if (trimmed) kwSet.add(trimmed.toLowerCase());
+          }
+        });
       });
 
       // Custom / Dynamic matrix columns for this cluster (or active data columns)
@@ -98,7 +97,36 @@ window.loadStats = async function() {
       const unreadPapers = stats.unread_papers || 0;
       const pendingPapers = stats.pending_papers !== undefined ? stats.pending_papers : (unreadPapers + inProgressPapers);
       const totalClusters = stats.total_clusters || 0;
-      const totalKeywords = stats.total_keywords !== undefined ? stats.total_keywords : (stats.total_unique_keywords || 0);
+
+      // Calculate distinct keywords from active in-memory papers + custom keywords as authoritative source
+      let totalKeywords = stats.total_keywords !== undefined ? stats.total_keywords : (stats.total_unique_keywords || 0);
+      if (Array.isArray(window.allPapers) && window.allPapers.length > 0) {
+        const clientKwSet = new Set();
+        window.allPapers.forEach(p => {
+          const kws = Array.isArray(p.keywords) ? p.keywords : (typeof p.keywords === 'string' ? p.keywords.split(/[,;\n]+/).map(s => s.trim().replace(/^#/, '')).filter(Boolean) : []);
+          kws.forEach(k => {
+            if (k && typeof k === 'string') {
+              const trimmed = k.trim().replace(/^#/, '');
+              if (trimmed) clientKwSet.add(trimmed.toLowerCase());
+            }
+          });
+        });
+        const storageKey = 'workspace_custom_keywords_' + pid;
+        try {
+          const customKws = JSON.parse(localStorage.getItem(storageKey) || '[]');
+          if (Array.isArray(customKws)) {
+            customKws.forEach(k => {
+              if (k && typeof k === 'string') {
+                const trimmed = k.trim().replace(/^#/, '');
+                if (trimmed) clientKwSet.add(trimmed.toLowerCase());
+              }
+            });
+          }
+        } catch (e) {}
+        if (clientKwSet.size > 0 || totalKeywords === 0) {
+          totalKeywords = clientKwSet.size;
+        }
+      }
       const pct = totalPapers > 0 ? Math.round((readPapers / totalPapers) * 100) : 0;
 
       // Card 1: Total Papers

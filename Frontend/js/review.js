@@ -319,8 +319,28 @@
     }
   }
 
+  function parseKeywords(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) {
+      return val.map(k => typeof k === 'string' ? k.trim().replace(/^#/, '') : (k && k.keyword ? String(k.keyword).trim().replace(/^#/, '') : '')).filter(Boolean);
+    }
+    if (typeof val === 'string' && val.trim()) {
+      const trimmed = val.trim();
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            return parsed.map(k => typeof k === 'string' ? k.trim().replace(/^#/, '') : '').filter(Boolean);
+          }
+        } catch (e) {}
+      }
+      return trimmed.split(/[,;\n]+/).map(s => s.trim().replace(/^#/, '')).filter(Boolean);
+    }
+    return [];
+  }
+
   function populatePaperData(p) {
-    paperKeywords = Array.isArray(p.keywords) ? [...p.keywords] : [];
+    paperKeywords = parseKeywords(p.keywords || p.keywords_raw);
     activePrismaVote = p.screening_decision || 'included';
     activePrismaReason = p.screening_reason || '';
 
@@ -359,21 +379,13 @@
     const surveyKeywordsSet = new Set();
     if (Array.isArray(surveyPapers)) {
       surveyPapers.forEach(sp => {
-        if (sp && Array.isArray(sp.keywords)) {
-          sp.keywords.forEach(kw => {
-            if (kw && typeof kw === 'string' && kw.trim()) {
-              surveyKeywordsSet.add(kw.trim());
-            }
-          });
+        if (sp) {
+          parseKeywords(sp.keywords || sp.keywords_raw).forEach(kw => surveyKeywordsSet.add(kw));
         }
       });
     }
-    if (p && Array.isArray(p.keywords)) {
-      p.keywords.forEach(kw => {
-        if (kw && typeof kw === 'string' && kw.trim()) {
-          surveyKeywordsSet.add(kw.trim());
-        }
-      });
+    if (p) {
+      parseKeywords(p.keywords || p.keywords_raw).forEach(kw => surveyKeywordsSet.add(kw));
     }
     componentState.keywords = Array.from(surveyKeywordsSet);
 
@@ -1298,22 +1310,28 @@
     }
   };
 
-  function updateKeywordsCounterBadge(totalCount, filteredCount) {
+  function updateKeywordsCounterBadge(totalCount, filteredCount, selectedCount = 0) {
     const badge = document.getElementById('keywords-count-badge');
     if (!badge) return;
-    if (totalCount === 0) {
-      badge.style.display = 'none';
-      return;
-    }
+
     badge.style.display = 'inline-flex';
+
     if (keywordsSearchQuery) {
       badge.textContent = `${filteredCount} / ${totalCount}`;
       badge.classList.add('filtered');
-      badge.title = `Showing ${filteredCount} of ${totalCount} keywords matching "${keywordsSearchQuery}"`;
+      badge.title = `Showing ${filteredCount} of ${totalCount} keywords matching "${keywordsSearchQuery}" (${selectedCount} selected for this paper)`;
     } else {
-      badge.textContent = `${totalCount}`;
       badge.classList.remove('filtered');
-      badge.title = `Total keywords: ${totalCount}`;
+      if (totalCount === 0) {
+        badge.textContent = '0';
+        badge.title = '0 keywords assigned to this paper';
+      } else if (selectedCount !== totalCount) {
+        badge.textContent = `${selectedCount} / ${totalCount}`;
+        badge.title = `${selectedCount} of ${totalCount} keywords selected for this paper`;
+      } else {
+        badge.textContent = `${totalCount}`;
+        badge.title = `All ${totalCount} keywords selected for this paper`;
+      }
     }
   }
 
@@ -1326,13 +1344,14 @@
     const combined = Array.from(new Set([...currentList, ...componentState.keywords])).filter(Boolean);
 
     const totalCount = combined.length;
+    const selectedCount = currentList.length;
 
     // Filter items according to search query
     const filteredList = keywordsSearchQuery
       ? combined.filter(kw => String(kw).toLowerCase().includes(keywordsSearchQuery))
       : combined;
 
-    updateKeywordsCounterBadge(totalCount, filteredList.length);
+    updateKeywordsCounterBadge(totalCount, filteredList.length, selectedCount);
 
     if (totalCount === 0) {
       const emptyNote = document.createElement('div');
@@ -1402,18 +1421,23 @@
         const commitValue = () => {
           if (committed) return;
           committed = true;
-          const raw = (input.value || '').trim().replace(/^#/, '');
-          if (raw) {
-            if (!componentState.keywords.includes(raw)) {
-              componentState.keywords.push(raw);
-            }
-            if (!paperKeywords.includes(raw)) {
-              paperKeywords.push(raw);
-            }
+          const parts = (input.value || '')
+            .split(/[,;\n]+/)
+            .map(s => s.trim().replace(/^#/, ''))
+            .filter(Boolean);
+          if (parts.length > 0) {
+            parts.forEach(raw => {
+              if (!componentState.keywords.includes(raw)) {
+                componentState.keywords.push(raw);
+              }
+              if (!paperKeywords.includes(raw)) {
+                paperKeywords.push(raw);
+              }
+            });
             renderKeywordsGrid(paperKeywords);
             updateHeaderSubtitle();
             triggerAutoSave(true);
-            showToast(`+ Added keyword: "#${raw}"`);
+            showToast(parts.length === 1 ? `+ Added keyword: "#${parts[0]}"` : `+ Added ${parts.length} keywords`);
           } else {
             renderKeywordsGrid(paperKeywords);
           }

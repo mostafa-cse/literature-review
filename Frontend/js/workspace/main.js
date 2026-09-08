@@ -381,6 +381,11 @@ window.loadPapers = async function () {
 
     // Apply active filters
     applyFilters();
+
+    // Synchronize telemetry counters
+    if (typeof window.loadStats === 'function') {
+      window.loadStats();
+    }
   } catch (err) {
     showToast(err.message, 'error');
   }
@@ -532,20 +537,19 @@ window.renderKeywordsHub = function () {
   const kwMap = new Map(); // keyword (lower) -> { name: originalString, count: number }
 
   papers.forEach(p => {
-    if (Array.isArray(p.keywords)) {
-      p.keywords.forEach(k => {
-        if (k && typeof k === 'string') {
-          const trimmed = k.trim().replace(/^#/, '');
-          if (trimmed) {
-            const lower = trimmed.toLowerCase();
-            if (!kwMap.has(lower)) {
-              kwMap.set(lower, { name: trimmed, count: 0 });
-            }
-            kwMap.get(lower).count++;
+    const kws = Array.isArray(p.keywords) ? p.keywords : (typeof p.keywords === 'string' ? p.keywords.split(/[,;\n]+/).map(s => s.trim().replace(/^#/, '')).filter(Boolean) : []);
+    kws.forEach(k => {
+      if (k && typeof k === 'string') {
+        const trimmed = k.trim().replace(/^#/, '');
+        if (trimmed) {
+          const lower = trimmed.toLowerCase();
+          if (!kwMap.has(lower)) {
+            kwMap.set(lower, { name: trimmed, count: 0 });
           }
+          kwMap.get(lower).count++;
         }
-      });
-    }
+      }
+    });
   });
 
   // 2. ONLY at workspace level (all clusters): include custom registered keywords
@@ -585,6 +589,12 @@ window.renderKeywordsHub = function () {
   // Sort by paper count descending, then alphabetically
   allUnique.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 
+  // Determine displayed keywords after search filter
+  let displayKeywords = allUnique;
+  if (window.keywordSearchQuery) {
+    displayKeywords = allUnique.filter(kw => kw.name.toLowerCase().includes(window.keywordSearchQuery));
+  }
+
   // Update Section Subtitle
   if (subtitle) {
     if (activeClusterObj) {
@@ -596,13 +606,26 @@ window.renderKeywordsHub = function () {
 
   // Update Count Badge
   if (countBadge) {
-    if (activeClusterObj) {
-      countBadge.textContent = `${allUnique.length} in ${activeClusterObj.name}`;
-      countBadge.title = `Showing ${allUnique.length} keywords for ${activeClusterObj.name} (${papers.length} ${papers.length === 1 ? 'Paper' : 'Papers'})`;
+    if (window.keywordSearchQuery) {
+      countBadge.textContent = `${displayKeywords.length} of ${allUnique.length} Keywords`;
+      countBadge.classList.add('filtered');
+      countBadge.title = `Showing ${displayKeywords.length} of ${allUnique.length} keywords matching "${window.keywordSearchQuery}"`;
     } else {
-      countBadge.textContent = `${allUnique.length} ${allUnique.length === 1 ? 'Keyword' : 'Keywords'}`;
-      countBadge.title = `Showing all project keywords (${papers.length} Papers across all clusters)`;
+      countBadge.classList.remove('filtered');
+      if (activeClusterObj) {
+        countBadge.textContent = `${allUnique.length} in ${activeClusterObj.name}`;
+        countBadge.title = `Showing ${allUnique.length} keywords for ${activeClusterObj.name} (${papers.length} ${papers.length === 1 ? 'Paper' : 'Papers'})`;
+      } else {
+        countBadge.textContent = `${allUnique.length} ${allUnique.length === 1 ? 'Keyword' : 'Keywords'}`;
+        countBadge.title = `Showing all project keywords (${papers.length} Papers across all clusters)`;
+      }
     }
+  }
+
+  // Synchronize telemetry stat counter in cards row
+  const statKeywordsEl = document.getElementById('stat-keywords-count');
+  if (statKeywordsEl) {
+    statKeywordsEl.textContent = allUnique.length;
   }
 
   // Active filters count badge
@@ -842,6 +865,9 @@ window.submitAddKeyword = async function (e) {
   } else {
     renderKeywordsHub();
     applyFilters();
+  }
+  if (typeof window.loadStats === 'function') {
+    window.loadStats();
   }
 };
 
