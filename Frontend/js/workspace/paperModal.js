@@ -54,9 +54,86 @@ window.openAddPaperModal = function(tab = 'single') {
   const bulkTracker = document.getElementById('bulk-upload-tracker');
   if (bulkTracker) bulkTracker.style.display = 'none';
 
+  // Reset staged column values and abstract
+  window._stagedColumnValues = {};
+  window._stagedAbstract = '';
+  const colBadge = document.getElementById('add-paper-columns-badge');
+  if (colBadge) {
+    colBadge.textContent = 'Auto-populated from DOI';
+    colBadge.style.color = 'var(--text-tertiary)';
+  }
+
   clearSelectedAddPaperFile();
+  renderAddPaperDynamicColumns();
   switchAddPaperTab('single');
   openModal('upload-modal-overlay');
+};
+
+window.renderAddPaperDynamicColumns = function() {
+  const section = document.getElementById('add-paper-columns-section');
+  const fields = document.getElementById('add-paper-columns-fields');
+  if (!section || !fields) return;
+
+  const rawCols = window.activeDataColumns || window.activeClusterColumns || [];
+  const seen = new Set();
+  const eligibleCols = [];
+
+  rawCols.forEach(col => {
+    if (col.parent_column_id) return;
+    const name = (col.column_name || col.name || '').trim();
+    if (!name || seen.has(name.toLowerCase())) return;
+    const lower = name.toLowerCase();
+    if (['title', 'authors', 'year', 'pub', 'publication', 'doi'].includes(lower)) return;
+    seen.add(lower);
+    eligibleCols.push(col);
+  });
+
+  if (eligibleCols.length === 0) {
+    section.style.display = 'none';
+    fields.innerHTML = '';
+    return;
+  }
+
+  section.style.display = 'block';
+  fields.innerHTML = eligibleCols.map(col => {
+    const colName = col.column_name || col.name;
+    const staged = (window._stagedColumnValues && (window._stagedColumnValues[col.id] || window._stagedColumnValues[colName])) || '';
+    return `
+      <div class="form-group" style="margin-bottom: 0;">
+        <label class="form-label" style="font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.25rem;">
+          ${escapeHtml(colName)}
+        </label>
+        <input type="text" class="form-input custom-col-input" 
+          data-col-id="${col.id}" 
+          data-col-name="${escapeHtml(colName)}"
+          id="custom-col-${col.id}" 
+          placeholder="Enter ${escapeHtml(colName)}..."
+          style="font-size: 0.82rem; padding: 0.35rem 0.65rem;"
+          value="${escapeHtml(staged)}">
+      </div>
+    `;
+  }).join('');
+};
+
+let _doiDebounceTimer = null;
+window.handleDoiInputDebounced = function(val) {
+  clearTimeout(_doiDebounceTimer);
+  if (!val || typeof val !== 'string') return;
+  const clean = val.trim();
+  if (clean.includes('10.') || /^\d{4}\.\d{4,5}/.test(clean) || clean.toLowerCase().startsWith('arxiv:')) {
+    _doiDebounceTimer = setTimeout(() => {
+      window.fetchPaperDoiMetadata();
+    }, 700);
+  }
+};
+
+window.handleDoiPaste = function(e) {
+  setTimeout(() => {
+    const input = document.getElementById('add-paper-doi');
+    if (input && input.value.trim()) {
+      window.fetchPaperDoiMetadata();
+    }
+  }, 60);
 };
 
 window.populateDomainDropdowns = function() {
@@ -187,7 +264,7 @@ window.fetchPaperDoiMetadata = async function() {
   if (btnText) btnText.textContent = 'Fetching...';
   if (statusEl) {
     statusEl.style.display = 'block';
-    statusEl.textContent = 'Contacting CrossRef & OpenAlex metadata engines...';
+    statusEl.textContent = 'Contacting CrossRef & Semantic Scholar engines...';
     statusEl.style.color = 'var(--accent-gold)';
   }
 
@@ -206,11 +283,49 @@ window.fetchPaperDoiMetadata = async function() {
     if (data.year && yearEl) yearEl.value = data.year;
     if (data.pub && pubEl) pubEl.value = data.pub;
 
+    // Cache abstract/intuition
+    window._stagedAbstract = data.abstract || '';
+
+    // Auto-fill and map into survey dynamic columns
+    if (!window._stagedColumnValues) window._stagedColumnValues = {};
+    const cols = window.activeDataColumns || window.activeClusterColumns || [];
+
+    cols.forEach(col => {
+      const cLower = (col.column_name || col.name || '').toLowerCase().trim();
+      const colId = col.id;
+      let matchedVal = null;
+      if (cLower === 'doi') matchedVal = data.doi;
+      else if (cLower === 'year' || cLower === 'publication year') matchedVal = data.year;
+      else if (cLower === 'authors' || cLower === 'author') matchedVal = data.authors;
+      else if (['pub', 'publisher', 'venue', 'journal', 'conference'].includes(cLower)) matchedVal = data.pub;
+      else if (['abstract', 'intuition', 'summary', 'overview'].includes(cLower)) matchedVal = data.abstract;
+      else if (['url', 'link'].includes(cLower)) matchedVal = data.url || `https://doi.org/${data.doi}`;
+
+      if (matchedVal) {
+        window._stagedColumnValues[colId] = matchedVal;
+        window._stagedColumnValues[col.column_name || col.name] = matchedVal;
+        const inputEl = document.getElementById(`custom-col-${colId}`);
+        if (inputEl) {
+          inputEl.value = matchedVal;
+          inputEl.style.borderColor = 'var(--accent-emerald)';
+        }
+      }
+    });
+
+    // Re-render columns to display newly filled values
+    window.renderAddPaperDynamicColumns();
+
+    const colBadge = document.getElementById('add-paper-columns-badge');
+    if (colBadge) {
+      colBadge.textContent = '✅ Metadata & columns auto-populated';
+      colBadge.style.color = 'var(--accent-emerald)';
+    }
+
     if (statusEl) {
       statusEl.textContent = `Auto-filled: "${data.title ? data.title.substring(0, 45) + '...' : 'Metadata loaded'}"`;
       statusEl.style.color = 'var(--accent-emerald)';
     }
-    showToast('Metadata successfully fetched from CrossRef!', 'success');
+    showToast('Metadata & column values successfully fetched from CrossRef & Semantic Scholar!', 'success');
   } catch (err) {
     if (statusEl) {
       statusEl.textContent = 'Failed: ' + err.message;
@@ -370,6 +485,19 @@ window.submitAddPaperForm = async function(e) {
   const pubEl = document.getElementById('add-paper-pub');
   const doiEl = document.getElementById('add-paper-doi');
 
+  // If DOI is provided, but Title or Authors is empty or '-', automatically fetch metadata first!
+  if (doiEl && doiEl.value.trim() && doiEl.value.trim() !== '-') {
+    const rawTitle = titleEl ? titleEl.value.trim() : '';
+    const rawAuthors = authorsEl ? authorsEl.value.trim() : '';
+    if (!rawTitle || rawTitle === '-' || !rawAuthors || rawAuthors === '-') {
+      try {
+        await window.fetchPaperDoiMetadata();
+      } catch (autoErr) {
+        console.warn('Auto DOI fetch before submit notice:', autoErr.message);
+      }
+    }
+  }
+
   // If user doesn't fill any default text box, fill it up with '-'
   if (titleEl && !titleEl.value.trim()) titleEl.value = '-';
   if (authorsEl && !authorsEl.value.trim()) authorsEl.value = '-';
@@ -384,6 +512,22 @@ window.submitAddPaperForm = async function(e) {
   const doi = (doiEl && doiEl.value.trim()) ? doiEl.value.trim() : '-';
   const domain = '-';
   const status = 'unread';
+
+  // Gather dynamic column inputs
+  const customCols = {};
+  const customInputs = document.querySelectorAll('#add-paper-columns-fields .custom-col-input');
+  customInputs.forEach(inp => {
+    const colId = inp.dataset.colId;
+    const val = inp.value.trim();
+    if (colId && val) {
+      customCols[colId] = val;
+    }
+  });
+  if (window._stagedColumnValues) {
+    for (const [k, v] of Object.entries(window._stagedColumnValues)) {
+      if (!customCols[k] && v) customCols[k] = v;
+    }
+  }
 
   const fileInput = document.getElementById('add-paper-file-input');
   const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
@@ -415,6 +559,9 @@ window.submitAddPaperForm = async function(e) {
       formData.append('status', 'unread');
       formData.append('domain', domain);
       formData.append('doi', doi);
+      formData.append('skip_extraction', 'true');
+      if (window._stagedAbstract) formData.append('intuition', window._stagedAbstract);
+      if (Object.keys(customCols).length > 0) formData.append('custom_columns', JSON.stringify(customCols));
 
       if (singleTracker) {
         singleTracker.style.display = 'block';
@@ -435,9 +582,9 @@ window.submitAddPaperForm = async function(e) {
           onProgress: ({ percent, rateStr, bytesStr, etaStr, isComplete }) => {
             if (singleFillEl) singleFillEl.style.width = `${percent}%`;
             if (singlePctEl) singlePctEl.textContent = `${percent}%`;
-            if (singleRateEl) singleRateEl.textContent = isComplete ? '⚡ Uploaded' : rateStr;
+            if (singleRateEl) singleRateEl.textContent = isComplete ? '⚡ Complete' : rateStr;
             if (singleBytesEl) singleBytesEl.textContent = bytesStr;
-            if (singleEtaEl) singleEtaEl.textContent = isComplete ? '⏱ Extracting metadata...' : etaStr;
+            if (singleEtaEl) singleEtaEl.textContent = isComplete ? '⚡ Saving paper...' : etaStr;
           }
         });
       } else {
@@ -463,6 +610,8 @@ window.submitAddPaperForm = async function(e) {
         status: 'unread',
         domain,
         doi,
+        intuition: window._stagedAbstract || '-',
+        custom_columns: customCols,
         keywords: []
       };
 
@@ -571,6 +720,7 @@ window.submitBulkPdfUpload = async function() {
     if (newClusterName) formData.append('new_cluster_name', newClusterName);
     formData.append('domain', domain || 'General');
     if (newDomainName) formData.append('new_domain_name', newDomainName);
+    formData.append('skip_extraction', 'true');
 
     for (let i = 0; i < files.length; i++) {
       formData.append('pdf', files[i]);
@@ -585,12 +735,12 @@ window.submitBulkPdfUpload = async function() {
         onProgress: ({ percent, rateStr, bytesStr, etaStr, isComplete }) => {
           if (bulkFillEl) bulkFillEl.style.width = `${percent}%`;
           if (bulkPctEl) bulkPctEl.textContent = `${percent}%`;
-          if (bulkRateEl) bulkRateEl.textContent = isComplete ? '⚡ Batch Uploaded' : rateStr;
+          if (bulkRateEl) bulkRateEl.textContent = isComplete ? '⚡ Complete' : rateStr;
           if (bulkBytesEl) bulkBytesEl.textContent = bytesStr;
-          if (bulkEtaEl) bulkEtaEl.textContent = isComplete ? '⏱ Extracting metadata...' : etaStr;
+          if (bulkEtaEl) bulkEtaEl.textContent = isComplete ? '⚡ Saving papers...' : etaStr;
           if (statusEl) {
             statusEl.innerHTML = isComplete
-              ? `<span style="color: var(--accent-gold);">Server extracting metadata & indexing text for ${files.length} papers...</span>`
+              ? `<span style="color: var(--accent-gold);">⚡ Saving batch papers to database...</span>`
               : `<span style="color: var(--accent-primary);">Uploading ${files.length} PDFs (${percent}% at ${rateStr})...</span>`;
           }
         }

@@ -39,6 +39,14 @@
 </head>
 
 <body>
+  <!-- Browser Extension Guard for ImTranslator & External Translation Utilities -->
+  <div id="SL_balloon_obj" style="display:none!important;position:absolute!important;top:-9999px!important;left:-9999px!important;width:0!important;height:0!important;opacity:0!important;pointer-events:none!important;" aria-hidden="true">
+    <div id="SL_shadow_translator" style="display:none;"></div>
+    <div id="SL_button" style="display:none;"></div>
+    <div id="SL_shadow_translation_result2" style="display:none;"></div>
+    <div id="SL_planshet" style="display:none;"></div>
+    <div id="SL_Balloon_options" style="display:none;"></div>
+  </div>
 
   <!-- Choice 2: Oxford / Overleaf Prestige Academic Header (Auto-rendered by /js/core/navbar.js) -->
   <header class="site-header" id="site-header"></header>
@@ -1444,12 +1452,14 @@
             <label class="form-label"
               style="color: var(--accent-gold); font-weight: 700; margin: 0; font-size: 0.8rem; font-family: 'JetBrains Mono', monospace;">DOI
               AUTO-FETCH (OPTIONAL):</label>
-            <span style="font-size: 0.74rem; color: var(--text-tertiary);">CrossRef &amp; OpenAlex Engine</span>
+            <span style="font-size: 0.74rem; color: var(--text-tertiary);">CrossRef &amp; Semantic Scholar Engine</span>
           </div>
           <div style="display: flex; gap: 0.5rem;">
             <input type="text" class="form-input" id="add-paper-doi"
               placeholder="e.g. 10.1016/j.knosys.2021.107455 or 2106.01234"
               style="font-family: 'JetBrains Mono', monospace; font-size: 0.86rem; flex: 1;"
+              oninput="if(typeof handleDoiInputDebounced === 'function') handleDoiInputDebounced(this.value)"
+              onpaste="if(typeof handleDoiPaste === 'function') handleDoiPaste(event)"
               onkeydown="if(event.key==='Enter'){event.preventDefault(); fetchPaperDoiMetadata();}">
             <button type="button" class="action-btn" id="btn-fetch-single-doi" onclick="fetchPaperDoiMetadata()"
               style="white-space: nowrap; padding: 0.45rem 0.95rem; font-size: 0.86rem;">
@@ -1490,6 +1500,20 @@
             </div>
           </div>
 
+          <!-- Dynamic Taxonomy Columns Section (Auto-populated from DOI / Editable) -->
+          <div id="add-paper-columns-section" style="display: none; margin-bottom: 1.15rem; background: var(--bg-surface-raised); border: 1px solid var(--border-base); border-radius: 8px; padding: 0.85rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem;">
+              <label class="form-label" style="font-weight: 700; font-size: 0.82rem; color: var(--accent-gold); margin: 0; display: flex; align-items: center; gap: 0.4rem;">
+                <span>📊</span>
+                <span>SURVEY TAXONOMY COLUMN VALUES</span>
+              </label>
+              <span id="add-paper-columns-badge" style="font-size: 0.74rem; color: var(--text-tertiary);">Auto-populated from DOI</span>
+            </div>
+            <div id="add-paper-columns-fields" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem;">
+              <!-- Injected dynamically by paperModal.js -->
+            </div>
+          </div>
+
           <!-- BROWSE FILE -> UPLOAD -->
           <div class="form-group" style="margin-bottom: 1.25rem;">
             <label class="form-label" style="font-weight: 700; font-size: 0.84rem;">Attach Research PDF Document
@@ -1509,7 +1533,7 @@
                 Click to Browse PDF or Drag &amp; Drop File Here
               </div>
               <div style="font-size: 0.82rem; color: var(--text-tertiary);">
-                Extracts metadata &amp; attaches document for instant Split-Screen reading
+                Attaches PDF manuscript for instant Split-Screen reading &amp; matrix synthesis
               </div>
               <input type="file" id="add-paper-file-input" accept=".pdf" style="display: none;"
                 onchange="handleAddPaperFileSelected(this)">
@@ -1582,8 +1606,8 @@
           </div>
           <div style="font-weight: 700; font-size: 1.05rem; color: var(--text-primary); margin-bottom: 0.25rem;">Drag
             &amp; Drop Multiple Research PDFs</div>
-          <div style="font-size: 0.84rem; color: var(--text-tertiary); margin-bottom: 0.85rem;">Batch auto-extracts
-            Title, Authors, Year, DOI &amp; Abstract for every file</div>
+          <div style="font-size: 0.84rem; color: var(--text-tertiary); margin-bottom: 0.85rem;">Instantly attaches
+            and indexes multiple PDF manuscripts to literature matrix</div>
           <button class="mini-btn gold" type="button" id="btn-browse-pdf"
             style="padding: 0.45rem 1.1rem; font-weight: 700;">Browse Multiple PDF Files</button>
           <input type="file" id="upload-file-input" multiple accept=".pdf" style="display: none;"

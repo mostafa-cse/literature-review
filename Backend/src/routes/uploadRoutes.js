@@ -71,6 +71,21 @@ async function handlePdfUpload(req, res) {
     let targetClusterId = (cluster_id && cluster_id !== 'unassigned' && cluster_id !== '__new__' && cluster_id !== 'null' && cluster_id !== '') ? parseInt(cluster_id, 10) : null;
     const uploaded = [];
 
+    // Check if extraction was explicitly requested (default is fast upload without extraction)
+    const shouldExtract = (req.body.extract_metadata === 'true' || req.body.extract_metadata === true) && req.body.skip_extraction !== 'true' && req.body.skip_extraction !== true;
+
+    // Parse custom_columns passed from the frontend form
+    let customColumns = {};
+    if (req.body.custom_columns) {
+      try {
+        customColumns = typeof req.body.custom_columns === 'string'
+          ? JSON.parse(req.body.custom_columns)
+          : req.body.custom_columns;
+      } catch (err) {
+        console.warn('Failed to parse custom_columns JSON in upload:', err.message);
+      }
+    }
+
     const insertPaper = db.prepare(`
       INSERT INTO papers (
         project_id, cluster_id, title, authors, year, pub, doi, pdf_url,
@@ -79,18 +94,55 @@ async function handlePdfUpload(req, res) {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', '', '')
     `);
 
+    const insertColVal = db.prepare(`
+      INSERT INTO paper_column_values (paper_id, column_id, value)
+      VALUES (?, ?, ?)
+      ON CONFLICT(paper_id, column_id) DO UPDATE SET value = excluded.value
+    `);
+
     for (const file of files) {
       const relPath = `/uploads/${file.filename}`;
-      // Smart PDF extraction (reads first page, title, authors, year, doi, intuition)
-      const parsed = await parsePdfMetadata(file.path, file.originalname);
+      let parsed = {};
 
-      const paperTitle = (customTitle && customTitle.trim()) || parsed.title || (file.originalname ? file.originalname.replace(/\.pdf$/i, '') : '-');
-      const paperAuthors = (customAuthors && customAuthors.trim()) || parsed.authors || '-';
-      const paperYear = (customYear && String(customYear).trim()) || (parsed.year ? String(parsed.year) : '-');
-      const paperPub = (customPub && customPub.trim()) || '-';
-      const paperDoi = (customDoi && customDoi.trim()) || parsed.doi || '-';
-      const paperDomain = (targetDomain && targetDomain.trim()) || '-';
+      if (shouldExtract) {
+        try {
+          parsed = await parsePdfMetadata(file.path, file.originalname);
+        } catch (parseErr) {
+          console.warn('Background PDF parse notice (non-fatal):', parseErr.message);
+        }
+      }
+
+      // Fast fallback resolution
+      const rawOriginal = file.originalname ? file.originalname.replace(/\.pdf$/i, '').replace(/[-_]/g, ' ') : '-';
+      const paperTitle = (customTitle && customTitle.trim() && customTitle.trim() !== '-')
+        ? customTitle.trim()
+        : (parsed.title || rawOriginal);
+
+      const paperAuthors = (customAuthors && customAuthors.trim() && customAuthors.trim() !== '-')
+        ? customAuthors.trim()
+        : (parsed.authors || '-');
+
+      const paperYear = (customYear && String(customYear).trim() && String(customYear).trim() !== '-')
+        ? String(customYear).trim()
+        : (parsed.year ? String(parsed.year) : String(new Date().getFullYear()));
+
+      const paperPub = (customPub && customPub.trim() && customPub.trim() !== '-')
+        ? customPub.trim()
+        : '-';
+
+      const paperDoi = (customDoi && customDoi.trim() && customDoi.trim() !== '-')
+        ? customDoi.trim()
+        : (parsed.doi || '-');
+
+      const paperDomain = (targetDomain && targetDomain.trim() && targetDomain.trim() !== '-')
+        ? targetDomain.trim()
+        : 'General';
+
       const paperStatus = customStatus || 'unread';
+      const paperIntuition = (req.body.intuition && req.body.intuition.trim())
+        || (req.body.abstract && req.body.abstract.trim())
+        || parsed.intuition
+        || '-';
 
       const pRes = insertPaper.run(
         pid,
@@ -103,7 +155,7 @@ async function handlePdfUpload(req, res) {
         relPath,
         paperStatus,
         paperDomain,
-        parsed.intuition || '-'
+        paperIntuition
       );
       const paperId = pRes.lastInsertRowid;
       const dbPdfUrl = `/api/papers/${paperId}/pdf`;
@@ -126,6 +178,66 @@ async function handlePdfUpload(req, res) {
         console.warn('Failed to insert PDF blob into database:', dbErr.message);
       }
 
+      // 1. Insert explicit custom column values passed from the upload modal
+      if (customColumns && typeof customColumns === 'object') {
+        for (const [colKey, val] of Object.entries(customColumns)) {
+          if (val === undefined || val === null || String(val).trim() === '') continue;
+          let colId = null;
+          if (!isNaN(colKey)) {
+            colId = parseInt(colKey, 10);
+          } else {
+            const colRecord = db.prepare(`
+              SELECT dc.id FROM dynamic_columns dc
+              LEFT JOIN clusters c ON c.id = dc.cluster_id
+              WHERE LOWER(dc.column_name) = LOWER(?) AND (dc.cluster_id = ? OR c.project_id = ?)
+              LIMIT 1
+            `).get(colKey, targetClusterId, pid);
+            if (colRecord) colId = colRecord.id;
+          }
+          if (colId) {
+            const valStr = typeof val === 'object' ? JSON.stringify(val) : String(val);
+            insertColVal.run(paperId, colId, valStr);
+          }
+        }
+      }
+
+      // 2. Auto-populate matching dynamic columns from DOI metadata if present in project
+      if (paperDoi && paperDoi !== '-') {
+        try {
+          const projCols = db.prepare(`
+            SELECT dc.id, dc.column_name FROM dynamic_columns dc
+            LEFT JOIN clusters c ON c.id = dc.cluster_id
+            WHERE c.project_id = ? OR dc.cluster_id = ?
+          `).all(pid, targetClusterId);
+
+          for (const col of projCols) {
+            const cLower = col.column_name.toLowerCase().trim();
+            // Check if already populated
+            const existing = db.prepare('SELECT 1 FROM paper_column_values WHERE paper_id = ? AND column_id = ?').get(paperId, col.id);
+            if (existing) continue;
+
+            let autoVal = null;
+            if (cLower === 'doi') {
+              autoVal = paperDoi;
+            } else if (cLower === 'year' || cLower === 'publication year') {
+              if (paperYear && paperYear !== '-') autoVal = paperYear;
+            } else if (cLower === 'authors' || cLower === 'author') {
+              if (paperAuthors && paperAuthors !== '-') autoVal = paperAuthors;
+            } else if (['venue', 'pub', 'publisher', 'journal', 'conference'].includes(cLower)) {
+              if (paperPub && paperPub !== '-') autoVal = paperPub;
+            } else if (['abstract', 'intuition', 'summary', 'overview'].includes(cLower)) {
+              if (paperIntuition && paperIntuition !== '-') autoVal = paperIntuition;
+            }
+
+            if (autoVal) {
+              insertColVal.run(paperId, col.id, String(autoVal));
+            }
+          }
+        } catch (mapErr) {
+          console.warn('Auto column mapping notice:', mapErr.message);
+        }
+      }
+
       uploaded.push({
         id: paperId,
         paper_id: paperId,
@@ -139,6 +251,7 @@ async function handlePdfUpload(req, res) {
         pdf_url: dbPdfUrl,
         domain: paperDomain,
         status: paperStatus,
+        intuition: paperIntuition,
         filename: file.filename,
         original_name: file.originalname,
         size: file.size,
@@ -146,6 +259,12 @@ async function handlePdfUpload(req, res) {
         extracted: parsed
       });
     }
+
+    // Invalidate caches so the newly ingested paper and columns appear immediately
+    try {
+      const cacheService = require('../services/cacheService');
+      await cacheService.invalidateSurveyCache(pid).catch(() => {});
+    } catch (cErr) {}
 
     res.status(201).json({
       success: true,

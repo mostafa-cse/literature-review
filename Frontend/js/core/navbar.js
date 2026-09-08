@@ -15,6 +15,125 @@
 (function() {
   'use strict';
 
+  /**
+   * LITSPHERE BROWSER ENVIRONMENT & EXTENSION SECURITY SHIELD
+   * 1. Insulates against external extension crashes (e.g. ImTranslator translator.js double-click null error).
+   * 2. Blocks illegal cross-origin navigations to local file:/// protocols (Firefox Security Error mitigation).
+   * 3. Prevents browser window drag-and-drop navigation to local files.
+   * 4. Silences unhandled third-party extension error noise in console.
+   */
+  (function initSecurityShield() {
+    if (window._litsphereSecurityShieldInitialized) return;
+    window._litsphereSecurityShieldInitialized = true;
+
+    // 1. ImTranslator Extension DOM Guard
+    function injectExtensionGuard() {
+      if (typeof document === 'undefined') return;
+      if (document.getElementById('SL_shadow_translator')) return;
+
+      try {
+        const container = document.createElement('div');
+        container.id = 'SL_balloon_obj';
+        container.setAttribute('aria-hidden', 'true');
+        container.style.cssText = 'display:none!important;position:absolute!important;top:-9999px!important;left:-9999px!important;width:0!important;height:0!important;opacity:0!important;pointer-events:none!important;visibility:hidden!important;';
+
+        const ids = [
+          'SL_shadow_translator',
+          'SL_button',
+          'SL_shadow_translation_result2',
+          'SL_planshet',
+          'SL_Balloon_options',
+          'SL_TB',
+          'SL_tables',
+          'SL_locer',
+          'SL_lng_from',
+          'SL_lng_to',
+          'SL_loading',
+          'SL_switch_b',
+          'SL_P0', 'SL_P1', 'SL_P2', 'SL_P3',
+          'SL_BBL_locer',
+          'SL_MENU_LINK_OPT',
+          'SL_MENU_LINK_HIS'
+        ];
+
+        ids.forEach(id => {
+          const el = document.createElement(id.startsWith('SL_lng') ? 'select' : id === 'SL_locer' ? 'input' : 'div');
+          el.id = id;
+          el.style.display = 'none';
+          if (id === 'SL_locer') el.type = 'checkbox';
+          container.appendChild(el);
+        });
+
+        const root = document.body || document.documentElement;
+        if (root) root.appendChild(container);
+      } catch (_) {}
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', injectExtensionGuard);
+    } else {
+      injectExtensionGuard();
+    }
+
+    // 2. Global Error Event Interceptor (Suppress extension & protocol security error noise)
+    window.addEventListener('error', function(e) {
+      const msg = String(e.message || '').toLowerCase();
+      const file = String(e.filename || '').toLowerCase();
+
+      // Catch ImTranslator translator.js double-click style access crash
+      if (file.includes('translator.js') || msg.includes('sl_shadow_translator') || (file.includes('extension') && msg.includes('translator'))) {
+        e.preventDefault();
+        e.stopPropagation();
+        return true;
+      }
+
+      // Catch Firefox Security Error regarding file:/// protocol navigations
+      if (msg.includes('may not load or link to file:///') || (msg.includes('security error') && msg.includes('file:///'))) {
+        e.preventDefault();
+        e.stopPropagation();
+        return true;
+      }
+    }, true);
+
+    // 3. Prevent Browser Drag-and-Drop Local File Navigations
+    window.addEventListener('dragover', function(e) {
+      if (!e.target || !e.target.closest || !e.target.closest('.dropzone-box, .upload-dropzone, #drop-zone, .file-drop-area, #pdf-viewport')) {
+        e.preventDefault();
+      }
+    }, false);
+
+    window.addEventListener('drop', function(e) {
+      if (!e.target || !e.target.closest || !e.target.closest('.dropzone-box, .upload-dropzone, #drop-zone, .file-drop-area, #pdf-viewport')) {
+        e.preventDefault();
+      }
+    }, false);
+
+    // 4. Intercept Any Link Click Targeting file:///
+    document.addEventListener('click', function(e) {
+      const a = e.target && e.target.closest ? e.target.closest('a') : null;
+      if (a) {
+        const rawHref = a.getAttribute('href') || a.href || '';
+        if (typeof rawHref === 'string' && (rawHref.toLowerCase().startsWith('file:') || rawHref.toLowerCase().startsWith('file:///'))) {
+          e.preventDefault();
+          e.stopPropagation();
+          console.warn('[LitSphere Security Shield] Blocked navigation to local file protocol:', rawHref);
+        }
+      }
+    }, true);
+
+    // 5. Defend window.open against accidental file:/// protocols
+    if (typeof window.open === 'function') {
+      const origOpen = window.open;
+      window.open = function(url, target, features) {
+        if (typeof url === 'string' && (url.toLowerCase().startsWith('file:') || url.toLowerCase().startsWith('file:///'))) {
+          console.warn('[LitSphere Security Shield] Blocked window.open for local file protocol:', url);
+          return null;
+        }
+        return origOpen.call(window, url, target, features);
+      };
+    }
+  })();
+
   const SUN_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
   const MOON_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
 

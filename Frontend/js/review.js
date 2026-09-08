@@ -3480,8 +3480,8 @@
           method: 'POST',
           formData,
           onProgress: ({ percent, rateStr, bytesStr, etaStr, isComplete }) => {
-            updatePdfLoaderProgress(percent, isComplete ? 'Indexing text & extracting metadata on server...' : `Uploading ${file.name}...`);
-            if (speedEl) speedEl.textContent = isComplete ? '⚡ Uploaded' : rateStr;
+            updatePdfLoaderProgress(percent, isComplete ? 'Saving manuscript on server...' : `Uploading ${file.name}...`);
+            if (speedEl) speedEl.textContent = isComplete ? '⚡ Complete' : rateStr;
             if (bytesEl) bytesEl.textContent = bytesStr;
             if (etaEl) etaEl.textContent = etaStr;
             if (pillLabel) pillLabel.textContent = isComplete ? `Uploaded: ${bytesStr}` : `Uploading: ${bytesStr}`;
