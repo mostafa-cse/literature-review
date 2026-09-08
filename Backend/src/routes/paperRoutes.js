@@ -176,6 +176,8 @@ router.get('/papers', async (req, res) => {
         const paperIds = papers.map(p => p.id);
         let values = [];
         let keywords = [];
+        let screenings = [];
+        let comments = [];
 
         if (project_id && !isPaginated && papers.length > 500 && !search && (!cluster_id || cluster_id === 'all') && (!domain || domain === 'all') && (!status || status === 'all') && !year) {
           values = db.prepare(`
@@ -189,6 +191,20 @@ router.get('/papers', async (req, res) => {
             SELECT paper_id, keyword
             FROM keywords
             WHERE paper_id IN (SELECT id FROM papers WHERE project_id = ?)
+          `).all(project_id);
+
+          screenings = db.prepare(`
+            SELECT ps.id, ps.paper_id, ps.decision, ps.exclusion_reason, ps.notes, ps.updated_at
+            FROM paper_screening ps
+            WHERE ps.paper_id IN (SELECT id FROM papers WHERE project_id = ?)
+            ORDER BY ps.id DESC
+          `).all(project_id);
+
+          comments = db.prepare(`
+            SELECT pc.id, pc.paper_id, pc.user_name, pc.user_role, pc.comment_text, pc.quote_text, pc.page_number, pc.created_at
+            FROM paper_comments pc
+            WHERE pc.paper_id IN (SELECT id FROM papers WHERE project_id = ?)
+            ORDER BY pc.id ASC
           `).all(project_id);
         } else {
           const idChunks = chunkArray(paperIds, 400);
@@ -208,6 +224,22 @@ router.get('/papers', async (req, res) => {
               WHERE paper_id IN (${placeholders})
             `).all(...chunk);
             keywords.push(...chunkKeywords);
+
+            const chunkScreenings = db.prepare(`
+              SELECT ps.id, ps.paper_id, ps.decision, ps.exclusion_reason, ps.notes, ps.updated_at
+              FROM paper_screening ps
+              WHERE ps.paper_id IN (${placeholders})
+              ORDER BY ps.id DESC
+            `).all(...chunk);
+            screenings.push(...chunkScreenings);
+
+            const chunkComments = db.prepare(`
+              SELECT pc.id, pc.paper_id, pc.user_name, pc.user_role, pc.comment_text, pc.quote_text, pc.page_number, pc.created_at
+              FROM paper_comments pc
+              WHERE pc.paper_id IN (${placeholders})
+              ORDER BY pc.id ASC
+            `).all(...chunk);
+            comments.push(...chunkComments);
           }
         }
 
@@ -254,9 +286,33 @@ router.get('/papers', async (req, res) => {
           kwMap[k.paper_id].push(k.keyword);
         }
 
+        const screeningMap = {};
+        for (const s of screenings) {
+          if (!screeningMap[s.paper_id]) screeningMap[s.paper_id] = [];
+          screeningMap[s.paper_id].push(s);
+        }
+
+        const commentMap = {};
+        for (const c of comments) {
+          if (!commentMap[c.paper_id]) commentMap[c.paper_id] = [];
+          commentMap[c.paper_id].push(c);
+        }
+
         for (const p of papers) {
           p.custom_columns = valMap[p.id] || {};
           p.keywords = kwMap[p.id] || [];
+
+          const paperScreenings = screeningMap[p.id] || [];
+          const latestScreening = paperScreenings[0];
+          p.screening_decision = latestScreening ? latestScreening.decision : 'included';
+          p.screening_reason = latestScreening ? (latestScreening.exclusion_reason || '') : '';
+          p.screenings_count = paperScreenings.length;
+          p.screening = paperScreenings;
+
+          const paperComments = commentMap[p.id] || [];
+          p.comments_count = paperComments.length;
+          p.annotations_count = paperComments.length;
+          p.comments = paperComments;
 
           try {
             if (p.strengths && p.strengths.startsWith('[')) p.strengths_list = JSON.parse(p.strengths);

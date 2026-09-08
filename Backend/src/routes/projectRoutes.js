@@ -47,6 +47,18 @@ router.get('/projects', (req, res) => {
             JOIN dynamic_columns dc ON dc.cluster_id = c.id
             GROUP BY c.project_id
           ),
+          s_stats AS (
+            SELECT p.project_id, COUNT(ps.id) as screenings_count
+            FROM paper_screening ps
+            JOIN papers p ON p.id = ps.paper_id
+            GROUP BY p.project_id
+          ),
+          com_stats AS (
+            SELECT p.project_id, COUNT(pc.id) as comments_count
+            FROM paper_comments pc
+            JOIN papers p ON p.id = pc.paper_id
+            GROUP BY p.project_id
+          ),
           user_roles AS (
             SELECT project_id, 
                    CASE WHEN role = 'owner' THEN 'editor' ELSE role END as role
@@ -63,6 +75,8 @@ router.get('/projects', (req, res) => {
                  COALESCE(ps.unread_count, 0) as unread_count,
                  COALESCE(ms.member_count, 0) as member_count,
                  COALESCE(dcs.dynamic_col_count, 0) as dynamic_col_count,
+                 COALESCE(ss.screenings_count, 0) as screenings_count,
+                 COALESCE(coms.comments_count, 0) as comments_count,
                  CASE 
                    WHEN p.owner_id = ? THEN 'owner'
                    WHEN ur.role IS NOT NULL THEN ur.role
@@ -74,6 +88,8 @@ router.get('/projects', (req, res) => {
           LEFT JOIN m_stats ms ON ms.project_id = p.id
           LEFT JOIN c_stats cs ON cs.project_id = p.id
           LEFT JOIN dc_stats dcs ON dcs.project_id = p.id
+          LEFT JOIN s_stats ss ON ss.project_id = p.id
+          LEFT JOIN com_stats coms ON coms.project_id = p.id
           LEFT JOIN user_roles ur ON ur.project_id = p.id
           ORDER BY p.id DESC
         `;
@@ -106,6 +122,18 @@ router.get('/projects', (req, res) => {
             JOIN dynamic_columns dc ON dc.cluster_id = c.id
             GROUP BY c.project_id
           ),
+          s_stats AS (
+            SELECT p.project_id, COUNT(ps.id) as screenings_count
+            FROM paper_screening ps
+            JOIN papers p ON p.id = ps.paper_id
+            GROUP BY p.project_id
+          ),
+          com_stats AS (
+            SELECT p.project_id, COUNT(pc.id) as comments_count
+            FROM paper_comments pc
+            JOIN papers p ON p.id = pc.paper_id
+            GROUP BY p.project_id
+          ),
           user_roles AS (
             SELECT project_id, 
                    CASE WHEN role = 'owner' THEN 'editor' ELSE role END as role
@@ -122,6 +150,8 @@ router.get('/projects', (req, res) => {
                  COALESCE(ps.unread_count, 0) as unread_count,
                  COALESCE(ms.member_count, 0) as member_count,
                  COALESCE(dcs.dynamic_col_count, 0) as dynamic_col_count,
+                 COALESCE(ss.screenings_count, 0) as screenings_count,
+                 COALESCE(coms.comments_count, 0) as comments_count,
                  CASE 
                    WHEN p.owner_id = ? THEN 'owner'
                    WHEN ur.role IS NOT NULL THEN ur.role
@@ -133,6 +163,8 @@ router.get('/projects', (req, res) => {
           LEFT JOIN m_stats ms ON ms.project_id = p.id
           LEFT JOIN c_stats cs ON cs.project_id = p.id
           LEFT JOIN dc_stats dcs ON dcs.project_id = p.id
+          LEFT JOIN s_stats ss ON ss.project_id = p.id
+          LEFT JOIN com_stats coms ON coms.project_id = p.id
           LEFT JOIN user_roles ur ON ur.project_id = p.id
           WHERE p.owner_id = ? OR ur.role IS NOT NULL
           ORDER BY p.id DESC
@@ -167,6 +199,18 @@ router.get('/projects', (req, res) => {
           FROM clusters c
           JOIN dynamic_columns dc ON dc.cluster_id = c.id
           GROUP BY c.project_id
+        ),
+        s_stats AS (
+          SELECT p.project_id, COUNT(ps.id) as screenings_count
+          FROM paper_screening ps
+          JOIN papers p ON p.id = ps.paper_id
+          GROUP BY p.project_id
+        ),
+        com_stats AS (
+          SELECT p.project_id, COUNT(pc.id) as comments_count
+          FROM paper_comments pc
+          JOIN papers p ON p.id = pc.paper_id
+          GROUP BY p.project_id
         )
         SELECT p.*, 
                u.name as owner_name,
@@ -178,6 +222,8 @@ router.get('/projects', (req, res) => {
                COALESCE(ps.unread_count, 0) as unread_count,
                COALESCE(ms.member_count, 0) as member_count,
                COALESCE(dcs.dynamic_col_count, 0) as dynamic_col_count,
+               COALESCE(ss.screenings_count, 0) as screenings_count,
+               COALESCE(coms.comments_count, 0) as comments_count,
                'viewer' as user_role
         FROM projects p
         LEFT JOIN users u ON u.id = p.owner_id
@@ -185,6 +231,8 @@ router.get('/projects', (req, res) => {
         LEFT JOIN m_stats ms ON ms.project_id = p.id
         LEFT JOIN c_stats cs ON cs.project_id = p.id
         LEFT JOIN dc_stats dcs ON dcs.project_id = p.id
+        LEFT JOIN s_stats ss ON ss.project_id = p.id
+        LEFT JOIN com_stats coms ON coms.project_id = p.id
         WHERE p.is_public = 1
         ORDER BY p.id DESC
       `;
