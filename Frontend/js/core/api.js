@@ -156,14 +156,148 @@ class ApiError extends Error {
 }
 
 /**
+ * Client-side Stale-While-Revalidate (SWR) Cache.
+ * Provides memory caching with optional localStorage persistence, TTL validation,
+ * and pattern-based cache invalidation.
+ */
+class SwrCache {
+  constructor(storagePrefix = 'litsphere_swr_') {
+    this.memory = new Map();
+    this.storagePrefix = storagePrefix;
+  }
+
+  _getKey(key) {
+    return `${this.storagePrefix}${key}`;
+  }
+
+  get(key) {
+    if (!key) return null;
+    const now = Date.now();
+
+    // 1. In-memory cache
+    if (this.memory.has(key)) {
+      const item = this.memory.get(key);
+      const isExpired = now - item.timestamp > item.ttl;
+      return {
+        data: item.data,
+        timestamp: item.timestamp,
+        isStale: isExpired
+      };
+    }
+
+    // 2. Persistent storage fallback
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const raw = localStorage.getItem(this._getKey(key));
+        if (raw) {
+          const item = JSON.parse(raw);
+          if (item && item.data !== undefined) {
+            this.memory.set(key, item);
+            const isExpired = now - item.timestamp > item.ttl;
+            return {
+              data: item.data,
+              timestamp: item.timestamp,
+              isStale: isExpired
+            };
+          }
+        }
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
+  set(key, data, ttlMs = 300000, persist = false) {
+    if (!key) return;
+    const item = {
+      data,
+      timestamp: Date.now(),
+      ttl: ttlMs
+    };
+    this.memory.set(key, item);
+
+    if (persist) {
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(this._getKey(key), JSON.stringify(item));
+        }
+      } catch (_) {}
+    }
+  }
+
+  delete(key) {
+    if (!key) return;
+    this.memory.delete(key);
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(this._getKey(key));
+      }
+    } catch (_) {}
+  }
+
+  invalidate(pattern) {
+    if (!pattern) {
+      this.clear();
+      return;
+    }
+
+    const regex = typeof pattern === 'string'
+      ? new RegExp(pattern.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i')
+      : pattern;
+
+    // Remove from memory map
+    for (const key of this.memory.keys()) {
+      if (regex.test(key)) {
+        this.memory.delete(key);
+      }
+    }
+
+    // Remove from localStorage
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const toRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith(this.storagePrefix)) {
+            const rawKey = k.substring(this.storagePrefix.length);
+            if (regex.test(rawKey)) {
+              toRemove.push(k);
+            }
+          }
+        }
+        toRemove.forEach(k => localStorage.removeItem(k));
+      }
+    } catch (_) {}
+  }
+
+  clear() {
+    this.memory.clear();
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const toRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith(this.storagePrefix)) {
+            toRemove.push(k);
+          }
+        }
+        toRemove.forEach(k => localStorage.removeItem(k));
+      }
+    } catch (_) {}
+  }
+}
+
+/**
  * Centralized Enterprise HTTP Client with in-flight deduplication, named AbortController
- * cancellation, automatic session refresh / redirect, and standardized error parsing.
+ * cancellation, Stale-While-Revalidate (SWR) caching, optimistic mutations, and cross-tab sync.
  */
 class ApiClient {
   constructor() {
     this.inFlightRequests = new Map(); // key -> Promise
     this.abortControllers = new Map(); // abortKey -> AbortController
     this.timeout = 30000; // 30s default
+    this.cache = new SwrCache();
+    this._initSyncListener();
   }
 
   getAuthToken() {
@@ -370,8 +504,237 @@ class ApiClient {
     }
     return this.request(url, { ...options, method: options.method || 'POST', data: formData });
   }
+
+  /**
+   * Stale-While-Revalidate (SWR) fetching.
+   * Returns cached data immediately if available while fetching fresh data in the background.
+   * If onRevalidate callback is provided, it is invoked when fresh data differs from cached data.
+   *
+   * @param {string} url - The URL to fetch.
+   * @param {Object} [options] - SWR & fetch options.
+   * @param {number} [options.ttl=300000] - Cache TTL in ms (default 5 minutes).
+   * @param {string} [options.cacheKey] - Custom cache key (defaults to URL).
+   * @param {boolean} [options.persist=true] - Whether to persist in localStorage across sessions.
+   * @param {boolean} [options.forceFresh=false] - Force bypass cache.
+   * @param {Function} [onRevalidate] - Callback (freshData, isUpdated) => void
+   * @returns {Promise<any>} Resolves with cached or fresh data.
+   */
+  async swr(url, options = {}, onRevalidate = null) {
+    const {
+      ttl = 300000,
+      cacheKey = url,
+      persist = true,
+      forceFresh = false,
+      ...fetchOptions
+    } = options;
+
+    const cached = !forceFresh ? this.cache.get(cacheKey) : null;
+
+    const revalidate = async (isBackground = false) => {
+      try {
+        const freshData = await this.get(url, { ...fetchOptions, dedupe: true });
+        const oldSerialized = cached ? JSON.stringify(cached.data) : null;
+        const newSerialized = JSON.stringify(freshData);
+        const isDifferent = oldSerialized !== newSerialized;
+
+        this.cache.set(cacheKey, freshData, ttl, persist);
+
+        if (isBackground && isDifferent) {
+          if (typeof onRevalidate === 'function') {
+            try {
+              onRevalidate(freshData, true);
+            } catch (cbErr) {
+              console.warn('[ApiClient SWR] onRevalidate error:', cbErr);
+            }
+          }
+          if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+            window.dispatchEvent(new CustomEvent('swr:revalidated', {
+              detail: { key: cacheKey, url, data: freshData }
+            }));
+          }
+        }
+
+        return freshData;
+      } catch (err) {
+        if (isBackground) {
+          if (!err.isAborted) {
+            console.warn('[ApiClient SWR] Background revalidation failed:', err.message);
+          }
+          return cached ? cached.data : null;
+        }
+        throw err;
+      }
+    };
+
+    if (cached && cached.data !== null && cached.data !== undefined) {
+      // Background revalidation
+      setTimeout(() => {
+        revalidate(true);
+      }, 0);
+
+      // Return cached data immediately
+      return cached.data;
+    }
+
+    // No cache entry: fetch fresh and wait
+    return await revalidate(false);
+  }
+
+  /**
+   * Standardized Optimistic Mutation with Automatic Rollback.
+   *
+   * @param {Object} params
+   * @param {Function} params.optimistic - Runs synchronously before network request. Can return context.
+   * @param {Function} params.mutation - Async function performing network call (e.g. () => api.put(...)).
+   * @param {Function} params.rollback - Runs with (error, context) if mutation rejects.
+   * @param {string|RegExp} [params.invalidateKey] - Cache key or pattern to invalidate on completion.
+   * @param {string} [params.broadcastType] - Broadcast message type on success.
+   * @param {Object} [params.broadcastPayload] - Broadcast payload on success.
+   * @returns {Promise<any>}
+   */
+  async mutate({
+    optimistic,
+    mutation,
+    rollback,
+    invalidateKey,
+    broadcastType,
+    broadcastPayload
+  }) {
+    let context = undefined;
+    if (typeof optimistic === 'function') {
+      try {
+        context = optimistic();
+      } catch (optErr) {
+        console.error('[ApiClient mutate] Optimistic update failed:', optErr);
+      }
+    }
+
+    try {
+      const result = await mutation();
+
+      if (invalidateKey) {
+        this.cache.invalidate(invalidateKey);
+      }
+
+      if (broadcastType) {
+        this.broadcast(broadcastType, broadcastPayload || result);
+      }
+
+      return result;
+    } catch (err) {
+      if (typeof rollback === 'function') {
+        try {
+          rollback(err, context);
+        } catch (rbErr) {
+          console.error('[ApiClient mutate] Rollback failed:', rbErr);
+        }
+      }
+      if (invalidateKey) {
+        this.cache.invalidate(invalidateKey);
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Reactive Cross-Tab Event Dispatcher.
+   * Broadcasts events across Workspace, Review, and Dashboard via BroadcastChannel & localStorage,
+   * while automatically invalidating relevant SWR cache entries.
+   *
+   * @param {string} type - Event type (e.g. 'paper_updated', 'cluster_transfer', 'status_updated').
+   * @param {Object} payload - Event payload.
+   */
+  broadcast(type, payload = {}) {
+    const pid = payload.projectId || (typeof activeProjectId !== 'undefined' ? activeProjectId : (window.activeProjectId || null));
+    const fullPayload = {
+      type,
+      ...payload,
+      projectId: pid,
+      timestamp: Date.now()
+    };
+
+    // Invalidate local SWR cache keys
+    this.invalidateByEventType(type, fullPayload);
+
+    // Cross-tab BroadcastChannel
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        const bc = new BroadcastChannel('literature_review_sync');
+        bc.postMessage(fullPayload);
+        bc.close();
+      }
+    } catch (_) {}
+
+    // Cross-tab localStorage event fallback
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('literature_review_sync_event', JSON.stringify(fullPayload));
+      }
+    } catch (_) {}
+
+    // Dispatch custom event in current window
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('api:sync', { detail: fullPayload }));
+    }
+  }
+
+  /**
+   * Invalidate SWR cache entries according to event semantics.
+   */
+  invalidateByEventType(type, payload = {}) {
+    const t = String(type || '').toLowerCase();
+    const pid = payload.projectId;
+
+    if (t.includes('paper') || t.includes('status') || t.includes('cell') || t.includes('screening') || t.includes('transfer')) {
+      this.cache.invalidate('api/papers');
+      this.cache.invalidate('api/user/dashboard-stats');
+      if (pid) {
+        this.cache.invalidate(`api/clusters?project_id=${pid}`);
+      } else {
+        this.cache.invalidate('api/clusters');
+      }
+    } else if (t.includes('cluster')) {
+      this.cache.invalidate('api/clusters');
+      this.cache.invalidate('api/user/dashboard-stats');
+      if (pid) this.cache.invalidate(`project_id=${pid}`);
+    } else if (t.includes('column')) {
+      this.cache.invalidate('api/dynamic-columns');
+    } else if (t.includes('project') || t.includes('survey')) {
+      this.cache.invalidate('api/projects');
+      this.cache.invalidate('api/user/dashboard-stats');
+    }
+  }
+
+  /**
+   * Initialize cross-tab sync receiver.
+   */
+  _initSyncListener() {
+    if (typeof window === 'undefined') return;
+
+    const handleSync = (payload) => {
+      if (!payload || !payload.type) return;
+      this.invalidateByEventType(payload.type, payload);
+      window.dispatchEvent(new CustomEvent('api:sync', { detail: payload }));
+    };
+
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        this.syncChannel = new BroadcastChannel('literature_review_sync');
+        this.syncChannel.onmessage = (e) => handleSync(e.data);
+      }
+    } catch (_) {}
+
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'literature_review_sync_event' && e.newValue) {
+        try {
+          handleSync(JSON.parse(e.newValue));
+        } catch (_) {}
+      }
+    });
+  }
 }
 
+window.SwrCache = SwrCache;
 window.ApiError = ApiError;
 window.ApiClient = ApiClient;
 window.api = new ApiClient();

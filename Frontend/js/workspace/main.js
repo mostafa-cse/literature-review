@@ -176,32 +176,32 @@ function escapeHtml(str) {
 }
 
 window.loadProjects = async function () {
-  try {
-    allProjects = await window.api.get('/api/projects', { abortKey: 'workspace-projects' });
+  const applyProjectsData = async (projects) => {
+    if (!Array.isArray(projects)) return;
+    allProjects = projects;
+    window.allProjects = projects;
 
     const projSelect = document.getElementById('active-project-select');
     const surveyTitleEl = document.getElementById('project-title') || document.getElementById('hero-survey-title');
     const surveyDescEl = document.getElementById('project-description') || document.getElementById('hero-survey-desc');
     const activeSurveyPillName = document.getElementById('active-survey-pill-name') || document.getElementById('active-survey-name');
 
-    let curProj = (Array.isArray(allProjects) && allProjects.length > 0)
-      ? (allProjects.find(p => String(p.id) === String(activeProjectId)) || (activeProjectId ? null : allProjects[0]))
+    let curProj = (projects.length > 0)
+      ? (projects.find(p => String(p.id) === String(activeProjectId)) || (activeProjectId ? null : projects[0]))
       : null;
 
     // Direct fallback fetch if specific survey not present in initial array
     if (!curProj && activeProjectId) {
       try {
-        curProj = await window.api.get(`/api/projects/${activeProjectId}`);
-        if (Array.isArray(allProjects)) {
+        curProj = await window.api.swr(`/api/projects/${activeProjectId}`, { ttl: 300000 });
+        if (curProj && Array.isArray(allProjects) && !allProjects.some(p => p.id === curProj.id)) {
           allProjects.unshift(curProj);
-        } else {
-          allProjects = [curProj];
         }
       } catch (_) { }
     }
 
-    if (!curProj && Array.isArray(allProjects) && allProjects.length > 0) {
-      curProj = allProjects[0];
+    if (!curProj && projects.length > 0) {
+      curProj = projects[0];
     }
 
     if (curProj) {
@@ -221,9 +221,9 @@ window.loadProjects = async function () {
       if (typeof window.initDescReadMore === 'function') window.initDescReadMore();
     }
 
-    if (projSelect && Array.isArray(allProjects)) {
+    if (projSelect) {
       projSelect.innerHTML = '';
-      allProjects.forEach(p => {
+      projects.forEach(p => {
         const opt = document.createElement('option');
         opt.value = p.id;
         opt.textContent = p.name;
@@ -242,14 +242,28 @@ window.loadProjects = async function () {
 
     // Try to get effective role from /api/projects/:id/my-role
     try {
-      const roleData = await window.api.get(`/api/projects/${activeProjectId}/my-role`);
-      if (roleData && roleData.role) {
-        currentProjectRole = roleData.role.toLowerCase();
-        window.currentProjectRole = currentProjectRole;
+      if (activeProjectId) {
+        const roleData = await window.api.swr(`/api/projects/${activeProjectId}/my-role`, { ttl: 300000 });
+        if (roleData && roleData.role) {
+          currentProjectRole = roleData.role.toLowerCase();
+          window.currentProjectRole = currentProjectRole;
+        }
       }
     } catch (_) { }
 
     applyWorkspaceRolePermissions();
+  };
+
+  try {
+    const projects = await window.api.swr('/api/projects', {
+      abortKey: 'workspace-projects',
+      ttl: 300000,
+      persist: true
+    }, (freshProjects) => {
+      applyProjectsData(freshProjects);
+    });
+
+    await applyProjectsData(projects);
   } catch (err) {
     if (err && err.isAborted) return;
     showToast(err.message, 'error');
@@ -1249,15 +1263,7 @@ function broadcastPaperTransfer(payload) {
   const pid = (typeof activeProjectId !== 'undefined' && activeProjectId)
     ? activeProjectId
     : (window.currentProjectId || (new URLSearchParams(window.location.search)).get('project') || 1);
-  const data = { ...payload, projectId: pid, timestamp: Date.now() };
-  try {
-    const bc = new BroadcastChannel('literature_review_sync');
-    bc.postMessage(data);
-    bc.close();
-  } catch (_) {}
-  try {
-    localStorage.setItem('literature_review_sync_event', JSON.stringify(data));
-  } catch (_) {}
+  window.api.broadcast('paper_transferred', { ...payload, projectId: pid });
 }
 
 window.quickAssignSinglePaper = async function (paperId, clusterId, event) {

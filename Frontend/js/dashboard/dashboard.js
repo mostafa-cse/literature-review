@@ -94,8 +94,7 @@ window.handleTableSort = function(col) {
 };
 
 window.loadDashboardStats = async function() {
-  try {
-    const stats = await window.api.get('/api/user/dashboard-stats', { dedupe: true });
+  const applyStats = (stats) => {
     if (!stats) return;
     allStats = stats;
 
@@ -120,6 +119,17 @@ window.loadDashboardStats = async function() {
     if (screeningsEl) screeningsEl.textContent = totalScreenings;
     if (compRateEl) compRateEl.textContent = `${rate}%`;
     if (compSubEl) compSubEl.textContent = `${read} Read • ${inProgress} In Progress`;
+  };
+
+  try {
+    const stats = await window.api.swr('/api/user/dashboard-stats', {
+      ttl: 120000,
+      persist: true
+    }, (freshStats) => {
+      applyStats(freshStats);
+    });
+
+    applyStats(stats);
   } catch (err) {
     console.warn('[Dashboard] Stats error:', err);
   }
@@ -129,9 +139,8 @@ window.loadSurveys = async function() {
   const container = document.getElementById('surveys-grid-container');
   if (!container) return;
 
-  try {
-    const raw = await window.api.get('/api/projects', { abortKey: 'dashboard-surveys' });
-
+  const applySurveysData = (raw) => {
+    if (!Array.isArray(raw)) return;
     let currentUserId = null;
     try {
       const u = JSON.parse(localStorage.getItem('litsphere_user') || '{}');
@@ -151,7 +160,20 @@ window.loadSurveys = async function() {
 
     updateTabCounts();
     applySurveyFilters();
+  };
+
+  try {
+    const raw = await window.api.swr('/api/projects', {
+      abortKey: 'dashboard-surveys',
+      ttl: 300000,
+      persist: true
+    }, (freshSurveys) => {
+      applySurveysData(freshSurveys);
+    });
+
+    applySurveysData(raw);
   } catch (err) {
+    if (err && err.isAborted) return;
     container.innerHTML = `<div style="grid-column: 1/-1; color: var(--accent-rose); text-align: center; padding: 2.5rem;">${err.message}</div>`;
   }
 };
@@ -1019,4 +1041,15 @@ function formatSurveyDescInline(rawText) {
 
 document.addEventListener('DOMContentLoaded', () => {
   window.initDashboard();
+});
+
+// Cross-tab reactive synchronization: re-fetch dashboard data when changes occur in Workspace or Review tabs
+window.addEventListener('api:sync', () => {
+  if (typeof window.loadDashboardStats === 'function') window.loadDashboardStats();
+  if (typeof window.loadSurveys === 'function') window.loadSurveys();
+});
+
+window.addEventListener('focus', () => {
+  if (typeof window.loadDashboardStats === 'function') window.loadDashboardStats();
+  if (typeof window.loadSurveys === 'function') window.loadSurveys();
 });

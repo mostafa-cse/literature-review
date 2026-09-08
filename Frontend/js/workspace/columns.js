@@ -12,48 +12,58 @@ window.loadDynamicColumns = async function() {
       url += `&cluster_id=${window.currentClusterId}`;
     }
 
-    let cols = await window.api.get(url, { abortKey: 'workspace-columns' });
+    const applyColumns = (cols) => {
+      // Deduplicate and normalise each column with both name and column_name
+      const seen = new Set();
+      const cleanCols = [];
+      (cols || []).forEach(c => {
+        const cName = (c.column_name || c.name || '').trim();
+        if (cName && !seen.has(cName.toLowerCase())) {
+          seen.add(cName.toLowerCase());
+          cleanCols.push({
+            ...c,
+            name: cName,
+            column_name: cName
+          });
+        }
+      });
+
+      activeDataColumns = cleanCols;
+      activeClusterColumns = cleanCols;
+      window.activeDataColumns = cleanCols;
+      window.activeClusterColumns = cleanCols;
+
+      populateColumnSplittingSelect();
+      if (typeof populateSearchColumnDropdown === 'function') {
+        populateSearchColumnDropdown();
+      }
+      if (typeof window.updateMatrixColumnButtonStates === 'function') {
+        window.updateMatrixColumnButtonStates();
+      }
+      if (typeof renderMasterMatrix === 'function' && Array.isArray(allPapers) && allPapers.length > 0) {
+        renderMasterMatrix(allPapers);
+      }
+    };
+
+    let cols = await window.api.swr(url, {
+      abortKey: 'workspace-columns',
+      ttl: 300000,
+      persist: true
+    }, (freshCols) => {
+      applyColumns(freshCols);
+    });
 
     // If cluster query returned empty, fall back to survey project's dynamic columns
     if ((!Array.isArray(cols) || cols.length === 0) && isCluster) {
       try {
-        const pCols = await window.api.get(`/api/dynamic-columns?project_id=${projId}`);
+        const pCols = await window.api.swr(`/api/dynamic-columns?project_id=${projId}`, { ttl: 300000, persist: true });
         if (Array.isArray(pCols) && pCols.length > 0) {
           cols = pCols;
         }
       } catch (_) {}
     }
 
-    // Deduplicate and normalise each column with both name and column_name
-    const seen = new Set();
-    const cleanCols = [];
-    (cols || []).forEach(c => {
-      const cName = (c.column_name || c.name || '').trim();
-      if (cName && !seen.has(cName.toLowerCase())) {
-        seen.add(cName.toLowerCase());
-        cleanCols.push({
-          ...c,
-          name: cName,
-          column_name: cName
-        });
-      }
-    });
-
-    activeDataColumns = cleanCols;
-    activeClusterColumns = cleanCols;
-    window.activeDataColumns = cleanCols;
-    window.activeClusterColumns = cleanCols;
-
-    populateColumnSplittingSelect();
-    if (typeof populateSearchColumnDropdown === 'function') {
-      populateSearchColumnDropdown();
-    }
-    if (typeof window.updateMatrixColumnButtonStates === 'function') {
-      window.updateMatrixColumnButtonStates();
-    }
-    if (typeof renderMasterMatrix === 'function' && Array.isArray(allPapers) && allPapers.length > 0) {
-      renderMasterMatrix(allPapers);
-    }
+    applyColumns(cols);
   } catch (err) {
     console.warn('Load dynamic columns error:', err);
   }

@@ -136,20 +136,34 @@ window.switchClustersView = function (mode) {
 };
 
 window.loadClusters = async function () {
-  try {
-    const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
-    const savedMode = localStorage.getItem(`clusters_view_mode_${pid}`);
-    if (savedMode && (savedMode === 'cards' || savedMode === 'table')) {
-      window.clustersViewMode = savedMode;
-      const btnCards = document.getElementById('btn-clusters-view-cards');
-      const btnTable = document.getElementById('btn-clusters-view-table');
-      if (btnCards) btnCards.classList.toggle('active', window.clustersViewMode === 'cards');
-      if (btnTable) btnTable.classList.toggle('active', window.clustersViewMode === 'table');
-    }
-    allClusters = await window.api.get(`/api/clusters?project_id=${pid}`, { abortKey: 'workspace-clusters' });
-    window.allClusters = allClusters;
+  const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
+  const savedMode = localStorage.getItem(`clusters_view_mode_${pid}`);
+  if (savedMode && (savedMode === 'cards' || savedMode === 'table')) {
+    window.clustersViewMode = savedMode;
+    const btnCards = document.getElementById('btn-clusters-view-cards');
+    const btnTable = document.getElementById('btn-clusters-view-table');
+    if (btnCards) btnCards.classList.toggle('active', window.clustersViewMode === 'cards');
+    if (btnTable) btnTable.classList.toggle('active', window.clustersViewMode === 'table');
+  }
+
+  const renderClusterData = (clusters) => {
+    if (!Array.isArray(clusters)) return;
+    allClusters = clusters;
+    window.allClusters = clusters;
     renderClusters();
     populateClusterDropdowns();
+  };
+
+  try {
+    const clusters = await window.api.swr(`/api/clusters?project_id=${pid}`, {
+      abortKey: 'workspace-clusters',
+      ttl: 300000,
+      persist: true
+    }, (freshClusters) => {
+      renderClusterData(freshClusters);
+    });
+
+    renderClusterData(clusters);
   } catch (err) {
     if (err && err.isAborted) return;
     showToast(err.message, 'error');

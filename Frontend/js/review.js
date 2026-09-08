@@ -51,6 +51,23 @@
     return r === 'owner' || r === 'editor' || r === 'reviewer' || r === 'admin';
   }
 
+  function broadcastSync(type, payload = {}) {
+    const pid = currentProjectId || (activePaper ? activePaper.project_id : null) || 1;
+    if (window.api && typeof window.api.broadcast === 'function') {
+      window.api.broadcast(type, { ...payload, projectId: pid });
+    } else {
+      const data = { type, ...payload, projectId: pid, timestamp: Date.now() };
+      try {
+        const bc = new BroadcastChannel('literature_review_sync');
+        bc.postMessage(data);
+        bc.close();
+      } catch (_) {}
+      try {
+        localStorage.setItem('literature_review_sync_event', JSON.stringify(data));
+      } catch (_) {}
+    }
+  }
+
   // Central Dynamic Component State
   const componentState = {
     clusters: [], // Array of cluster objects [{ id, name, ... }]
@@ -957,24 +974,12 @@
 
       // Broadcast transfer to parent workspace tabs/windows so they update live without reload
       try {
-        const pid = (new URLSearchParams(window.location.search)).get('project') || 1;
-        const syncPayload = {
-          type: 'paper_transferred',
+        broadcastSync('paper_transferred', {
           paperId: activePaper.id,
           clusterId: stagedClusterId,
           clusterName: targetCluster ? targetCluster.name : null,
-          screeningDecision: 'included',
-          projectId: pid,
-          timestamp: Date.now()
-        };
-        try {
-          const bc = new BroadcastChannel('literature_review_sync');
-          bc.postMessage(syncPayload);
-          bc.close();
-        } catch (_) {}
-        try {
-          localStorage.setItem('literature_review_sync_event', JSON.stringify(syncPayload));
-        } catch (_) {}
+          screeningDecision: 'included'
+        });
       } catch (_) {}
 
       // Fetch and merge new cluster's dynamic columns if transferred
@@ -1637,23 +1642,13 @@
       showToast(`✓ Renamed column: "${oldKey}" → "${newKey}"`);
 
       // Broadcast rename to Workspace
-      const syncPayload = {
-        type: 'column_renamed',
+      broadcastSync('column_renamed', {
         oldName: oldKey,
         newName: newKey,
         columnId: colId,
         projectId: currentProjectId,
-        clusterId: activePaper ? activePaper.cluster_id : null,
-        timestamp: Date.now()
-      };
-      try {
-        const bc = new BroadcastChannel('literature_review_sync');
-        bc.postMessage(syncPayload);
-        bc.close();
-      } catch (_) {}
-      try {
-        localStorage.setItem('literature_review_sync_event', JSON.stringify(syncPayload));
-      } catch (_) {}
+        clusterId: activePaper ? activePaper.cluster_id : null
+      });
     } catch (err) {
       console.warn('Rename column notice:', err);
     }
@@ -1702,22 +1697,11 @@
       showToast(`✓ Deleted column "${colName}"`);
 
       // Broadcast delete to Workspace
-      const syncPayload = {
-        type: 'column_deleted',
+      broadcastSync('column_deleted', {
         columnName: colName,
         columnId: colId,
-        projectId: currentProjectId,
-        clusterId: activePaper ? activePaper.cluster_id : null,
-        timestamp: Date.now()
-      };
-      try {
-        const bc = new BroadcastChannel('literature_review_sync');
-        bc.postMessage(syncPayload);
-        bc.close();
-      } catch (_) {}
-      try {
-        localStorage.setItem('literature_review_sync_event', JSON.stringify(syncPayload));
-      } catch (_) {}
+        clusterId: activePaper ? activePaper.cluster_id : null
+      });
     } catch (err) {
       console.warn('Delete column error:', err);
     }
@@ -1763,21 +1747,10 @@
     triggerAutoSave(true);
     showToast(`✓ Created split columns: "${splitKey1}" & "${splitKey2}"`);
 
-    const syncPayload = {
-      type: 'column_added',
+    broadcastSync('column_added', {
       columnName: splitKey1,
-      projectId: currentProjectId,
-      clusterId: activePaper ? activePaper.cluster_id : null,
-      timestamp: Date.now()
-    };
-    try {
-      const bc = new BroadcastChannel('literature_review_sync');
-      bc.postMessage(syncPayload);
-      bc.close();
-    } catch (_) {}
-    try {
-      localStorage.setItem('literature_review_sync_event', JSON.stringify(syncPayload));
-    } catch (_) {}
+      clusterId: activePaper ? activePaper.cluster_id : null
+    });
   };
 
   window.handleAddColumn = async function () {
@@ -1842,22 +1815,11 @@
     showToast(`✓ Added column "${newKey}". Edit name directly.`);
 
     // Broadcast column added
-    const syncPayload = {
-      type: 'column_added',
+    broadcastSync('column_added', {
       columnName: newKey,
       columnId: createdId,
-      projectId: currentProjectId,
-      clusterId: activePaper ? activePaper.cluster_id : null,
-      timestamp: Date.now()
-    };
-    try {
-      const bc = new BroadcastChannel('literature_review_sync');
-      bc.postMessage(syncPayload);
-      bc.close();
-    } catch (_) {}
-    try {
-      localStorage.setItem('literature_review_sync_event', JSON.stringify(syncPayload));
-    } catch (_) {}
+      clusterId: activePaper ? activePaper.cluster_id : null
+    });
   };
 
   /* ────────────────────────────────────────────────────────────────
@@ -2087,8 +2049,7 @@
 
       // Broadcast live sync to all Workspace matrix tabs
       const pid = (new URLSearchParams(window.location.search)).get('project') || activePaper.project_id || 1;
-      const syncPayload = {
-        type: 'paper_updated',
+      broadcastSync('paper_updated', {
         paperId: activePaper.id,
         paperIds: [activePaper.id],
         clusterId: activePaper.cluster_id,
@@ -2099,17 +2060,8 @@
         screeningDecision: activePrismaVote,
         screeningReason: activePrismaReason,
         custom_columns: customColsDict,
-        projectId: pid,
-        timestamp: Date.now()
-      };
-      try {
-        const bc = new BroadcastChannel('literature_review_sync');
-        bc.postMessage(syncPayload);
-        bc.close();
-      } catch (_) {}
-      try {
-        localStorage.setItem('literature_review_sync_event', JSON.stringify(syncPayload));
-      } catch (_) {}
+        projectId: pid
+      });
     } catch (err) {
       console.warn('Auto-save notice:', err);
       updateStatusBadge('saved'); // Optimistic saved in mock mode

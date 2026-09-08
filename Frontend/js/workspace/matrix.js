@@ -1916,103 +1916,136 @@ window.makeCellEditable = function(cell, fieldType, paperId, isMultiline = true,
     });
 
     async function saveValueToBackend(valToSave) {
-      try {
-        if (fieldType === 'dynamic') {
-          const res = await fetch('/api/paper-column-values', {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({
-              paper_id: paperId,
-              column_id: columnId,
-              column_name: columnName,
-              value: valToSave
-            })
-          });
-          if (res.ok) {
-            cell.setAttribute('data-raw-val', valToSave);
-            restoreCellDisplay(cell, fieldType, valToSave);
-            cell.classList.add('cell-saved');
-            setTimeout(() => cell.classList.remove('cell-saved'), 900);
-            const pObj = (typeof allPapers !== 'undefined' && Array.isArray(allPapers)) ? allPapers.find(item => item.id === paperId) : null;
-            if (pObj) {
-              if (!pObj.custom_columns) pObj.custom_columns = {};
-              if (columnName) pObj.custom_columns[columnName] = valToSave;
-              if (columnId) pObj.custom_columns[columnId] = valToSave;
-            }
-            if (typeof window.renderClusterSummary === 'function') {
-              window.renderClusterSummary();
-            }
-          } else {
-            throw new Error(await res.text());
-          }
-        } else {
-          const bodyPayload = {};
-          if (fieldType === 'year') {
-            bodyPayload.year = valToSave ? parseInt(valToSave, 10) : null;
-          } else if (fieldType === 'doi') {
-            bodyPayload.doi = valToSave;
-          } else if (fieldType === 'advantages') {
-            bodyPayload.advantages = valToSave;
-            bodyPayload.strengths = valToSave;
-          } else if (fieldType === 'criticism') {
-            bodyPayload.criticism = valToSave;
-            bodyPayload.gaps = valToSave;
-          } else if (fieldType === 'future_directions') {
-            bodyPayload.future_directions = valToSave;
-            bodyPayload.future_research_direction = valToSave;
-          } else if (fieldType === 'keywords') {
-            const kwArr = typeof valToSave === 'string'
-              ? valToSave.split(/[,;\n]+/).map(k => k.trim().replace(/^#/, '')).filter(Boolean)
-              : (Array.isArray(valToSave) ? valToSave : []);
-            bodyPayload.keywords = kwArr;
-          } else {
-            bodyPayload[fieldType] = valToSave;
-          }
+      const pObj = (typeof allPapers !== 'undefined' && Array.isArray(allPapers)) ? allPapers.find(item => item.id === paperId) : null;
+      let prevPaperState = null;
+      if (pObj) {
+        prevPaperState = {
+          custom_columns: pObj.custom_columns ? { ...pObj.custom_columns } : {},
+          fieldVal: pObj[fieldType],
+          doi: pObj.doi,
+          strengths: pObj.strengths,
+          gaps: pObj.gaps,
+          future_research_direction: pObj.future_research_direction,
+          keywords: Array.isArray(pObj.keywords) ? [...pObj.keywords] : pObj.keywords
+        };
+      }
 
-          const res = await fetch(`/api/papers/${paperId}`, {
-            method: 'PUT',
-            headers: getAuthHeaders(),
-            body: JSON.stringify(bodyPayload)
-          });
-          if (res.ok) {
-            cell.setAttribute('data-raw-val', valToSave);
-            restoreCellDisplay(cell, fieldType, valToSave);
-            cell.classList.add('cell-saved');
-            setTimeout(() => cell.classList.remove('cell-saved'), 900);
-            const pObj = (typeof allPapers !== 'undefined' && Array.isArray(allPapers)) ? allPapers.find(item => item.id === paperId) : null;
-            if (pObj) {
-              pObj[fieldType] = valToSave;
-              if (fieldType === 'doi') pObj.doi = valToSave;
-              if (fieldType === 'advantages') pObj.strengths = valToSave;
-              if (fieldType === 'criticism') pObj.gaps = valToSave;
-              if (fieldType === 'future_directions') pObj.future_research_direction = valToSave;
-              if (fieldType === 'keywords') {
-                pObj.keywords = bodyPayload.keywords;
-                if (typeof window.renderKeywordsHub === 'function') {
-                  window.renderKeywordsHub();
-                }
-              }
+      // Prepare payload for standard fields
+      const bodyPayload = {};
+      if (fieldType === 'year') {
+        bodyPayload.year = valToSave ? parseInt(valToSave, 10) : null;
+      } else if (fieldType === 'doi') {
+        bodyPayload.doi = valToSave;
+      } else if (fieldType === 'advantages') {
+        bodyPayload.advantages = valToSave;
+        bodyPayload.strengths = valToSave;
+      } else if (fieldType === 'criticism') {
+        bodyPayload.criticism = valToSave;
+        bodyPayload.gaps = valToSave;
+      } else if (fieldType === 'future_directions') {
+        bodyPayload.future_directions = valToSave;
+        bodyPayload.future_research_direction = valToSave;
+      } else if (fieldType === 'keywords') {
+        const kwArr = typeof valToSave === 'string'
+          ? valToSave.split(/[,;\n]+/).map(k => k.trim().replace(/^#/, '')).filter(Boolean)
+          : (Array.isArray(valToSave) ? valToSave : []);
+        bodyPayload.keywords = kwArr;
+      } else if (fieldType !== 'dynamic') {
+        bodyPayload[fieldType] = valToSave;
+      }
+
+      const applyInMemoryUpdates = (val) => {
+        if (!pObj) return;
+        if (fieldType === 'dynamic') {
+          if (!pObj.custom_columns) pObj.custom_columns = {};
+          if (columnName) pObj.custom_columns[columnName] = val;
+          if (columnId) pObj.custom_columns[columnId] = val;
+        } else {
+          pObj[fieldType] = val;
+          if (fieldType === 'doi') pObj.doi = val;
+          if (fieldType === 'advantages') pObj.strengths = val;
+          if (fieldType === 'criticism') pObj.gaps = val;
+          if (fieldType === 'future_directions') pObj.future_research_direction = val;
+          if (fieldType === 'keywords') {
+            pObj.keywords = Array.isArray(val) ? val : (bodyPayload.keywords || []);
+            if (typeof window.renderKeywordsHub === 'function') window.renderKeywordsHub();
+          }
+          if (fieldType === 'domain') {
+            if (typeof window.registerCustomDomain === 'function') {
+              window.registerCustomDomain(val);
+            } else if (typeof window.populateDomainDropdown === 'function') {
+              window.populateDomainDropdown();
             }
-            if (fieldType === 'domain') {
-              if (typeof window.registerCustomDomain === 'function') {
-                window.registerCustomDomain(valToSave);
-              } else if (typeof window.populateDomainDropdown === 'function') {
-                window.populateDomainDropdown();
-              }
-              if (typeof window.populateDomainSelects === 'function') {
-                window.populateDomainSelects();
-              }
+            if (typeof window.populateDomainSelects === 'function') {
+              window.populateDomainSelects();
             }
-            if (typeof window.renderClusterSummary === 'function') {
-              window.renderClusterSummary();
-            }
-          } else {
-            throw new Error(await res.text());
           }
         }
-      } catch (err) {
-        showToast('Failed to save cell: ' + err.message, 'error');
-        restoreCellDisplay(cell, fieldType, originalRaw);
+        if (typeof window.renderClusterSummary === 'function') {
+          window.renderClusterSummary();
+        }
+      };
+
+      try {
+        await window.api.mutate({
+          optimistic: () => {
+            // 1. Instantly update cell in DOM
+            cell.setAttribute('data-raw-val', valToSave);
+            restoreCellDisplay(cell, fieldType, valToSave);
+            applyInMemoryUpdates(valToSave);
+            return { originalRaw, prevPaperState };
+          },
+          mutation: async () => {
+            if (fieldType === 'dynamic') {
+              return await window.api.post('/api/paper-column-values', {
+                paper_id: paperId,
+                column_id: columnId,
+                column_name: columnName,
+                value: valToSave
+              });
+            } else {
+              return await window.api.put(`/api/papers/${paperId}`, bodyPayload);
+            }
+          },
+          rollback: (err, ctx) => {
+            // Revert cell in DOM
+            cell.setAttribute('data-raw-val', originalRaw);
+            restoreCellDisplay(cell, fieldType, originalRaw);
+
+            // Revert in-memory paper
+            if (pObj && ctx && ctx.prevPaperState) {
+              pObj.custom_columns = ctx.prevPaperState.custom_columns;
+              pObj[fieldType] = ctx.prevPaperState.fieldVal;
+              pObj.doi = ctx.prevPaperState.doi;
+              pObj.strengths = ctx.prevPaperState.strengths;
+              pObj.gaps = ctx.prevPaperState.gaps;
+              pObj.future_research_direction = ctx.prevPaperState.future_research_direction;
+              pObj.keywords = ctx.prevPaperState.keywords;
+              if (typeof window.renderClusterSummary === 'function') {
+                window.renderClusterSummary();
+              }
+            }
+
+            // Visual error shake
+            cell.classList.add('cell-error');
+            setTimeout(() => cell.classList.remove('cell-error'), 1200);
+
+            showToast('Failed to save cell: ' + (err?.message || 'Server error'), 'error');
+          },
+          broadcastType: 'paper_updated',
+          broadcastPayload: {
+            paperId,
+            fieldType,
+            valToSave,
+            projectId: (typeof activeProjectId !== 'undefined' ? activeProjectId : window.activeProjectId)
+          }
+        });
+
+        // Flash saved on success
+        cell.classList.add('cell-saved');
+        setTimeout(() => cell.classList.remove('cell-saved'), 900);
+      } catch (_) {
+        // Handled in rollback
       }
     }
   });
@@ -2299,19 +2332,54 @@ window.cyclePaperStatus = async function(paperId, currentStat, event) {
   const nextIdx = (order.indexOf(currentStat) + 1) % order.length;
   const nextStat = order[nextIdx];
 
-  try {
-    const res = await fetch(`/api/papers/${paperId}/status`, {
-      method: 'PATCH',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ status: nextStat })
-    });
-    if (res.ok) {
-      if (typeof loadStats === 'function') await loadStats();
-      if (typeof loadPapers === 'function') await loadPapers();
-      if (typeof loadSynthesisInsights === 'function') await loadSynthesisInsights();
-      showToast(`Status updated to ${nextStat.replace('_', ' ')}`, 'info');
+  const pObj = (typeof allPapers !== 'undefined' && Array.isArray(allPapers)) ? allPapers.find(p => p.id === paperId) : null;
+  const tr = document.querySelector(`tr[data-paper-id="${paperId}"]`);
+  const tdIndex = tr ? tr.querySelector('.td-index') : null;
+  const tdStatus = tr ? tr.querySelector('.td-status-cell') : null;
+
+  const updateStatusUI = (stat) => {
+    if (pObj) pObj.status = stat;
+    if (tr) {
+      tr.className = tr.className.replace(/row-status-[^\s]+/, '') + ` row-status-${stat}`;
     }
-  } catch (err) {
-    showToast('Failed to toggle status: ' + err.message, 'error');
+    if (tdIndex) {
+      const paperSerial = (typeof window.getPaperSerialNo === 'function' && pObj ? window.getPaperSerialNo(pObj) : (pObj?.serial_no || paperId));
+      tdIndex.title = `Paper #${paperSerial} | Reading Status: ${stat.replace('_', ' ').toUpperCase()} (Click to toggle)`;
+      tdIndex.innerHTML = `<span class="status-dot status-dot-${stat}"></span><span>${paperSerial}</span>`;
+      tdIndex.onclick = (e) => window.cyclePaperStatus(paperId, stat, e);
+    }
+    if (tdStatus) {
+      tdStatus.setAttribute('data-raw-val', stat);
+      tdStatus.innerHTML = formatCellContent(stat, 'status', paperId);
+    }
+  };
+
+  try {
+    await window.api.mutate({
+      optimistic: () => {
+        updateStatusUI(nextStat);
+        return { prevStatus: currentStat };
+      },
+      mutation: async () => {
+        return await window.api.patch(`/api/papers/${paperId}/status`, { status: nextStat });
+      },
+      rollback: (err, ctx) => {
+        updateStatusUI(ctx?.prevStatus || currentStat);
+        showToast('Failed to toggle status: ' + (err?.message || 'Server error'), 'error');
+      },
+      broadcastType: 'paper_updated',
+      broadcastPayload: {
+        paperId,
+        status: nextStat,
+        projectId: (typeof activeProjectId !== 'undefined' ? activeProjectId : window.activeProjectId)
+      }
+    });
+
+    showToast(`Status updated to ${nextStat.replace('_', ' ')}`, 'info');
+    // Re-sync stats in the background without full table re-render
+    if (typeof loadStats === 'function') loadStats();
+    if (typeof loadSynthesisInsights === 'function') loadSynthesisInsights();
+  } catch (_) {
+    // Handled in rollback
   }
 };
