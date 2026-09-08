@@ -95,9 +95,8 @@ window.handleTableSort = function(col) {
 
 window.loadDashboardStats = async function() {
   try {
-    const res = await fetch('/api/user/dashboard-stats', { headers: getAuthHeaders() });
-    if (!res.ok) return;
-    const stats = await res.json();
+    const stats = await window.api.get('/api/user/dashboard-stats', { dedupe: true });
+    if (!stats) return;
     allStats = stats;
 
     const projEl = document.getElementById('kpi-total-surveys');
@@ -131,9 +130,7 @@ window.loadSurveys = async function() {
   if (!container) return;
 
   try {
-    const res = await fetch('/api/projects', { headers: getAuthHeaders() });
-    if (!res.ok) throw new Error('Failed to load surveys');
-    const raw = await res.json();
+    const raw = await window.api.get('/api/projects', { abortKey: 'dashboard-surveys' });
 
     let currentUserId = null;
     try {
@@ -588,10 +585,9 @@ window.handleNewSurveyNameInput = function(val) {
 
   newSurveyNameTimer = setTimeout(async () => {
     try {
-      const res = await fetch(`/api/projects/check-name?name=${encodeURIComponent(trimmed)}`, {
-        headers: getAuthHeaders()
+      const data = await window.api.get(`/api/projects/check-name?name=${encodeURIComponent(trimmed)}`, {
+        abortKey: 'check-survey-name'
       });
-      const data = await res.json();
       if (data.available) {
         if (feedbackEl) {
           feedbackEl.style.display = 'block';
@@ -645,10 +641,9 @@ window.handleEditSurveyNameInput = function(val) {
 
   editSurveyNameTimer = setTimeout(async () => {
     try {
-      const res = await fetch(`/api/projects/check-name?name=${encodeURIComponent(trimmed)}&exclude_id=${encodeURIComponent(id || '')}`, {
-        headers: getAuthHeaders()
+      const data = await window.api.get(`/api/projects/check-name?name=${encodeURIComponent(trimmed)}&exclude_id=${encodeURIComponent(id || '')}`, {
+        abortKey: 'check-edit-survey-name'
       });
-      const data = await res.json();
       if (data.available) {
         if (feedbackEl) {
           feedbackEl.style.display = 'block';
@@ -749,15 +744,7 @@ window.submitNewSurvey = async function() {
   }
 
   try {
-    const res = await fetch('/api/projects', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ name, description, domain })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Failed to create survey');
-    }
+    const data = await window.api.post('/api/projects', { name, description, domain });
 
     showToast(`Survey "${data.name}" created!`, 'success');
     closeCreateSurveyModal();
@@ -802,13 +789,7 @@ window.submitEditSurvey = async function() {
   }
 
   try {
-    const res = await fetch(`/api/projects/${id}`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ name, description, domain })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to update survey');
+    await window.api.put(`/api/projects/${id}`, { name, description, domain });
 
     showToast('Survey updated successfully!', 'success');
     closeEditSurveyModal();
@@ -837,12 +818,7 @@ window.deleteSurvey = async function(id, name) {
   }
 
   try {
-    const res = await fetch(`/api/projects/${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    if (!res.ok) throw new Error((await res.json()).error || 'Failed to delete survey');
-
+    await window.api.delete(`/api/projects/${id}`);
     showToast(`Survey "${name}" deleted.`, 'success');
     await loadSurveys();
     await loadDashboardStats();
@@ -867,13 +843,7 @@ window.exportSurveyExcel = function(projectId) {
 
 window.createFromPreset = async function(name, desc, presetType) {
   try {
-    const res = await fetch('/api/projects', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ name, description: desc })
-    });
-    const newProj = await res.json();
-    if (!res.ok) throw new Error(newProj.error || 'Failed to create survey');
+    const newProj = await window.api.post('/api/projects', { name, description: desc });
 
     // Infer preset key
     let key = presetType || 'fs';
