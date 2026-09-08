@@ -672,11 +672,6 @@ window.renderKeywordsHub = function () {
     return;
   }
 
-  // Apply search query filter if user typed in keyword search input
-  let displayKeywords = allUnique;
-  if (window.keywordSearchQuery) {
-    displayKeywords = allUnique.filter(kw => kw.name.toLowerCase().includes(window.keywordSearchQuery));
-  }
 
   if (displayKeywords.length === 0 && window.keywordSearchQuery) {
     container.innerHTML = `
