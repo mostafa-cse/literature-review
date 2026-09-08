@@ -70,7 +70,7 @@
      1. INITIALIZATION & DATA LOADING
   ──────────────────────────────────────────────────────────────── */
   window.addEventListener('DOMContentLoaded', async () => {
-    // Show active web loader immediately with file size telemetry
+    // Show active inline paper loader immediately with file size telemetry
     showPdfLoader('Opening Manuscript...', 'Connecting to repository & preparing high-resolution layout...', false);
     updatePdfLoaderTelemetry(0, 0, 0, null);
 
@@ -2509,7 +2509,7 @@
     const viewport = document.getElementById('pdf-viewport');
     const toolbar = document.getElementById('pdf-toolbar');
 
-    // Immediately present the animated web loader with file size telemetry
+    // Immediately present the inline paper loader with file size telemetry
     showPdfLoader('Opening Manuscript...', 'Connecting to repository & preparing high-resolution layout...', false);
     updatePdfLoaderTelemetry(0, 0, 0, null);
 
