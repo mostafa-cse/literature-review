@@ -5,6 +5,7 @@ const fs = require('fs');
 const { getDb } = require('../db');
 const { getProjectRole, recalculateUserStorage, logAuditEvent } = require('../utils/auth');
 const cacheService = require('../services/cacheService');
+const scholarlyService = require('../services/scholarlyService');
 
 // ==========================================
 // PAPERS CRUD & FILTERING API
@@ -473,36 +474,17 @@ async function resolvePaperPdf(doi, pdfUrl, title) {
       if (res) return { ...res, filename: 'arxiv_' + arxivMatch[1] + '.pdf', source: 'arxiv' };
     }
 
-    // 4. Clean DOI for Open-Access Aggregators
-    const cleanDoi = item.replace(/^https?:\/\/(dx\.)?doi\.org\//, '').trim();
-    if (cleanDoi && cleanDoi.includes('/')) {
-      // Check Semantic Scholar Graph API
-      try {
-        const s2 = await fetch('https://api.semanticscholar.org/graph/v1/paper/' + encodeURIComponent(cleanDoi) + '?fields=openAccessPdf', {
-          headers: { 'User-Agent': 'LitSphere/1.0' }
-        });
-        if (s2.ok) {
-          const s2Data = await s2.json();
-          if (s2Data.openAccessPdf && s2Data.openAccessPdf.url) {
-            const res = await fetchPdfStreamWithTimeout(s2Data.openAccessPdf.url);
-            if (res) return { ...res, filename: cleanDoi.replace(/[^a-zA-Z0-9]/g, '_') + '.pdf', source: 'semanticscholar' };
-          }
+    // 4. Multi-Source Scholarly Resolver (arXiv -> Unpaywall -> Semantic Scholar -> OpenAlex)
+    try {
+      const resolvedOaUrl = await scholarlyService.fetchOpenAccessPdfUrl(item);
+      if (resolvedOaUrl) {
+        const res = await fetchPdfStreamWithTimeout(resolvedOaUrl);
+        if (res) {
+          const safeName = item.replace(/^https?:\/\/(dx\.)?doi\.org\//, '').replace(/[^a-zA-Z0-9]/g, '_');
+          return { ...res, filename: `${safeName || 'paper'}.pdf`, source: 'scholarly_oa' };
         }
-      } catch (_) {}
-
-      // Check Unpaywall API
-      try {
-        const unp = await fetch('https://api.unpaywall.org/v2/' + encodeURIComponent(cleanDoi) + '?email=litreview@litsphere.org');
-        if (unp.ok) {
-          const unpData = await unp.json();
-          const oaUrl = unpData.best_oa_location && (unpData.best_oa_location.url_for_pdf || unpData.best_oa_location.url);
-          if (oaUrl && (oaUrl.toLowerCase().includes('.pdf') || oaUrl.startsWith('http'))) {
-            const res = await fetchPdfStreamWithTimeout(oaUrl);
-            if (res) return { ...res, filename: cleanDoi.replace(/[^a-zA-Z0-9]/g, '_') + '.pdf', source: 'unpaywall' };
-          }
-        }
-      } catch (_) {}
-    }
+      }
+    } catch (_) {}
   }
 
   return null;
