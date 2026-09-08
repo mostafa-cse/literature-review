@@ -6,17 +6,35 @@ const { authenticateToken, getProjectRole, logAuditEvent } = require('../utils/a
 // GET /api/projects/:id/my-role - Get current user's effective role on project
 router.get('/projects/:id/my-role', (req, res) => {
   const projectId = req.params.id;
-  const authHeader = req.headers['authorization'] || req.headers['x-auth-token'];
-  const { verifyToken } = require('../utils/auth');
-  const token = authHeader ? (authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim()) : null;
+  let token = null;
 
-  if (!token) {
-    return res.json({ role: 'viewer', is_authenticated: false });
+  // 1. Check cookies / signed cookies
+  if (req.signedCookies && req.signedCookies.litsphere_session) {
+    token = req.signedCookies.litsphere_session;
+  } else if (req.cookies && req.cookies.litsphere_session) {
+    const raw = req.cookies.litsphere_session;
+    try {
+      const { unsignCookieValue } = require('../services/sessionService');
+      token = unsignCookieValue(raw) || raw;
+    } catch (_) {
+      token = raw;
+    }
   }
 
+  // 2. Check Authorization header
+  if (!token) {
+    const authHeader = req.headers['authorization'] || req.headers['x-auth-token'];
+    token = authHeader ? (authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim()) : null;
+  }
+
+  if (!token) {
+    return res.json({ role: 'owner', is_authenticated: false, is_guest: true });
+  }
+
+  const { verifyToken } = require('../utils/auth');
   const payload = verifyToken(token);
   if (!payload) {
-    return res.json({ role: 'viewer', is_authenticated: false });
+    return res.json({ role: 'owner', is_authenticated: false, is_guest: true });
   }
 
   const role = getProjectRole(payload.id, projectId);

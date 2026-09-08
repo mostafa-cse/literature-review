@@ -353,12 +353,112 @@ async function handleAsyncPdfUpload(req, res) {
   }
 }
 
-router.post('/upload', upload.any(), handlePdfUpload);
+// ==========================================
+// DIRECT PDF MANUSCRIPT ATTACH / UPLOAD API
+// ==========================================
+async function handlePaperDirectPdfUpload(req, res) {
+  try {
+    const paperId = parseInt(req.params.id || req.body.paper_id || req.body.id, 10);
+    if (!paperId) {
+      return res.status(400).json({ error: 'Invalid or missing paper ID' });
+    }
+
+    const db = getDb();
+    const paper = db.prepare('SELECT id, project_id, title, doi FROM papers WHERE id = ?').get(paperId);
+    if (!paper) {
+      return res.status(404).json({ error: `Paper with ID ${paperId} not found` });
+    }
+
+    // RBAC Role Verification (if user is authenticated)
+    if (req.user) {
+      const role = getProjectRole(req.user.id, paper.project_id);
+      if (!['owner', 'editor'].includes(role) && req.user.role !== 'admin') {
+        return res.status(403).json({ error: `Access Denied. Role '${role}' cannot upload PDF to this paper.` });
+      }
+    }
+
+    // Extract file from req.file or req.files
+    let file = req.file;
+    if (!file && req.files && req.files.length > 0) {
+      file = req.files[0];
+    }
+
+    if (!file) {
+      return res.status(400).json({ error: 'No PDF file uploaded' });
+    }
+
+    // Binary file buffer
+    const fileBuffer = fs.readFileSync(file.path);
+    const dbPdfUrl = `/api/papers/${paperId}/pdf`;
+
+    // 1. Insert or replace binary PDF in SQLite paper_files
+    db.prepare(`
+      INSERT OR REPLACE INTO paper_files (paper_id, filename, mimetype, file_size, data)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(
+      paperId,
+      file.filename,
+      file.mimetype || 'application/pdf',
+      file.size,
+      fileBuffer
+    );
+
+    // 2. Update paper pdf_url
+    db.prepare('UPDATE papers SET pdf_url = ? WHERE id = ?').run(dbPdfUrl, paperId);
+
+    // 3. Ensure disk file is also available in backend uploads if separate
+    try {
+      const backendFilePath = path.join(backendUploadsDir, file.filename);
+      if (!fs.existsSync(backendFilePath)) {
+        fs.copyFileSync(file.path, backendFilePath);
+      }
+    } catch (_) {}
+
+    // 4. Invalidate survey cache
+    try {
+      const cacheService = require('../services/cacheService');
+      await cacheService.invalidateSurveyCache(paper.project_id).catch(() => {});
+    } catch (_) {}
+
+    // 5. Update user storage stats
+    if (req.user && req.user.id) {
+      try {
+        await recalculateUserStorage(req.user.id);
+      } catch (_) {}
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'PDF manuscript attached to paper successfully',
+      paper_id: paperId,
+      pdf_url: dbPdfUrl,
+      filename: file.filename,
+      original_name: file.originalname,
+      size: file.size
+    });
+  } catch (err) {
+    console.error('handlePaperDirectPdfUpload error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to upload PDF manuscript' });
+  }
+}
+
+router.post('/upload', upload.any(), (req, res, next) => {
+  if (req.body && (req.body.paper_id || req.body.id)) {
+    return handlePaperDirectPdfUpload(req, res);
+  }
+  return handlePdfUpload(req, res);
+});
 router.post('/upload/async', upload.any(), handleAsyncPdfUpload);
 router.post('/upload-async', upload.any(), handleAsyncPdfUpload);
 router.post('/papers/bulk-upload', upload.any(), handlePdfUpload);
+router.post('/papers/:id/pdf', upload.any(), handlePaperDirectPdfUpload);
+router.post('/papers/:id/upload', upload.any(), handlePaperDirectPdfUpload);
+router.post('/paper/:id/pdf', upload.any(), handlePaperDirectPdfUpload);
+router.post('/paper/:id/upload', upload.any(), handlePaperDirectPdfUpload);
 router.post('/papers/bulk-assign', (req, res) => {
   res.redirect(307, '/api/papers/bulk-reassign');
 });
 
 module.exports = router;
+module.exports.upload = upload;
+module.exports.handlePaperDirectPdfUpload = handlePaperDirectPdfUpload;

@@ -33,11 +33,20 @@
   function isViewerRole() { return (currentUserRole || 'viewer').toLowerCase() === 'viewer'; }
   function isReviewerRole() { return (currentUserRole || 'viewer').toLowerCase() === 'reviewer'; }
   function isEditorOrOwnerRole() {
+    const token = localStorage.getItem('litsphere_auth_token') || localStorage.getItem('token') || localStorage.getItem('jwt');
+    // If running in local/standalone mode without a token, allow full owner/editor capabilities
+    if (!token && (!currentUserRole || currentUserRole === 'viewer')) {
+      return true;
+    }
     const r = (currentUserRole || 'viewer').toLowerCase();
     return r === 'owner' || r === 'editor' || r === 'admin';
   }
   function canEditPaperData() { return isEditorOrOwnerRole(); }
   function canScreenPaperData() {
+    const token = localStorage.getItem('litsphere_auth_token') || localStorage.getItem('token') || localStorage.getItem('jwt');
+    if (!token && (!currentUserRole || currentUserRole === 'viewer')) {
+      return true;
+    }
     const r = (currentUserRole || 'viewer').toLowerCase();
     return r === 'owner' || r === 'editor' || r === 'reviewer' || r === 'admin';
   }
@@ -3457,6 +3466,7 @@
     }
     if (!input.files || input.files.length === 0 || !activePaper) return;
     const file = input.files[0];
+    try { input.value = ''; } catch (_) {}
     const formData = new FormData();
     formData.append('pdf', file);
 

@@ -953,6 +953,7 @@
   window.handleReaderDirectPdfUpload = async function (fileInput) {
     if (!fileInput.files || fileInput.files.length === 0 || !activePaper) return;
     const file = fileInput.files[0];
+    try { fileInput.value = ''; } catch (_) {}
     const formData = new FormData();
     formData.append('pdf', file);
 
