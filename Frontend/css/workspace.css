@@ -9311,3 +9311,145 @@ body.light-mode .upload-tracker-formula-box {
   border-color: rgba(212, 175, 55, 0.4);
   color: #854d0e;
 }
+
+/* ==========================================================================
+   NETWORK RESILIENCE & OFFLINE RECOVERY BANNER
+   ========================================================================== */
+.litsphere-offline-banner {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  width: 100%;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: rgba(22, 27, 34, 0.92);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.4);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.litsphere-offline-banner.hidden {
+  display: none !important;
+  opacity: 0;
+  transform: translateY(-100%);
+}
+
+.litsphere-offline-banner.visible {
+  display: block !important;
+  opacity: 1;
+  transform: translateY(0);
+  animation: slideDownIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.litsphere-offline-banner.banner-offline {
+  border-bottom-color: rgba(245, 158, 11, 0.5);
+  background: linear-gradient(90deg, rgba(30, 20, 10, 0.94) 0%, rgba(22, 27, 34, 0.96) 100%);
+}
+
+.litsphere-offline-banner.banner-restored {
+  border-bottom-color: rgba(16, 185, 129, 0.5);
+  background: linear-gradient(90deg, rgba(10, 35, 25, 0.94) 0%, rgba(22, 27, 34, 0.96) 100%);
+}
+
+.offline-banner-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 8px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.offline-indicator-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #f59e0b;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+  animation: pulseAmber 2s infinite ease-in-out;
+}
+
+.banner-restored .offline-indicator-dot {
+  background: #10b981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.7);
+  animation: none;
+}
+
+.offline-banner-message {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #f1f5f9;
+  letter-spacing: 0.01em;
+  flex: 1;
+}
+
+.offline-banner-retry-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.offline-banner-retry-btn:hover {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: rgba(245, 158, 11, 0.6);
+  color: #fde68a;
+  transform: translateY(-1px);
+}
+
+.banner-restored .offline-banner-retry-btn {
+  display: none;
+}
+
+@keyframes slideDownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseAmber {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.6;
+  }
+}
+
+[data-theme="light"] .litsphere-offline-banner,
+body.light-mode .litsphere-offline-banner {
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .offline-banner-message,
+body.light-mode .offline-banner-message {
+  color: #1e293b;
+}
+
+[data-theme="light"] .litsphere-offline-banner.banner-offline,
+body.light-mode .litsphere-offline-banner.banner-offline {
+  background: linear-gradient(90deg, rgba(254, 243, 199, 0.94) 0%, rgba(255, 255, 255, 0.96) 100%);
+}
+
+[data-theme="light"] .litsphere-offline-banner.banner-restored,
+body.light-mode .litsphere-offline-banner.banner-restored {
+  background: linear-gradient(90deg, rgba(209, 250, 229, 0.94) 0%, rgba(255, 255, 255, 0.96) 100%);
+}

@@ -54,7 +54,7 @@ async function runFullBackendAudit() {
     const pCreate = await request({
       host: 'localhost', port: 3000, path: '/api/projects', method: 'POST',
       headers: authHeaders
-    }, { name: 'Audit Test Project', description: 'Testing end-to-end backend reliability' });
+    }, { name: 'Audit Test Project ' + Date.now(), description: 'Testing end-to-end backend reliability' });
     assert('POST /api/projects', pCreate.status === 201 && pCreate.body.id > 0);
     const testProjectId = pCreate.body.id;
 
@@ -125,8 +125,8 @@ async function runFullBackendAudit() {
       keywords: ['Anomaly Detection', 'Isolation Forest', 'Deep Learning'],
       custom_columns: timeCol ? { [timeCol.id]: 'O(n \\log n)' } : {}
     });
-    assert('POST /api/papers', paperCreate.status === 201 && paperCreate.body.id > 0);
-    const testPaperId = paperCreate.body.id;
+    assert('POST /api/papers', paperCreate.status === 201 && paperCreate.body && paperCreate.body.id > 0, JSON.stringify(paperCreate));
+    const testPaperId = paperCreate.body && paperCreate.body.id;
 
     // Get Single Paper
     const paperGet = await request({ host: 'localhost', port: 3000, path: `/api/papers/${testPaperId}`, method: 'GET', headers: authHeaders });
@@ -190,6 +190,7 @@ async function runFullBackendAudit() {
     // Run RBAC & Admin Suite
     const { runTests: runRbacTests } = require('./rbac_admin.test');
     await runRbacTests();
+    process.exit(0);
   } catch (err) {
     console.error('Audit failed with error:', err);
     process.exit(1);

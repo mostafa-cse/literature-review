@@ -28,7 +28,7 @@ let redisClient = null;
 function getRedisClient() {
   if (!redisClient && isRedisConfigured()) {
     redisClient = new Redis(env.REDIS_URL, {
-      maxRetriesPerRequest: 3,
+      maxRetriesPerRequest: 20,
       enableReadyCheck: true,
       connectTimeout: 20000,
       keepAlive: 15000,

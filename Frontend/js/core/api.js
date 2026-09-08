@@ -52,57 +52,63 @@
     } catch (_) {}
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', injectExtensionGuard);
-  } else {
-    injectExtensionGuard();
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', injectExtensionGuard);
+    } else {
+      injectExtensionGuard();
+    }
   }
 
   // 2. Global Error Event Interceptor (Suppress extension & protocol security error noise)
-  window.addEventListener('error', function(e) {
-    const msg = String(e.message || '').toLowerCase();
-    const file = String(e.filename || '').toLowerCase();
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('error', function(e) {
+      const msg = String(e.message || '').toLowerCase();
+      const file = String(e.filename || '').toLowerCase();
 
-    // Catch ImTranslator translator.js double-click style access crash
-    if (file.includes('translator.js') || msg.includes('sl_shadow_translator') || (file.includes('extension') && msg.includes('translator'))) {
-      e.preventDefault();
-      e.stopPropagation();
-      return true;
-    }
-
-    // Catch Firefox Security Error regarding file:/// protocol navigations
-    if (msg.includes('may not load or link to file:///') || (msg.includes('security error') && msg.includes('file:///'))) {
-      e.preventDefault();
-      e.stopPropagation();
-      return true;
-    }
-  }, true);
-
-  // 3. Prevent Browser Drag-and-Drop Local File Navigations
-  window.addEventListener('dragover', function(e) {
-    if (!e.target || !e.target.closest || !e.target.closest('.dropzone-box, .upload-dropzone, #drop-zone, .file-drop-area, #pdf-viewport')) {
-      e.preventDefault();
-    }
-  }, false);
-
-  window.addEventListener('drop', function(e) {
-    if (!e.target || !e.target.closest || !e.target.closest('.dropzone-box, .upload-dropzone, #drop-zone, .file-drop-area, #pdf-viewport')) {
-      e.preventDefault();
-    }
-  }, false);
-
-  // 4. Intercept Any Link Click Targeting file:///
-  document.addEventListener('click', function(e) {
-    const a = e.target && e.target.closest ? e.target.closest('a') : null;
-    if (a) {
-      const rawHref = a.getAttribute('href') || a.href || '';
-      if (typeof rawHref === 'string' && (rawHref.toLowerCase().startsWith('file:') || rawHref.toLowerCase().startsWith('file:///'))) {
+      // Catch ImTranslator translator.js double-click style access crash
+      if (file.includes('translator.js') || msg.includes('sl_shadow_translator') || (file.includes('extension') && msg.includes('translator'))) {
         e.preventDefault();
         e.stopPropagation();
-        console.warn('[LitSphere Security Shield] Blocked navigation to local file protocol:', rawHref);
+        return true;
       }
-    }
-  }, true);
+
+      // Catch Firefox Security Error regarding file:/// protocol navigations
+      if (msg.includes('may not load or link to file:///') || (msg.includes('security error') && msg.includes('file:///'))) {
+        e.preventDefault();
+        e.stopPropagation();
+        return true;
+      }
+    }, true);
+
+    // 3. Prevent Browser Drag-and-Drop Local File Navigations
+    window.addEventListener('dragover', function(e) {
+      if (!e.target || !e.target.closest || !e.target.closest('.dropzone-box, .upload-dropzone, #drop-zone, .file-drop-area, #pdf-viewport')) {
+        e.preventDefault();
+      }
+    }, false);
+
+    window.addEventListener('drop', function(e) {
+      if (!e.target || !e.target.closest || !e.target.closest('.dropzone-box, .upload-dropzone, #drop-zone, .file-drop-area, #pdf-viewport')) {
+        e.preventDefault();
+      }
+    }, false);
+  }
+
+  // 4. Intercept Any Link Click Targeting file:///
+  if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('click', function(e) {
+      const a = e.target && e.target.closest ? e.target.closest('a') : null;
+      if (a) {
+        const rawHref = a.getAttribute('href') || a.href || '';
+        if (typeof rawHref === 'string' && (rawHref.toLowerCase().startsWith('file:') || rawHref.toLowerCase().startsWith('file:///'))) {
+          e.preventDefault();
+          e.stopPropagation();
+          console.warn('[LitSphere Security Shield] Blocked navigation to local file protocol:', rawHref);
+        }
+      }
+    }, true);
+  }
 
   // 5. Defend window.open against accidental file:/// protocols
   if (typeof window.open === 'function') {
@@ -288,6 +294,254 @@ class SwrCache {
 }
 
 /**
+ * Offline Sync Queue: Persists and replays queued optimistic actions across disconnections.
+ */
+class OfflineSyncQueue {
+  constructor(storageKey = 'litsphere_offline_queue') {
+    this.storageKey = storageKey;
+  }
+
+  getAll() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const raw = localStorage.getItem(this.storageKey);
+        return raw ? JSON.parse(raw) : [];
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  enqueue(action) {
+    const items = this.getAll();
+    const queuedItem = {
+      id: 'offline_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+      timestamp: Date.now(),
+      ...action
+    };
+    items.push(queuedItem);
+    this._save(items);
+    return queuedItem;
+  }
+
+  remove(id) {
+    const items = this.getAll().filter(item => item.id !== id);
+    this._save(items);
+  }
+
+  clear() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(this.storageKey);
+      }
+    } catch (_) {}
+  }
+
+  _save(items) {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(this.storageKey, JSON.stringify(items));
+      }
+    } catch (_) {}
+  }
+
+  async drain(client) {
+    const items = this.getAll();
+    if (items.length === 0) return [];
+
+    console.info(`[OfflineSyncQueue] Draining ${items.length} queued offline mutations...`);
+    const results = [];
+
+    for (const item of items) {
+      try {
+        const res = await client.request(item.url, {
+          method: item.method || 'POST',
+          data: item.data,
+          headers: item.headers
+        });
+        results.push({ id: item.id, success: true, result: res });
+        this.remove(item.id);
+
+        if (item.invalidateKey) {
+          client.cache.invalidate(item.invalidateKey);
+        }
+        if (item.broadcastType) {
+          client.broadcast(item.broadcastType, item.broadcastPayload || res);
+        }
+      } catch (err) {
+        console.error(`[OfflineSyncQueue] Failed to replay mutation ${item.id}:`, err);
+        results.push({ id: item.id, success: false, error: err.message });
+        if (err.status >= 400 && err.status < 500) {
+          this.remove(item.id);
+        }
+      }
+    }
+
+    return results;
+  }
+}
+
+/**
+ * Enterprise Network Resilience & Throttling Manager.
+ * Monitors online/offline states, network speed (slow 3G / 2G), and controls the offline banner.
+ */
+class NetworkResilienceManager {
+  constructor(apiClient) {
+    this.client = apiClient;
+    this.isOnline = typeof navigator !== 'undefined' ? (navigator.onLine !== false) : true;
+    this.effectiveType = '4g';
+    this.rtt = 50;
+    this.downlink = 10;
+    this._init();
+  }
+
+  _init() {
+    this._updateConnectionInfo();
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => this.handleOnline());
+      window.addEventListener('offline', () => this.handleOffline());
+
+      const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      if (conn && typeof conn.addEventListener === 'function') {
+        conn.addEventListener('change', () => this._updateConnectionInfo());
+      }
+
+      if (typeof document !== 'undefined') {
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', () => this._updateBannerState());
+        } else {
+          this._updateBannerState();
+        }
+      }
+    }
+  }
+
+  _updateConnectionInfo() {
+    const conn = (typeof navigator !== 'undefined')
+      ? (navigator.connection || navigator.mozConnection || navigator.webkitConnection)
+      : null;
+
+    if (conn) {
+      this.effectiveType = conn.effectiveType || '4g';
+      this.rtt = conn.rtt || 50;
+      this.downlink = conn.downlink || 10;
+    }
+  }
+
+  isSlowConnection() {
+    return this.effectiveType === 'slow-2g' ||
+           this.effectiveType === '2g' ||
+           this.effectiveType === '3g' ||
+           this.rtt >= 1000;
+  }
+
+  getEffectiveTimeout(requestedTimeout = 30000) {
+    if (this.effectiveType === 'slow-2g' || this.effectiveType === '2g') {
+      return Math.max(requestedTimeout, 60000);
+    }
+    if (this.effectiveType === '3g' || this.rtt >= 800) {
+      return Math.max(requestedTimeout, 45000);
+    }
+    return requestedTimeout;
+  }
+
+  async checkConnectivity() {
+    try {
+      const controller = new AbortController();
+      const tid = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch('/api/auth/verify', {
+        method: 'GET',
+        headers: this.client.getAuthHeaders(false),
+        signal: controller.signal,
+        cache: 'no-store'
+      });
+      clearTimeout(tid);
+      if (res.ok || res.status === 401) {
+        this.isOnline = true;
+        this.handleOnline(true);
+        return true;
+      }
+    } catch (_) {}
+
+    this.isOnline = false;
+    this.handleOffline();
+    return false;
+  }
+
+  handleOnline(skipPing = false) {
+    this.isOnline = true;
+    console.info('[NetworkResilienceManager] Network restored (online).');
+    this._updateBannerState();
+
+    this.client.offlineQueue.drain(this.client).then((results) => {
+      if (results.length > 0) {
+        const successful = results.filter(r => r.success).length;
+        console.info(`[OfflineSyncQueue] Synchronized ${successful}/${results.length} offline mutations.`);
+        if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+          window.dispatchEvent(new CustomEvent('offline:synced', {
+            detail: { count: results.length, successful }
+          }));
+        }
+      }
+    });
+
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('network:online', {
+        detail: { effectiveType: this.effectiveType, rtt: this.rtt }
+      }));
+      window.dispatchEvent(new CustomEvent('swr:revalidated', {
+        detail: { reason: 'network_restored' }
+      }));
+    }
+  }
+
+  handleOffline() {
+    this.isOnline = false;
+    console.warn('[NetworkResilienceManager] Network connection dropped (offline).');
+    this._updateBannerState();
+
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('network:offline', {
+        detail: { timestamp: Date.now() }
+      }));
+    }
+  }
+
+  _updateBannerState() {
+    if (typeof document === 'undefined') return;
+    const banner = document.getElementById('litsphere-offline-banner');
+    if (!banner) return;
+
+    const msgEl = document.getElementById('offline-banner-message');
+    const retryBtn = document.getElementById('offline-banner-retry-btn');
+
+    if (!this.isOnline) {
+      banner.classList.remove('hidden', 'banner-restored');
+      banner.classList.add('visible', 'banner-offline');
+      if (msgEl) {
+        msgEl.textContent = 'You are currently working offline. Changes are saved locally and will synchronize when your connection is restored.';
+      }
+      if (retryBtn) {
+        retryBtn.onclick = () => this.checkConnectivity();
+      }
+    } else if (banner.classList.contains('banner-offline')) {
+      banner.classList.remove('banner-offline');
+      banner.classList.add('banner-restored');
+      if (msgEl) {
+        msgEl.textContent = 'Connection restored. All local changes synchronized with server.';
+      }
+      setTimeout(() => {
+        banner.classList.remove('visible', 'banner-restored');
+        banner.classList.add('hidden');
+      }, 3500);
+    } else {
+      banner.classList.add('hidden');
+      banner.classList.remove('visible');
+    }
+  }
+}
+
+/**
  * Centralized Enterprise HTTP Client with in-flight deduplication, named AbortController
  * cancellation, Stale-While-Revalidate (SWR) caching, optimistic mutations, and cross-tab sync.
  */
@@ -297,7 +551,17 @@ class ApiClient {
     this.abortControllers = new Map(); // abortKey -> AbortController
     this.timeout = 30000; // 30s default
     this.cache = new SwrCache();
+    this.offlineQueue = new OfflineSyncQueue();
+    this.network = new NetworkResilienceManager(this);
     this._initSyncListener();
+  }
+
+  get isOnline() {
+    return this.network ? this.network.isOnline : true;
+  }
+
+  isSlowConnection() {
+    return this.network ? this.network.isSlowConnection() : false;
   }
 
   getAuthToken() {
@@ -347,11 +611,17 @@ class ApiClient {
       timeout = this.timeout,
       dedupe = (method.toUpperCase() === 'GET'),
       skipAuthRedirect = false,
+      retry,
+      retries,
       ...customFetchOptions
     } = options;
 
     const upperMethod = method.toUpperCase();
     const isGet = upperMethod === 'GET';
+    const effectiveTimeout = this.network ? this.network.getEffectiveTimeout(timeout) : timeout;
+    const maxRetries = (isGet && retry !== false)
+      ? (retries !== undefined ? retries : (this.network && this.network.isSlowConnection() ? 2 : 0))
+      : 0;
 
     // 1. In-flight request deduplication for identical concurrent GET requests
     const dedupeKey = `${upperMethod}:${url}`;
@@ -359,30 +629,7 @@ class ApiClient {
       return this.inFlightRequests.get(dedupeKey);
     }
 
-    // 2. AbortController lifecycle for named abortKey
-    let internalController = null;
-    let requestSignal = signal;
-
-    if (abortKey) {
-      this.abort(abortKey);
-      internalController = new AbortController();
-      this.abortControllers.set(abortKey, internalController);
-      requestSignal = internalController.signal;
-    }
-
-    // 3. Timeout Controller (if no custom signal supplied)
-    let timeoutId = null;
-    if (timeout > 0 && !requestSignal) {
-      internalController = new AbortController();
-      requestSignal = internalController.signal;
-      timeoutId = setTimeout(() => {
-        try {
-          internalController.abort();
-        } catch (_) {}
-      }, timeout);
-    }
-
-    // 4. Request headers & body formatting
+    // 2. Request headers & body formatting
     const isFormData = (data instanceof FormData) || (body instanceof FormData);
     const requestHeaders = this.getAuthHeaders(!isFormData, headers);
 
@@ -398,69 +645,99 @@ class ApiClient {
     }
 
     const fetchPromise = (async () => {
-      try {
-        const response = await fetch(url, {
-          method: upperMethod,
-          headers: requestHeaders,
-          body: requestBody,
-          signal: requestSignal,
-          ...customFetchOptions
-        });
+      let attempt = 0;
+      while (true) {
+        let internalController = null;
+        let requestSignal = signal;
+        let timeoutId = null;
 
-        if (timeoutId) clearTimeout(timeoutId);
-        if (abortKey && this.abortControllers.get(abortKey) === internalController) {
-          this.abortControllers.delete(abortKey);
+        if (abortKey) {
+          this.abort(abortKey);
+          internalController = new AbortController();
+          this.abortControllers.set(abortKey, internalController);
+          requestSignal = internalController.signal;
+        } else if (effectiveTimeout > 0 && !requestSignal) {
+          internalController = new AbortController();
+          requestSignal = internalController.signal;
+          timeoutId = setTimeout(() => {
+            try {
+              internalController.abort();
+            } catch (_) {}
+          }, effectiveTimeout);
         }
 
-        // Handle 401 Unauthorized
-        if (response.status === 401) {
-          const isPublicShared = window.location.pathname.startsWith('/shared/');
-          const isLoginPage = window.location.pathname === '/login' || window.location.pathname === '/auth';
-          if (!isPublicShared && !isLoginPage && !skipAuthRedirect) {
-            localStorage.removeItem('litsphere_auth_token');
-            localStorage.removeItem('litsphere_user');
-            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search);
+        try {
+          const response = await fetch(url, {
+            method: upperMethod,
+            headers: requestHeaders,
+            body: requestBody,
+            signal: requestSignal,
+            ...customFetchOptions
+          });
+
+          if (timeoutId) clearTimeout(timeoutId);
+          if (abortKey && this.abortControllers.get(abortKey) === internalController) {
+            this.abortControllers.delete(abortKey);
           }
-          let errPayload = null;
-          try { errPayload = await response.json(); } catch (_) {}
-          throw new ApiError(errPayload?.error || errPayload?.message || 'Session expired. Please sign in again.', 401, errPayload, url);
-        }
 
-        // Parse response body
-        let parsedData = null;
-        const contentType = response.headers.get('content-type') || '';
-        if (contentType.includes('application/json')) {
-          parsedData = await response.json();
-        } else {
-          parsedData = await response.text();
-        }
+          // Handle 401 Unauthorized
+          if (response.status === 401) {
+            const isPublicShared = window.location.pathname.startsWith('/shared/');
+            const isLoginPage = window.location.pathname === '/login' || window.location.pathname === '/auth';
+            if (!isPublicShared && !isLoginPage && !skipAuthRedirect) {
+              localStorage.removeItem('litsphere_auth_token');
+              localStorage.removeItem('litsphere_user');
+              window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search);
+            }
+            let errPayload = null;
+            try { errPayload = await response.json(); } catch (_) {}
+            throw new ApiError(errPayload?.error || errPayload?.message || 'Session expired. Please sign in again.', 401, errPayload, url);
+          }
 
-        if (!response.ok) {
-          const errMsg = (parsedData && typeof parsedData === 'object' && (parsedData.error || parsedData.message))
-            || `HTTP error ${response.status}: ${response.statusText}`;
-          throw new ApiError(errMsg, response.status, parsedData, url);
-        }
+          // Parse response body
+          let parsedData = null;
+          const contentType = response.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            parsedData = await response.json();
+          } else {
+            parsedData = await response.text();
+          }
 
-        return parsedData;
-      } catch (err) {
-        if (timeoutId) clearTimeout(timeoutId);
-        if (abortKey && this.abortControllers.get(abortKey) === internalController) {
-          this.abortControllers.delete(abortKey);
-        }
+          if (!response.ok) {
+            const errMsg = (parsedData && typeof parsedData === 'object' && (parsedData.error || parsedData.message))
+              || `HTTP error ${response.status}: ${response.statusText}`;
+            throw new ApiError(errMsg, response.status, parsedData, url);
+          }
 
-        const isAborted = err.name === 'AbortError' || (requestSignal && requestSignal.aborted);
-        if (isAborted) {
-          throw new ApiError('Request was aborted.', 0, null, url, true);
-        }
+          return parsedData;
+        } catch (err) {
+          if (timeoutId) clearTimeout(timeoutId);
+          if (abortKey && this.abortControllers.get(abortKey) === internalController) {
+            this.abortControllers.delete(abortKey);
+          }
 
-        if (err instanceof ApiError) {
-          throw err;
-        }
+          const isAborted = err.name === 'AbortError' || (requestSignal && requestSignal.aborted);
+          if (isAborted) {
+            throw new ApiError('Request was aborted.', 0, null, url, true);
+          }
 
-        throw new ApiError(err.message || 'Network connection failed', 0, null, url);
-      } finally {
-        if (isGet && dedupe) {
-          this.inFlightRequests.delete(dedupeKey);
+          if (err instanceof ApiError) {
+            throw err;
+          }
+
+          if (attempt < maxRetries && isGet && !isAborted) {
+            attempt++;
+            const backoffMs = 250 * Math.pow(2, attempt) + Math.floor(Math.random() * 150);
+            console.warn(`[ApiClient] GET ${url} failed (${err.message}). Retrying in ${backoffMs}ms (attempt ${attempt}/${maxRetries})...`);
+            await new Promise(r => setTimeout(r, backoffMs));
+            continue;
+          }
+
+          throw new ApiError(err.message || 'Network connection failed', 0, null, url);
+        } finally {
+          if (isGet && dedupe && attempt >= maxRetries) {
+            this.inFlightRequests.delete(dedupeKey);
+          }
         }
       }
     })();
@@ -598,7 +875,9 @@ class ApiClient {
     rollback,
     invalidateKey,
     broadcastType,
-    broadcastPayload
+    broadcastPayload,
+    offlineQueueable = true,
+    offlineAction = null
   }) {
     let context = undefined;
     if (typeof optimistic === 'function') {
@@ -607,6 +886,20 @@ class ApiClient {
       } catch (optErr) {
         console.error('[ApiClient mutate] Optimistic update failed:', optErr);
       }
+    }
+
+    if (!this.isOnline && offlineQueueable && offlineAction) {
+      const queued = this.offlineQueue.enqueue({
+        ...offlineAction,
+        invalidateKey,
+        broadcastType,
+        broadcastPayload,
+        context
+      });
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+        window.dispatchEvent(new CustomEvent('offline:queued', { detail: { item: queued, context } }));
+      }
+      return { offline: true, queued: true, context };
     }
 
     try {
@@ -622,6 +915,17 @@ class ApiClient {
 
       return result;
     } catch (err) {
+      if (!this.isOnline && offlineQueueable && offlineAction) {
+        this.offlineQueue.enqueue({
+          ...offlineAction,
+          invalidateKey,
+          broadcastType,
+          broadcastPayload,
+          context
+        });
+        return { offline: true, queued: true, context };
+      }
+
       if (typeof rollback === 'function') {
         try {
           rollback(err, context);
@@ -720,6 +1024,9 @@ class ApiClient {
     try {
       if (typeof BroadcastChannel !== 'undefined') {
         this.syncChannel = new BroadcastChannel('literature_review_sync');
+        if (typeof this.syncChannel.unref === 'function') {
+          this.syncChannel.unref();
+        }
         this.syncChannel.onmessage = (e) => handleSync(e.data);
       }
     } catch (_) {}
@@ -948,6 +1255,8 @@ class ApiClient {
 }
 
 window.SwrCache = SwrCache;
+window.OfflineSyncQueue = OfflineSyncQueue;
+window.NetworkResilienceManager = NetworkResilienceManager;
 window.ApiError = ApiError;
 window.ApiClient = ApiClient;
 window.api = new ApiClient();

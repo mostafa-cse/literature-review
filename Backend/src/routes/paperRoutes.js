@@ -302,10 +302,24 @@ router.get('/papers', async (req, res) => {
       return papers;
     };
 
-    if (isMatrixQuery) {
-      const queryKey = isPaginated
-        ? `page_${effectivePage}_lim_${effectiveLimit}` + (cursor ? `_cur_${cursor}` : '')
-        : 'default';
+    if (project_id) {
+      let queryKey;
+      if (isMatrixQuery) {
+        queryKey = isPaginated
+          ? `page_${effectivePage}_lim_${effectiveLimit}` + (cursor ? `_cur_${cursor}` : '')
+          : 'default';
+      } else {
+        const filterFingerprint = [
+          `c_${cluster_id || 'all'}`,
+          `d_${domain || 'all'}`,
+          `s_${status || 'all'}`,
+          `y_${year || 'all'}`,
+          `sort_${sort || 'year_desc'}`,
+          `q_${search ? Buffer.from(search.trim().toLowerCase()).toString('base64').replace(/=/g, '') : 'none'}`,
+          isPaginated ? `p_${effectivePage}_l_${effectiveLimit}${cursor ? `_cur_${cursor}` : ''}` : 'all'
+        ].join(':');
+        queryKey = `filter:${filterFingerprint}`;
+      }
 
       const { data, cached } = await cacheService.getSurveyMatrix(project_id, queryKey, async () => {
         return fetchPapersFromDb();

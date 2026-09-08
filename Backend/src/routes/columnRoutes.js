@@ -12,10 +12,15 @@ const cacheService = require('../services/cacheService');
 router.get(['/dynamic-columns', '/columns'], async (req, res) => {
   try {
     const { cluster_id, project_id } = req.query;
-    const surveyKey = project_id || 'all';
+    const db = getDb();
+    let pid = project_id;
+    if (!pid && cluster_id && cluster_id !== 'all') {
+      const cl = db.prepare('SELECT project_id FROM clusters WHERE id = ?').get(cluster_id);
+      if (cl) pid = cl.project_id;
+    }
+    const surveyKey = pid || 'all';
 
     const { data, cached } = await cacheService.getSurveyColumns(surveyKey, cluster_id, async () => {
-      const db = getDb();
       let cols = [];
 
       if (cluster_id && cluster_id !== 'all') {

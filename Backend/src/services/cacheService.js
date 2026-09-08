@@ -285,7 +285,9 @@ async function getSurveyMatrix(surveyId, queryKey = 'default', fetcherFn) {
     fetcherFn = queryKey;
     queryKey = 'default';
   }
-  const key = `${PREFIX_SURVEY}${surveyId}:matrix:${queryKey}`;
+  const key = (!queryKey || queryKey === 'default')
+    ? `${PREFIX_SURVEY}${surveyId}:matrix`
+    : `${PREFIX_SURVEY}${surveyId}:matrix:${queryKey}`;
   const tags = [`survey:${surveyId}`, 'matrix'];
   return getOrSet(key, TTL_MATRIX, fetcherFn, tags);
 }
@@ -448,11 +450,14 @@ async function invalidateSurveyClusters(surveyId) {
  * Invalidate dynamic columns schema and matrix
  */
 async function invalidateSurveyColumns(surveyId) {
-  if (!surveyId) return;
-  const sid = String(surveyId);
-  await del(`${PREFIX_SURVEY}${sid}:matrix`);
-  await delByPattern(`${PREFIX_SURVEY}${sid}:columns:*`);
-  await delByPattern(`${PREFIX_SURVEY}${sid}:matrix:*`);
+  if (surveyId) {
+    const sid = String(surveyId);
+    await del(`${PREFIX_SURVEY}${sid}:matrix`);
+    await delByPattern(`${PREFIX_SURVEY}${sid}:columns:*`);
+    await delByPattern(`${PREFIX_SURVEY}${sid}:matrix:*`);
+  }
+  await delByPattern(`${PREFIX_SURVEY}all:columns:*`);
+  await invalidateTag('columns');
 }
 
 /**
