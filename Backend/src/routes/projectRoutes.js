@@ -9,7 +9,7 @@ const cacheService = require('../services/cacheService');
 // 1. PROJECTS CRUD & DASHBOARD METRICS
 // ==========================================
 
-// Get all projects with summary stats and user role
+// Get all projects with summary stats and user role (Optimized CTE batch joins)
 router.get('/projects', (req, res) => {
   try {
     const db = getDb();
@@ -21,74 +21,171 @@ router.get('/projects', (req, res) => {
     if (currentUserId) {
       if (req.user.role === 'admin' && req.query.all === 'true') {
         query = `
+          WITH p_stats AS (
+            SELECT 
+              project_id,
+              COUNT(*) as paper_count,
+              COALESCE(SUM(CASE WHEN status = 'read' THEN 1 ELSE 0 END), 0) as read_count,
+              COALESCE(SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END), 0) as in_progress_count,
+              COALESCE(SUM(CASE WHEN status = 'unread' OR status IS NULL THEN 1 ELSE 0 END), 0) as unread_count
+            FROM papers
+            GROUP BY project_id
+          ),
+          m_stats AS (
+            SELECT project_id, COUNT(*) as member_count
+            FROM project_members
+            GROUP BY project_id
+          ),
+          c_stats AS (
+            SELECT project_id, COUNT(*) as cluster_count
+            FROM clusters
+            GROUP BY project_id
+          ),
+          dc_stats AS (
+            SELECT c.project_id, COUNT(dc.id) as dynamic_col_count
+            FROM clusters c
+            JOIN dynamic_columns dc ON dc.cluster_id = c.id
+            GROUP BY c.project_id
+          ),
+          user_roles AS (
+            SELECT project_id, 
+                   CASE WHEN role = 'owner' THEN 'editor' ELSE role END as role
+            FROM project_members
+            WHERE user_id = ?
+          )
           SELECT p.*, 
                  u.name as owner_name,
                  u.email as owner_email,
-                 COUNT(DISTINCT c.id) as cluster_count,
-                 (SELECT COUNT(*) FROM papers WHERE project_id = p.id) as paper_count,
-                 (SELECT COUNT(*) FROM papers WHERE project_id = p.id AND status = 'read') as read_count,
-                 (SELECT COUNT(*) FROM papers WHERE project_id = p.id AND status = 'in_progress') as in_progress_count,
-                 (SELECT COUNT(*) FROM papers WHERE project_id = p.id AND (status = 'unread' OR status IS NULL)) as unread_count,
-                 (SELECT COUNT(*) FROM project_members WHERE project_id = p.id) as member_count,
-                 (SELECT COUNT(*) FROM dynamic_columns WHERE cluster_id IN (SELECT id FROM clusters WHERE project_id = p.id)) as dynamic_col_count,
-                 COALESCE(
-                   CASE WHEN p.owner_id = ? THEN 'owner' ELSE NULL END,
-                   (SELECT CASE WHEN role = 'owner' THEN 'editor' ELSE role END FROM project_members WHERE project_id = p.id AND user_id = ?),
-                   'viewer'
-                 ) as user_role
+                 COALESCE(cs.cluster_count, 0) as cluster_count,
+                 COALESCE(ps.paper_count, 0) as paper_count,
+                 COALESCE(ps.read_count, 0) as read_count,
+                 COALESCE(ps.in_progress_count, 0) as in_progress_count,
+                 COALESCE(ps.unread_count, 0) as unread_count,
+                 COALESCE(ms.member_count, 0) as member_count,
+                 COALESCE(dcs.dynamic_col_count, 0) as dynamic_col_count,
+                 CASE 
+                   WHEN p.owner_id = ? THEN 'owner'
+                   WHEN ur.role IS NOT NULL THEN ur.role
+                   ELSE 'viewer'
+                 END as user_role
           FROM projects p
           LEFT JOIN users u ON u.id = p.owner_id
-          LEFT JOIN clusters c ON c.project_id = p.id
-          GROUP BY p.id
+          LEFT JOIN p_stats ps ON ps.project_id = p.id
+          LEFT JOIN m_stats ms ON ms.project_id = p.id
+          LEFT JOIN c_stats cs ON cs.project_id = p.id
+          LEFT JOIN dc_stats dcs ON dcs.project_id = p.id
+          LEFT JOIN user_roles ur ON ur.project_id = p.id
           ORDER BY p.id DESC
         `;
         params = [currentUserId, currentUserId];
       } else {
         query = `
+          WITH p_stats AS (
+            SELECT 
+              project_id,
+              COUNT(*) as paper_count,
+              COALESCE(SUM(CASE WHEN status = 'read' THEN 1 ELSE 0 END), 0) as read_count,
+              COALESCE(SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END), 0) as in_progress_count,
+              COALESCE(SUM(CASE WHEN status = 'unread' OR status IS NULL THEN 1 ELSE 0 END), 0) as unread_count
+            FROM papers
+            GROUP BY project_id
+          ),
+          m_stats AS (
+            SELECT project_id, COUNT(*) as member_count
+            FROM project_members
+            GROUP BY project_id
+          ),
+          c_stats AS (
+            SELECT project_id, COUNT(*) as cluster_count
+            FROM clusters
+            GROUP BY project_id
+          ),
+          dc_stats AS (
+            SELECT c.project_id, COUNT(dc.id) as dynamic_col_count
+            FROM clusters c
+            JOIN dynamic_columns dc ON dc.cluster_id = c.id
+            GROUP BY c.project_id
+          ),
+          user_roles AS (
+            SELECT project_id, 
+                   CASE WHEN role = 'owner' THEN 'editor' ELSE role END as role
+            FROM project_members
+            WHERE user_id = ?
+          )
           SELECT p.*, 
                  u.name as owner_name,
                  u.email as owner_email,
-                 COUNT(DISTINCT c.id) as cluster_count,
-                 (SELECT COUNT(*) FROM papers WHERE project_id = p.id) as paper_count,
-                 (SELECT COUNT(*) FROM papers WHERE project_id = p.id AND status = 'read') as read_count,
-                 (SELECT COUNT(*) FROM papers WHERE project_id = p.id AND status = 'in_progress') as in_progress_count,
-                 (SELECT COUNT(*) FROM papers WHERE project_id = p.id AND (status = 'unread' OR status IS NULL)) as unread_count,
-                 (SELECT COUNT(*) FROM project_members WHERE project_id = p.id) as member_count,
-                 (SELECT COUNT(*) FROM dynamic_columns WHERE cluster_id IN (SELECT id FROM clusters WHERE project_id = p.id)) as dynamic_col_count,
-                 COALESCE(
-                   CASE WHEN p.owner_id = ? THEN 'owner' ELSE NULL END,
-                   (SELECT CASE WHEN role = 'owner' THEN 'editor' ELSE role END FROM project_members WHERE project_id = p.id AND user_id = ?),
-                   'viewer'
-                 ) as user_role
+                 COALESCE(cs.cluster_count, 0) as cluster_count,
+                 COALESCE(ps.paper_count, 0) as paper_count,
+                 COALESCE(ps.read_count, 0) as read_count,
+                 COALESCE(ps.in_progress_count, 0) as in_progress_count,
+                 COALESCE(ps.unread_count, 0) as unread_count,
+                 COALESCE(ms.member_count, 0) as member_count,
+                 COALESCE(dcs.dynamic_col_count, 0) as dynamic_col_count,
+                 CASE 
+                   WHEN p.owner_id = ? THEN 'owner'
+                   WHEN ur.role IS NOT NULL THEN ur.role
+                   ELSE 'viewer'
+                 END as user_role
           FROM projects p
           LEFT JOIN users u ON u.id = p.owner_id
-          LEFT JOIN clusters c ON c.project_id = p.id
-          WHERE p.owner_id = ? 
-             OR p.id IN (SELECT project_id FROM project_members WHERE user_id = ?)
-          GROUP BY p.id
+          LEFT JOIN p_stats ps ON ps.project_id = p.id
+          LEFT JOIN m_stats ms ON ms.project_id = p.id
+          LEFT JOIN c_stats cs ON cs.project_id = p.id
+          LEFT JOIN dc_stats dcs ON dcs.project_id = p.id
+          LEFT JOIN user_roles ur ON ur.project_id = p.id
+          WHERE p.owner_id = ? OR ur.role IS NOT NULL
           ORDER BY p.id DESC
         `;
-        params = [currentUserId, currentUserId, currentUserId, currentUserId];
+        params = [currentUserId, currentUserId, currentUserId];
       }
     } else {
       // If unauthenticated, only return public projects
       query = `
+        WITH p_stats AS (
+          SELECT 
+            project_id,
+            COUNT(*) as paper_count,
+            COALESCE(SUM(CASE WHEN status = 'read' THEN 1 ELSE 0 END), 0) as read_count,
+            COALESCE(SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END), 0) as in_progress_count,
+            COALESCE(SUM(CASE WHEN status = 'unread' OR status IS NULL THEN 1 ELSE 0 END), 0) as unread_count
+          FROM papers
+          GROUP BY project_id
+        ),
+        m_stats AS (
+          SELECT project_id, COUNT(*) as member_count
+          FROM project_members
+          GROUP BY project_id
+        ),
+        c_stats AS (
+          SELECT project_id, COUNT(*) as cluster_count
+          FROM clusters
+          GROUP BY project_id
+        ),
+        dc_stats AS (
+          SELECT c.project_id, COUNT(dc.id) as dynamic_col_count
+          FROM clusters c
+          JOIN dynamic_columns dc ON dc.cluster_id = c.id
+          GROUP BY c.project_id
+        )
         SELECT p.*, 
                u.name as owner_name,
                u.email as owner_email,
-               COUNT(DISTINCT c.id) as cluster_count,
-               (SELECT COUNT(*) FROM papers WHERE project_id = p.id) as paper_count,
-               (SELECT COUNT(*) FROM papers WHERE project_id = p.id AND status = 'read') as read_count,
-               (SELECT COUNT(*) FROM papers WHERE project_id = p.id AND status = 'in_progress') as in_progress_count,
-               (SELECT COUNT(*) FROM papers WHERE project_id = p.id AND (status = 'unread' OR status IS NULL)) as unread_count,
-               (SELECT COUNT(*) FROM project_members WHERE project_id = p.id) as member_count,
-               (SELECT COUNT(*) FROM dynamic_columns WHERE cluster_id IN (SELECT id FROM clusters WHERE project_id = p.id)) as dynamic_col_count,
+               COALESCE(cs.cluster_count, 0) as cluster_count,
+               COALESCE(ps.paper_count, 0) as paper_count,
+               COALESCE(ps.read_count, 0) as read_count,
+               COALESCE(ps.in_progress_count, 0) as in_progress_count,
+               COALESCE(ps.unread_count, 0) as unread_count,
+               COALESCE(ms.member_count, 0) as member_count,
+               COALESCE(dcs.dynamic_col_count, 0) as dynamic_col_count,
                'viewer' as user_role
         FROM projects p
         LEFT JOIN users u ON u.id = p.owner_id
-        LEFT JOIN clusters c ON c.project_id = p.id
+        LEFT JOIN p_stats ps ON ps.project_id = p.id
+        LEFT JOIN m_stats ms ON ms.project_id = p.id
+        LEFT JOIN c_stats cs ON cs.project_id = p.id
+        LEFT JOIN dc_stats dcs ON dcs.project_id = p.id
         WHERE p.is_public = 1
-        GROUP BY p.id
         ORDER BY p.id DESC
       `;
       params = [];
@@ -101,10 +198,9 @@ router.get('/projects', (req, res) => {
   }
 });
 
-// Get comprehensive researcher dashboard metrics
-router.get('/user/dashboard-stats', (req, res) => {
+// Get comprehensive researcher dashboard metrics (Consolidated CTE query with Redis Cache-Aside)
+router.get('/user/dashboard-stats', async (req, res) => {
   try {
-    const db = getDb();
     if (!req.user) {
       return res.json({
         total_surveys: 0,
@@ -121,99 +217,87 @@ router.get('/user/dashboard-stats', (req, res) => {
     }
 
     const currentUserId = req.user.id;
+    const { data, cached } = await cacheService.getStats(`user:${currentUserId}`, async () => {
+      const db = getDb();
 
-    // 1. Working Surveys: Total Projects / Surveys owned by or shared with the user
-    const totalSurveys = db.prepare(`
-      SELECT COUNT(DISTINCT p.id) as count
-      FROM projects p
-      LEFT JOIN project_members pm ON pm.project_id = p.id
-      WHERE p.owner_id = ? OR pm.user_id = ?
-    `).get(currentUserId, currentUserId).count;
-
-    // 2. Ingested Papers: Total Papers & status breakdown across user surveys
-    const papersSummary = db.prepare(`
-      SELECT 
-        COUNT(p.id) as total_papers,
-        COALESCE(SUM(CASE WHEN p.status = 'read' THEN 1 ELSE 0 END), 0) as read_papers,
-        COALESCE(SUM(CASE WHEN p.status = 'in_progress' THEN 1 ELSE 0 END), 0) as in_progress_papers,
-        COALESCE(SUM(CASE WHEN p.status = 'unread' OR p.status IS NULL THEN 1 ELSE 0 END), 0) as unread_papers
-      FROM papers p
-      WHERE p.project_id IN (
-        SELECT DISTINCT pr.id FROM projects pr 
-        LEFT JOIN project_members pm ON pm.project_id = pr.id 
-        WHERE pr.owner_id = ? OR pm.user_id = ?
-      )
-    `).get(currentUserId, currentUserId);
-
-    const totalPapers = papersSummary ? (papersSummary.total_papers || 0) : 0;
-    const readPapers = papersSummary ? (papersSummary.read_papers || 0) : 0;
-    const inProgressPapers = papersSummary ? (papersSummary.in_progress_papers || 0) : 0;
-    const unreadPapers = papersSummary ? (papersSummary.unread_papers || 0) : 0;
-
-    // 3. Reading Completion: Exact percentage of read papers
-    const completionRate = totalPapers > 0 ? Math.round((readPapers / totalPapers) * 100) : 0;
-
-    // 4. Screenings & Notes: Total PRISMA screening decisions made in user's projects or by user
-    const screeningsCount = db.prepare(`
-      SELECT COUNT(DISTINCT ps.id) as count 
-      FROM paper_screening ps
-      WHERE ps.user_id = ? OR ps.paper_id IN (
-        SELECT id FROM papers WHERE project_id IN (
-          SELECT DISTINCT pr.id FROM projects pr 
-          LEFT JOIN project_members pm ON pm.project_id = pr.id 
-          WHERE pr.owner_id = ? OR pm.user_id = ?
+      // Consolidated metrics using single CTE for user project IDs
+      const stats = db.prepare(`
+        WITH user_pids AS (
+          SELECT p.id
+          FROM projects p
+          WHERE p.owner_id = ?
+          UNION
+          SELECT pm.project_id as id
+          FROM project_members pm
+          WHERE pm.user_id = ?
+        ),
+        p_agg AS (
+          SELECT 
+            COUNT(p.id) as total_papers,
+            COALESCE(SUM(CASE WHEN p.status = 'read' THEN 1 ELSE 0 END), 0) as read_papers,
+            COALESCE(SUM(CASE WHEN p.status = 'in_progress' THEN 1 ELSE 0 END), 0) as in_progress_papers,
+            COALESCE(SUM(CASE WHEN p.status = 'unread' OR p.status IS NULL THEN 1 ELSE 0 END), 0) as unread_papers
+          FROM papers p
+          WHERE p.project_id IN (SELECT id FROM user_pids)
+        ),
+        c_agg AS (
+          SELECT COUNT(DISTINCT c.id) as clusters_count
+          FROM clusters c
+          WHERE c.project_id IN (SELECT id FROM user_pids)
+        ),
+        dc_agg AS (
+          SELECT COUNT(DISTINCT dc.id) as dynamic_cols_count
+          FROM dynamic_columns dc
+          JOIN clusters c ON c.id = dc.cluster_id
+          WHERE c.project_id IN (SELECT id FROM user_pids)
+        ),
+        screen_agg AS (
+          SELECT COUNT(DISTINCT ps.id) as screenings_count
+          FROM paper_screening ps
+          WHERE ps.user_id = ? OR ps.paper_id IN (
+            SELECT id FROM papers WHERE project_id IN (SELECT id FROM user_pids)
+          )
+        ),
+        comment_agg AS (
+          SELECT COUNT(DISTINCT pc.id) as comments_count
+          FROM paper_comments pc
+          WHERE pc.user_id = ? OR pc.paper_id IN (
+            SELECT id FROM papers WHERE project_id IN (SELECT id FROM user_pids)
+          )
         )
-      )
-    `).get(currentUserId, currentUserId, currentUserId).count;
+        SELECT 
+          (SELECT COUNT(*) FROM user_pids) as total_surveys,
+          COALESCE(p_agg.total_papers, 0) as total_papers,
+          COALESCE(p_agg.read_papers, 0) as read_papers,
+          COALESCE(p_agg.in_progress_papers, 0) as in_progress_papers,
+          COALESCE(p_agg.unread_papers, 0) as unread_papers,
+          COALESCE(screen_agg.screenings_count, 0) as screenings_count,
+          COALESCE(comment_agg.comments_count, 0) as comments_count,
+          COALESCE(c_agg.clusters_count, 0) as clusters_count,
+          COALESCE(dc_agg.dynamic_cols_count, 0) as dynamic_cols_count
+        FROM p_agg, c_agg, dc_agg, screen_agg, comment_agg
+      `).get(currentUserId, currentUserId, currentUserId, currentUserId);
 
-    // Total Comments / Annotations made in user's projects or by user
-    const commentsCount = db.prepare(`
-      SELECT COUNT(DISTINCT pc.id) as count 
-      FROM paper_comments pc
-      WHERE pc.user_id = ? OR pc.paper_id IN (
-        SELECT id FROM papers WHERE project_id IN (
-          SELECT DISTINCT pr.id FROM projects pr 
-          LEFT JOIN project_members pm ON pm.project_id = pr.id 
-          WHERE pr.owner_id = ? OR pm.user_id = ?
-        )
-      )
-    `).get(currentUserId, currentUserId, currentUserId).count;
+      const totalPapers = stats ? (stats.total_papers || 0) : 0;
+      const readPapers = stats ? (stats.read_papers || 0) : 0;
+      const completionRate = totalPapers > 0 ? Math.round((readPapers / totalPapers) * 100) : 0;
 
-    // 5. Taxonomy Clusters: Total Clusters across user surveys
-    const clustersCount = db.prepare(`
-      SELECT COUNT(DISTINCT c.id) as count FROM clusters c
-      WHERE c.project_id IN (
-        SELECT DISTINCT pr.id FROM projects pr 
-        LEFT JOIN project_members pm ON pm.project_id = pr.id 
-        WHERE pr.owner_id = ? OR pm.user_id = ?
-      )
-    `).get(currentUserId, currentUserId).count;
-
-    // Total Dynamic Extracted Columns
-    const dynamicColsCount = db.prepare(`
-      SELECT COUNT(DISTINCT dc.id) as count FROM dynamic_columns dc
-      WHERE dc.cluster_id IN (
-        SELECT c.id FROM clusters c
-        WHERE c.project_id IN (
-          SELECT DISTINCT pr.id FROM projects pr 
-          LEFT JOIN project_members pm ON pm.project_id = pr.id 
-          WHERE pr.owner_id = ? OR pm.user_id = ?
-        )
-      )
-    `).get(currentUserId, currentUserId).count;
-
-    res.json({
-      total_surveys: totalSurveys || 0,
-      total_papers: totalPapers,
-      read_papers: readPapers,
-      in_progress_papers: inProgressPapers,
-      unread_papers: unreadPapers,
-      completion_rate: completionRate,
-      screenings_count: screeningsCount || 0,
-      comments_count: commentsCount || 0,
-      clusters_count: clustersCount || 0,
-      dynamic_cols_count: dynamicColsCount || 0
+      return {
+        total_surveys: stats ? (stats.total_surveys || 0) : 0,
+        total_papers: totalPapers,
+        read_papers: readPapers,
+        in_progress_papers: stats ? (stats.in_progress_papers || 0) : 0,
+        unread_papers: stats ? (stats.unread_papers || 0) : 0,
+        completion_rate: completionRate,
+        screenings_count: stats ? (stats.screenings_count || 0) : 0,
+        comments_count: stats ? (stats.comments_count || 0) : 0,
+        clusters_count: stats ? (stats.clusters_count || 0) : 0,
+        dynamic_cols_count: stats ? (stats.dynamic_cols_count || 0) : 0
+      };
     });
+
+    res.setHeader('X-Cache', cached ? 'HIT' : 'MISS');
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -333,16 +417,8 @@ router.get('/projects/:id/matrix', async (req, res) => {
       `).all(pid);
 
       const papers = db.prepare('SELECT * FROM papers WHERE project_id = ? ORDER BY year DESC, id ASC').all(pid);
-      const paperIds = papers.map(p => p.id);
-
-      let keywords = [];
-      let columnValues = [];
-
-      if (paperIds.length > 0) {
-        const placeholders = paperIds.map(() => '?').join(',');
-        keywords = db.prepare(`SELECT * FROM keywords WHERE paper_id IN (${placeholders})`).all(...paperIds);
-        columnValues = db.prepare(`SELECT * FROM paper_column_values WHERE paper_id IN (${placeholders})`).all(...paperIds);
-      }
+      const keywords = db.prepare('SELECT * FROM keywords WHERE paper_id IN (SELECT id FROM papers WHERE project_id = ?)').all(pid);
+      const columnValues = db.prepare('SELECT * FROM paper_column_values WHERE paper_id IN (SELECT id FROM papers WHERE project_id = ?)').all(pid);
 
       return {
         project: {
@@ -367,7 +443,7 @@ router.get('/projects/:id/matrix', async (req, res) => {
 });
 
 // Create project — requires authentication with unique title check
-router.post('/projects', (req, res) => {
+router.post('/projects', async (req, res) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Authentication required to create a survey.' });
 
@@ -398,6 +474,7 @@ router.post('/projects', (req, res) => {
     `).run(newProjectId, ownerId);
 
     const newProject = db.prepare('SELECT * FROM projects WHERE id = ?').get(newProjectId);
+    await cacheService.invalidateTag('stats');
     res.status(201).json(newProject);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -439,6 +516,7 @@ router.put('/projects/:id', async (req, res) => {
     if (result.changes === 0) return res.status(404).json({ error: 'Project not found' });
     const updated = db.prepare('SELECT * FROM projects WHERE id = ?').get(pid);
     await cacheService.invalidateSurveyCache(pid);
+    await cacheService.invalidateTag('stats');
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -469,6 +547,7 @@ router.delete('/projects/:id', async (req, res) => {
       db.exec('COMMIT;');
       if (result.changes === 0) return res.status(404).json({ error: 'Project not found' });
       await cacheService.invalidateSurveyCache(pid);
+      await cacheService.invalidateTag('stats');
       res.json({ success: true, message: 'Project and all related data purged' });
     } catch (e) {
       db.exec('ROLLBACK;');
@@ -480,7 +559,7 @@ router.delete('/projects/:id', async (req, res) => {
 });
 
 // Transfer project ownership to another user (Owner only)
-router.post('/projects/:id/transfer', authenticateToken, (req, res) => {
+router.post('/projects/:id/transfer', authenticateToken, async (req, res) => {
   try {
     const db = getDb();
     const pid = req.params.id;
@@ -536,6 +615,9 @@ router.post('/projects/:id/transfer', authenticateToken, (req, res) => {
 
       logAuditEvent(req, 'PROJECT_OWNERSHIP_TRANSFER', `Transferred ownership of project ${pid} (${project.name}) to ${cleanEmail}`, 'SUCCESS');
 
+      await cacheService.invalidateSurveyCache(pid);
+      await cacheService.invalidateTag('stats');
+
       res.json({
         success: true,
         message: `Ownership of "${project.name}" successfully transferred to ${targetUser.name} (${cleanEmail}).`,
@@ -554,7 +636,7 @@ router.post('/projects/:id/transfer', authenticateToken, (req, res) => {
 });
 
 // Duplicate/Clone survey project structure and optionally papers (Owner or Editor)
-router.post('/projects/:id/duplicate', authenticateToken, (req, res) => {
+router.post('/projects/:id/duplicate', authenticateToken, async (req, res) => {
   try {
     const db = getDb();
     const pid = req.params.id;
@@ -623,6 +705,7 @@ router.post('/projects/:id/duplicate', authenticateToken, (req, res) => {
 
       logAuditEvent(req, 'PROJECT_DUPLICATE', `Duplicated project ${pid} into new project ${newProjectId} ("${clonedName}")`, 'SUCCESS');
 
+      await cacheService.invalidateTag('stats');
       const created = db.prepare('SELECT * FROM projects WHERE id = ?').get(newProjectId);
       res.status(201).json(created);
     } catch (e) {
@@ -668,6 +751,7 @@ router.post('/projects/:id/reset-matrix', authenticateToken, async (req, res) =>
 
     // Invalidate cached survey matrix & stats
     await cacheService.invalidateSurveyCache(pid);
+    await cacheService.invalidateTag('stats');
 
     logAuditEvent(req, 'PROJECT_MATRIX_RESET', `Reset matrix cell values and paper status on project ${pid} (${project.name})`, 'SUCCESS');
 
@@ -854,11 +938,9 @@ router.get('/public/shared/:token', (req, res) => {
     const clusters = db.prepare("SELECT * FROM clusters WHERE project_id = ? ORDER BY id ASC").all(project.id);
     const papers = db.prepare("SELECT * FROM papers WHERE project_id = ? ORDER BY id ASC").all(project.id);
     
-    // Attach keywords for papers
+    // Attach keywords for papers (Optimized batch subquery)
     if (papers.length > 0) {
-      const paperIds = papers.map(p => p.id);
-      const placeholders = paperIds.map(() => '?').join(',');
-      const keywords = db.prepare(`SELECT paper_id, keyword FROM keywords WHERE paper_id IN (${placeholders})`).all(...paperIds);
+      const keywords = db.prepare('SELECT paper_id, keyword FROM keywords WHERE paper_id IN (SELECT id FROM papers WHERE project_id = ?)').all(project.id);
       const kwMap = {};
       for (const kw of keywords) {
         if (!kwMap[kw.paper_id]) kwMap[kw.paper_id] = [];

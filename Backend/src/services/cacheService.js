@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const zlib = require('zlib');
 const { getRedisClient } = require('../config/redis');
 const { env } = require('../config/env');
 
@@ -6,6 +7,11 @@ const { env } = require('../config/env');
 const PREFIX_SURVEY = 'litsphere:survey:';
 const PREFIX_STATS = 'litsphere:stats:';
 const PREFIX_LOCK = 'litsphere:lock:';
+const PREFIX_TAG = 'litsphere:tag:';
+const PREFIX_PAPER = 'litsphere:paper:';
+
+// Compression threshold (compress payloads larger than 2KB)
+const COMPRESSION_THRESHOLD_BYTES = 2048;
 
 // Default TTL configurations (in seconds)
 const TTL_MATRIX = 3600;       // 1 hour
@@ -18,6 +24,7 @@ const TTL_DEFAULT = 600;       // 10 minutes
 const memoryCache = new Map();
 const memoryExpiry = new Map();
 const memoryLocks = new Map();
+const memoryTags = new Map(); // tag -> Set of keys
 
 /**
  * Check if an in-memory key has expired
@@ -34,7 +41,73 @@ function isMemoryExpired(key) {
 }
 
 /**
- * Low-level GET with fallback
+ * Transparent payload compression using Node native zlib
+ */
+function compressPayload(str) {
+  if (typeof str !== 'string' || str.length < COMPRESSION_THRESHOLD_BYTES) {
+    return str;
+  }
+  try {
+    const compressed = zlib.gzipSync(Buffer.from(str, 'utf8'));
+    return `__gz__:${compressed.toString('base64')}`;
+  } catch (err) {
+    console.warn('⚠️ [Cache] Compression error, saving raw:', err.message);
+    return str;
+  }
+}
+
+/**
+ * Transparent payload decompression
+ */
+function decompressPayload(val) {
+  if (typeof val !== 'string' || !val.startsWith('__gz__:')) {
+    return val;
+  }
+  try {
+    const b64 = val.substring(7);
+    const buf = Buffer.from(b64, 'base64');
+    const decompressed = zlib.gunzipSync(buf);
+    return decompressed.toString('utf8');
+  } catch (err) {
+    console.warn('⚠️ [Cache] Decompression error:', err.message);
+    return val;
+  }
+}
+
+/**
+ * Associate a cache key with one or more tags for targeted group invalidation
+ */
+async function addKeyToTags(key, tags, ttlSeconds = TTL_DEFAULT) {
+  if (!tags || !Array.isArray(tags) || tags.length === 0) return;
+  const redis = getRedisClient();
+
+  // In-memory tag mapping
+  for (const tag of tags) {
+    if (!memoryTags.has(tag)) memoryTags.set(tag, new Set());
+    memoryTags.get(tag).add(key);
+  }
+
+  // Redis tag mapping (using Sets with TTL)
+  if (redis && redis.status === 'ready') {
+    try {
+      const pipeline = redis.pipeline();
+      const tagTtl = ttlSeconds + 300; // Keep tag index alive slightly longer than key
+      for (const tag of tags) {
+        const tagKey = `${PREFIX_TAG}${tag}`;
+        pipeline.sadd(tagKey, key);
+        pipeline.expire(tagKey, tagTtl);
+      }
+      await pipeline.exec();
+    } catch (err) {
+      if (env.NODE_ENV !== 'test') {
+        console.warn('⚠️ [Cache] Redis addKeyToTags failed:', err.message);
+      }
+    }
+  }
+}
+
+/**
+ * Low-level GET with decompression and memory fallback
  */
 async function get(key) {
   const redis = getRedisClient();
@@ -42,10 +115,11 @@ async function get(key) {
     try {
       const data = await redis.get(key);
       if (data === null || data === undefined) return null;
+      const raw = decompressPayload(data);
       try {
-        return JSON.parse(data);
+        return JSON.parse(raw);
       } catch {
-        return data;
+        return raw;
       }
     } catch (err) {
       if (env.NODE_ENV !== 'test') {
@@ -56,22 +130,33 @@ async function get(key) {
 
   // Fallback to in-memory store
   if (isMemoryExpired(key)) return null;
-  return memoryCache.has(key) ? memoryCache.get(key) : null;
+  const memVal = memoryCache.has(key) ? memoryCache.get(key) : null;
+  if (memVal === null || memVal === undefined) return null;
+  const raw = decompressPayload(memVal);
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return raw;
+  }
 }
 
 /**
- * Low-level SET with TTL and fallback
+ * Low-level SET with transparent compression, tags, TTL and fallback
  */
-async function set(key, value, ttlSeconds = TTL_DEFAULT) {
+async function set(key, value, ttlSeconds = TTL_DEFAULT, tags = []) {
   const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+  const payloadToStore = compressPayload(serialized);
   const redis = getRedisClient();
 
   if (redis && redis.status === 'ready') {
     try {
       if (ttlSeconds && ttlSeconds > 0) {
-        await redis.set(key, serialized, 'EX', ttlSeconds);
+        await redis.set(key, payloadToStore, 'EX', ttlSeconds);
       } else {
-        await redis.set(key, serialized);
+        await redis.set(key, payloadToStore);
+      }
+      if (tags && tags.length > 0) {
+        await addKeyToTags(key, tags, ttlSeconds);
       }
       return true;
     } catch (err) {
@@ -82,11 +167,14 @@ async function set(key, value, ttlSeconds = TTL_DEFAULT) {
   }
 
   // Fallback to in-memory store
-  memoryCache.set(key, value);
+  memoryCache.set(key, payloadToStore);
   if (ttlSeconds && ttlSeconds > 0) {
     memoryExpiry.set(key, Date.now() + ttlSeconds * 1000);
   } else {
     memoryExpiry.delete(key);
+  }
+  if (tags && tags.length > 0) {
+    await addKeyToTags(key, tags, ttlSeconds);
   }
   return true;
 }
@@ -163,12 +251,12 @@ async function delByPattern(pattern) {
 }
 
 /**
- * High-performance Cache-Aside strategy helper.
+ * High-performance Cache-Aside strategy helper with tag association.
  * 1. Checks Redis cache.
  * 2. On cache hit: returns cached payload immediately (sub-millisecond).
- * 3. On cache miss: executes fetcherFn(), writes result to Redis with TTL, returns data.
+ * 3. On cache miss: executes fetcherFn(), writes result to Redis with TTL & tags, returns data.
  */
-async function getOrSet(key, ttlSeconds, fetcherFn) {
+async function getOrSet(key, ttlSeconds, fetcherFn, tags = []) {
   const cached = await get(key);
   if (cached !== null && cached !== undefined) {
     return { data: cached, cached: true };
@@ -177,7 +265,7 @@ async function getOrSet(key, ttlSeconds, fetcherFn) {
   // Cache miss: execute fetcher
   const freshData = await fetcherFn();
   if (freshData !== null && freshData !== undefined) {
-    await set(key, freshData, ttlSeconds);
+    await set(key, freshData, ttlSeconds, tags);
   }
   return { data: freshData, cached: false };
 }
@@ -187,70 +275,147 @@ async function getOrSet(key, ttlSeconds, fetcherFn) {
 // ==========================================
 
 /**
- * Survey benchmark matrix cache-aside
- * Key: litsphere:survey:{id}:matrix
+ * Survey benchmark matrix cache-aside with granular query keys
+ * Key: litsphere:survey:{id}:matrix:{queryKey}
+ * Tags: ['survey:{id}', 'matrix']
  */
-async function getSurveyMatrix(surveyId, fetcherFn) {
-  const key = `${PREFIX_SURVEY}${surveyId}:matrix`;
-  return getOrSet(key, TTL_MATRIX, fetcherFn);
+async function getSurveyMatrix(surveyId, queryKey = 'default', fetcherFn) {
+  // Support signature: (surveyId, fetcherFn)
+  if (typeof queryKey === 'function') {
+    fetcherFn = queryKey;
+    queryKey = 'default';
+  }
+  const key = `${PREFIX_SURVEY}${surveyId}:matrix:${queryKey}`;
+  const tags = [`survey:${surveyId}`, 'matrix'];
+  return getOrSet(key, TTL_MATRIX, fetcherFn, tags);
+}
+
+/**
+ * Single paper cache-aside
+ * Key: litsphere:paper:{id}
+ * Tags: ['paper:{id}']
+ */
+async function getSurveyPaper(paperId, fetcherFn) {
+  const key = `${PREFIX_PAPER}${paperId}`;
+  const tags = [`paper:${paperId}`];
+  return getOrSet(key, TTL_MATRIX, fetcherFn, tags);
 }
 
 /**
  * Taxonomy cluster hierarchy cache-aside
  * Key: litsphere:survey:{id}:clusters
+ * Tags: ['survey:{id}', 'clusters']
  */
 async function getSurveyClusters(surveyId, fetcherFn) {
   const key = `${PREFIX_SURVEY}${surveyId}:clusters`;
-  return getOrSet(key, TTL_CLUSTERS, fetcherFn);
+  const tags = [`survey:${surveyId}`, 'clusters'];
+  return getOrSet(key, TTL_CLUSTERS, fetcherFn, tags);
 }
 
 /**
  * Dynamic column schema cache-aside
  * Key: litsphere:survey:{id}:columns:{clusterId || 'all'}
+ * Tags: ['survey:{id}', 'columns']
  */
 async function getSurveyColumns(surveyId, clusterId, fetcherFn) {
   const key = `${PREFIX_SURVEY}${surveyId}:columns:${clusterId || 'all'}`;
-  return getOrSet(key, TTL_COLUMNS, fetcherFn);
+  const tags = [`survey:${surveyId}`, 'columns'];
+  return getOrSet(key, TTL_COLUMNS, fetcherFn, tags);
 }
 
 /**
  * Live platform & dashboard telemetry stats cache-aside
  * Global key: litsphere:stats:global
+ * User key: litsphere:stats:user:{id}
  * Survey key: litsphere:stats:survey:{id}
  */
-async function getStats(surveyId, fetcherFn) {
-  const key = surveyId ? `${PREFIX_STATS}survey:${surveyId}` : `${PREFIX_STATS}global`;
-  return getOrSet(key, TTL_STATS, fetcherFn);
+async function getStats(statsKey = 'global', fetcherFn) {
+  // Support legacy signature (surveyId, fetcherFn)
+  if (typeof statsKey === 'function') {
+    fetcherFn = statsKey;
+    statsKey = 'global';
+  }
+  const key = `${PREFIX_STATS}${statsKey}`;
+  const tags = ['stats', `stats:${statsKey}`];
+  return getOrSet(key, TTL_STATS, fetcherFn, tags);
 }
 
 // ==========================================
-// GRANULAR CACHE INVALIDATION
+// GRANULAR & TAG-BASED CACHE INVALIDATION
 // ==========================================
 
 /**
- * Granularly invalidate all cache keys associated with a survey:
- * - litsphere:survey:{id}:matrix
- * - litsphere:survey:{id}:clusters
- * - litsphere:survey:{id}:columns:*
- * - litsphere:stats:survey:{id}
- * - litsphere:stats:global
+ * Atomically invalidate all cache keys associated with a specific tag
+ * e.g. invalidateTag('survey:20') purges all matrix variations, clusters, and columns
+ */
+async function invalidateTag(tag) {
+  if (!tag) return 0;
+  let deletedCount = 0;
+  const redis = getRedisClient();
+
+  // Invalidate in Redis
+  if (redis && redis.status === 'ready') {
+    try {
+      const tagKey = `${PREFIX_TAG}${tag}`;
+      const keys = await redis.smembers(tagKey);
+      if (keys && keys.length > 0) {
+        deletedCount = await del(...keys);
+      }
+      await redis.del(tagKey);
+    } catch (err) {
+      if (env.NODE_ENV !== 'test') {
+        console.warn(`⚠️ [Cache] Redis invalidateTag "${tag}" failed:`, err.message);
+      }
+    }
+  }
+
+  // Invalidate in memory
+  if (memoryTags.has(tag)) {
+    const memKeys = memoryTags.get(tag);
+    for (const k of memKeys) {
+      await del(k);
+      deletedCount++;
+    }
+    memoryTags.delete(tag);
+  }
+
+  return deletedCount;
+}
+
+/**
+ * Invalidate multiple tags in a batch
+ */
+async function invalidateTags(tags) {
+  if (!tags || !Array.isArray(tags)) return 0;
+  let total = 0;
+  for (const tag of tags) {
+    total += await invalidateTag(tag);
+  }
+  return total;
+}
+
+/**
+ * Granularly invalidate all cache keys associated with a survey via tags and exact keys
  */
 async function invalidateSurveyCache(surveyId) {
   if (!surveyId) {
     return invalidateGlobalStats();
   }
   const sid = String(surveyId);
+
+  // 1. Purge via tag
+  await invalidateTag(`survey:${sid}`);
+
+  // 2. Exact keys fallback cleanup
   const keysToDel = [
     `${PREFIX_SURVEY}${sid}:matrix`,
     `${PREFIX_SURVEY}${sid}:clusters`,
     `${PREFIX_STATS}survey:${sid}`,
     `${PREFIX_STATS}global`
   ];
-
-  // Remove exact keys
   await del(...keysToDel);
 
-  // Remove wildcard keys (e.g. columns for different clusters)
+  // Wildcard patterns
   await delByPattern(`${PREFIX_SURVEY}${sid}:*`);
 }
 
@@ -261,6 +426,7 @@ async function invalidateSurveyMatrix(surveyId) {
   if (!surveyId) return;
   const sid = String(surveyId);
   await del(`${PREFIX_SURVEY}${sid}:matrix`);
+  await delByPattern(`${PREFIX_SURVEY}${sid}:matrix:*`);
 }
 
 /**
@@ -275,6 +441,7 @@ async function invalidateSurveyClusters(surveyId) {
     `${PREFIX_STATS}survey:${sid}`,
     `${PREFIX_STATS}global`
   );
+  await delByPattern(`${PREFIX_SURVEY}${sid}:matrix:*`);
 }
 
 /**
@@ -285,12 +452,14 @@ async function invalidateSurveyColumns(surveyId) {
   const sid = String(surveyId);
   await del(`${PREFIX_SURVEY}${sid}:matrix`);
   await delByPattern(`${PREFIX_SURVEY}${sid}:columns:*`);
+  await delByPattern(`${PREFIX_SURVEY}${sid}:matrix:*`);
 }
 
 /**
  * Invalidate platform-wide telemetry stats
  */
 async function invalidateGlobalStats() {
+  await invalidateTag('stats');
   await del(`${PREFIX_STATS}global`);
   await delByPattern(`${PREFIX_STATS}*`);
 }
@@ -420,11 +589,14 @@ module.exports = {
 
   // Domain cache getters
   getSurveyMatrix,
+  getSurveyPaper,
   getSurveyClusters,
   getSurveyColumns,
   getStats,
 
-  // Granular invalidation
+  // Granular & tag-based invalidation
+  invalidateTag,
+  invalidateTags,
   invalidateSurveyCache,
   invalidateSurveyMatrix,
   invalidateSurveyClusters,
@@ -440,6 +612,8 @@ module.exports = {
   PREFIX_SURVEY,
   PREFIX_STATS,
   PREFIX_LOCK,
+  PREFIX_TAG,
+  PREFIX_PAPER,
   TTL_MATRIX,
   TTL_CLUSTERS,
   TTL_COLUMNS,

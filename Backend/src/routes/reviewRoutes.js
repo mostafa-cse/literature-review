@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db');
 const { authenticateToken, getProjectRole, logAuditEvent, verifyToken } = require('../utils/auth');
+const cacheService = require('../services/cacheService');
 
 // ==========================================
 // 1. PAPER COMMENTS & SOURCE-QUOTE ANNOTATIONS
@@ -27,7 +28,7 @@ router.get('/papers/:id/comments', (req, res) => {
 });
 
 // POST /api/papers/:id/comments - Add comment / annotation (Owner, Editor, Reviewer)
-router.post('/papers/:id/comments', authenticateToken, (req, res) => {
+router.post('/papers/:id/comments', authenticateToken, async (req, res) => {
   const paperId = req.params.id;
   const { comment_text, quote_text, page_number } = req.body;
   const db = getDb();
@@ -52,6 +53,9 @@ router.post('/papers/:id/comments', authenticateToken, (req, res) => {
 
     const newComment = db.prepare("SELECT * FROM paper_comments WHERE id = ?").get(result.lastInsertRowid);
 
+    await cacheService.invalidateTag(`paper:${paperId}`);
+    await cacheService.invalidateTag('stats');
+
     logAuditEvent(req, 'PAPER_COMMENT_ADD', `Added comment on paper ${paperId} (Role: ${role})`, 'SUCCESS');
 
     res.status(201).json({
@@ -64,7 +68,7 @@ router.post('/papers/:id/comments', authenticateToken, (req, res) => {
 });
 
 // DELETE /api/papers/comments/:commentId and /api/comments/:commentId - Delete comment
-const handleDeleteComment = (req, res) => {
+const handleDeleteComment = async (req, res) => {
   const commentId = req.params.commentId;
   const db = getDb();
 
@@ -80,6 +84,10 @@ const handleDeleteComment = (req, res) => {
     }
 
     db.prepare("DELETE FROM paper_comments WHERE id = ?").run(commentId);
+
+    await cacheService.invalidateTag(`paper:${comment.paper_id}`);
+    await cacheService.invalidateTag('stats');
+
     res.json({ message: 'Comment deleted successfully.' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete comment: ' + err.message });
@@ -113,7 +121,7 @@ router.get('/papers/:id/screening', (req, res) => {
 });
 
 // POST /api/papers/:id/screening - Submit blind PRISMA screening vote (Owner, Editor, Reviewer)
-router.post('/papers/:id/screening', authenticateToken, (req, res) => {
+router.post('/papers/:id/screening', authenticateToken, async (req, res) => {
   const paperId = req.params.id;
   const { decision, vote, exclusion_reason, reason, notes } = req.body;
   const db = getDb();
@@ -155,6 +163,9 @@ router.post('/papers/:id/screening', authenticateToken, (req, res) => {
     } catch (colErr) {
       // Gracefully handle if columns are pending migration
     }
+
+    await cacheService.invalidateTag(`paper:${paperId}`);
+    await cacheService.invalidateTag('stats');
 
     logAuditEvent(req, 'PRISMA_SCREENING_VOTE', `Voted ${finalDecision.toUpperCase()} on paper ${paperId} (Role: ${role})`, 'SUCCESS');
 
