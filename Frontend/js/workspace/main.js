@@ -992,7 +992,13 @@ function renderUnassignedBox() {
 
 window.openUnassignedModal = function () {
   const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
-  if (role !== 'owner' && role !== 'editor' && role !== 'admin') {
+  const cachedUserStr = localStorage.getItem('litsphere_user') || localStorage.getItem('user');
+  let isGlobalAdmin = false;
+  try {
+    if (cachedUserStr) isGlobalAdmin = JSON.parse(cachedUserStr).role === 'admin';
+  } catch(e) {}
+
+  if (role !== 'owner' && role !== 'editor' && role !== 'admin' && !isGlobalAdmin) {
     showToast(`Role '${role.toUpperCase()}' cannot access Unassigned Papers.`, 'warning');
     return;
   }

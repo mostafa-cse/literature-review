@@ -2037,8 +2037,14 @@
           <span><strong>Quick Review:</strong> Click on any paper's title or the <strong>📖 Review</strong> button to
             open the full split-screen review &amp; classification page.</span>
         </div>
-        <button class="action-btn"
-          style="background: var(--bg-surface-raised); border: 1px solid var(--border-base); padding: 0.45rem 1.25  <!-- ADD DYNAMIC COLUMN MODAL -->
+        <button type="button" class="action-btn"
+          style="background: var(--bg-surface-raised); border: 1px solid var(--border-base); padding: 0.45rem 1.25rem;"
+          onclick="closeModal('unassigned-modal-overlay')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD DYNAMIC COLUMN MODAL -->
   <div class="modal-overlay" id="add-column-modal"
     onclick="if(event.target===this) closeModal('add-column-modal')">
     <div class="modal-card" style="max-width: 520px;" onclick="event.stopPropagation()">
