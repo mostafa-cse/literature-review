@@ -159,6 +159,30 @@
   function buildNavbarHtml() {
     const activeKey = getCurrentPageKey();
 
+    // Check credentials synchronously so initial DOM paint matches auth state without layout flash
+    const token = typeof window.getAuthToken === 'function' 
+      ? window.getAuthToken() 
+      : (localStorage.getItem('litsphere_auth_token') || localStorage.getItem('litnexis_auth_token'));
+    const isAuthenticated = !!token;
+
+    let user = null;
+    const cachedUserStr = localStorage.getItem('litsphere_user') || localStorage.getItem('litnexis_user');
+    if (cachedUserStr) {
+      try {
+        user = JSON.parse(cachedUserStr);
+      } catch (e) {}
+    }
+
+    const displayName = user ? (user.username || (user.name ? user.name.split(' ')[0] : 'Researcher')) : 'Researcher';
+    const fullName = user ? (user.name || displayName) : 'Researcher';
+    const email = user ? (user.email || 'researcher@litsphere.ac') : 'researcher@litsphere.ac';
+    const initialChar = (displayName || 'R').charAt(0).toUpperCase();
+    const role = (user && user.role ? user.role : 'user').toUpperCase();
+    const isAdmin = (user && user.role === 'admin');
+
+    const savedTheme = localStorage.getItem('litsphere_theme') || 'dark';
+    const currentThemeIcon = savedTheme === 'light' ? SUN_ICON : MOON_ICON;
+
     return `
     <div class="nav-container">
       <!-- Left: Logo Crest + Brand Title -->
@@ -171,41 +195,43 @@
       </a>
 
       <!-- Right: Desktop Guest Group (Displayed when unauthenticated) -->
-      <div id="nav-guest-group" class="nav-actions desktop-nav" style="display: none; align-items: center; gap: 0.6rem;">
+      <div id="nav-guest-group" class="nav-actions desktop-nav ${isAuthenticated ? 'nav-hidden' : ''}" style="${isAuthenticated ? 'display: none !important;' : 'display: flex !important;'}; align-items: center; gap: 0.65rem;">
         <a href="/" class="nav-link-academic ${activeKey === 'home' ? 'active' : ''}" data-nav="home">Home</a>
         <a href="/about" class="nav-link-academic ${activeKey === 'about' ? 'active' : ''}" data-nav="about">About</a>
         <button type="button" class="theme-toggle-academic theme-toggle-pill" id="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode" aria-label="Toggle Theme">
-          <span id="theme-icon">${SUN_ICON}</span>
+          <span id="theme-icon">${currentThemeIcon}</span>
         </button>
         <a href="/login" class="nav-link-academic ${activeKey === 'login' ? 'active' : ''}" data-nav="login">Sign In</a>
         <a href="/register" class="nav-link-academic nav-cta-btn ${activeKey === 'register' ? 'active' : ''}" data-nav="register">Create Account</a>
       </div>
 
       <!-- Right: Desktop Authenticated Group (Displayed when logged in) -->
-      <div id="nav-auth-group" class="nav-actions desktop-nav" style="display: none; align-items: center; gap: 0.65rem;">
+      <div id="nav-auth-group" class="nav-actions desktop-nav ${isAuthenticated ? '' : 'nav-hidden'}" style="${isAuthenticated ? 'display: flex !important;' : 'display: none !important;'}; align-items: center; gap: 0.65rem;">
         <a href="/" class="nav-link-academic ${activeKey === 'home' ? 'active' : ''}" id="nav-link-home" data-nav="home">Home</a>
         <a href="/about" class="nav-link-academic ${activeKey === 'about' ? 'active' : ''}" id="nav-link-about" data-nav="about">About</a>
         <a href="/dashboard" class="nav-link-academic ${activeKey === 'dashboard' ? 'active' : ''}" id="nav-link-dashboard" data-nav="dashboard">Dashboard</a>
-        <a href="/admin" id="nav-admin-link" class="nav-link-academic ${activeKey === 'admin' ? 'active' : ''}" data-nav="admin" style="display: none; color: var(--accent-rose);">Admin</a>
+        <a href="/workspace" class="nav-link-academic ${activeKey === 'workspace' ? 'active' : ''}" id="nav-link-workspace" data-nav="workspace">Workspace</a>
+        <a href="/admin" id="nav-admin-link" class="nav-link-academic ${activeKey === 'admin' ? 'active' : ''}" data-nav="admin" style="display: ${isAdmin ? 'inline-flex' : 'none'}; color: var(--accent-rose);">Admin</a>
 
         <button type="button" class="theme-toggle-academic theme-toggle-pill" id="theme-toggle-auth" onclick="toggleTheme()" title="Toggle Dark/Light Mode" aria-label="Toggle Theme">
-          <span class="theme-icon-indicator" id="theme-icon-auth">${SUN_ICON}</span>
+          <span class="theme-icon-indicator" id="theme-icon-auth">${currentThemeIcon}</span>
         </button>
 
         <!-- Account / Researcher Academic Dropdown -->
         <div class="account-dropdown-wrapper" id="account-dropdown-wrap">
           <button type="button" class="account-academic-btn" id="account-dropdown-toggle" onclick="toggleAccountDropdown(event)" aria-haspopup="true" aria-expanded="false" title="Account Menu">
-            <span id="nav-user-name">Researcher</span>
-            <span style="font-size: 0.72rem; margin-left: 0.2rem; opacity: 0.7;">▼</span>
+            <div class="user-avatar-crest" id="nav-user-avatar">${initialChar}</div>
+            <span id="nav-user-name">${displayName}</span>
+            <svg class="dropdown-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
           </button>
 
           <div class="account-dropdown-menu" id="account-dropdown-menu">
             <div class="dropdown-user-header">
               <div class="dropdown-user-name">
-                <span id="dropdown-user-name-txt">Researcher</span>
-                <span id="nav-user-role-badge" class="role-badge-pill role-user">USER</span>
+                <span id="dropdown-user-name-txt">${fullName}</span>
+                <span id="nav-user-role-badge" class="role-badge-pill role-${role.toLowerCase()}">${role}</span>
               </div>
-              <div class="dropdown-user-email" id="dropdown-user-email-txt">researcher@litsphere.ac</div>
+              <div class="dropdown-user-email" id="dropdown-user-email-txt">${email}</div>
             </div>
 
             <a href="/profile" class="dropdown-item ${activeKey === 'profile' ? 'active' : ''}">
@@ -218,7 +244,12 @@
               <span>Surveys Dashboard</span>
             </a>
 
-            <a href="/admin" class="dropdown-item ${activeKey === 'admin' ? 'active' : ''}" id="dropdown-admin-link" style="display: none; color: var(--accent-rose);">
+            <a href="/workspace" class="dropdown-item ${activeKey === 'workspace' ? 'active' : ''}">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.85;"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>
+              <span>Matrix Workspace</span>
+            </a>
+
+            <a href="/admin" class="dropdown-item ${activeKey === 'admin' ? 'active' : ''}" id="dropdown-admin-link" style="display: ${isAdmin ? 'flex' : 'none'}; color: var(--accent-rose);">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.85;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
               <span>Admin Console</span>
             </a>
@@ -241,32 +272,36 @@
 
     <!-- Mobile Navigation Drawer -->
     <div class="mobile-nav-drawer" id="mobile-nav-drawer">
-      <div id="mobile-user-profile-box" class="mobile-user-profile-bar" style="display: none;">
-        <div>
-          <div style="font-weight: 700; color: var(--text-primary);" id="mobile-user-name-txt">Researcher</div>
-          <div style="font-size: 0.78rem; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace;" id="mobile-user-email-txt">researcher@litsphere.ac</div>
+      <div id="mobile-user-profile-box" class="mobile-user-profile-bar" style="display: ${isAuthenticated ? 'flex' : 'none'};">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <div class="user-avatar-crest" id="mobile-user-avatar">${initialChar}</div>
+          <div>
+            <div style="font-weight: 700; color: var(--text-primary);" id="mobile-user-name-txt">${fullName}</div>
+            <div style="font-size: 0.78rem; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace;" id="mobile-user-email-txt">${email}</div>
+          </div>
         </div>
-        <span id="mobile-user-role-badge" class="role-badge-pill role-user">USER</span>
+        <span id="mobile-user-role-badge" class="role-badge-pill role-${role.toLowerCase()}">${role}</span>
       </div>
 
       <div class="mobile-nav-links">
         <a href="/" class="${activeKey === 'home' ? 'active' : ''}">Home <span>→</span></a>
         <a href="/about" class="${activeKey === 'about' ? 'active' : ''}">About <span>→</span></a>
-        <a href="/dashboard" id="mobile-link-dashboard" class="${activeKey === 'dashboard' ? 'active' : ''}" style="display: none;">Dashboard <span>→</span></a>
-        <a href="/profile" id="mobile-link-profile" class="${activeKey === 'profile' ? 'active' : ''}" style="display: none;">Profile &amp; Settings <span>→</span></a>
-        <a href="/admin" id="mobile-link-admin" class="${activeKey === 'admin' ? 'active' : ''}" style="display: none; color: var(--accent-rose);">Admin Console <span>→</span></a>
+        <a href="/dashboard" id="mobile-link-dashboard" class="${activeKey === 'dashboard' ? 'active' : ''}" style="display: ${isAuthenticated ? 'flex' : 'none'};">Dashboard <span>→</span></a>
+        <a href="/workspace" id="mobile-link-workspace" class="${activeKey === 'workspace' ? 'active' : ''}" style="display: ${isAuthenticated ? 'flex' : 'none'};">Workspace <span>→</span></a>
+        <a href="/profile" id="mobile-link-profile" class="${activeKey === 'profile' ? 'active' : ''}" style="display: ${isAuthenticated ? 'flex' : 'none'};">Profile &amp; Settings <span>→</span></a>
+        <a href="/admin" id="mobile-link-admin" class="${activeKey === 'admin' ? 'active' : ''}" style="display: ${isAdmin ? 'flex' : 'none'}; color: var(--accent-rose);">Admin Console <span>→</span></a>
         
         <!-- Unauthenticated links -->
-        <a href="/login" id="mobile-link-login" class="${activeKey === 'login' ? 'active' : ''}">Sign In <span>→</span></a>
-        <a href="/register" id="mobile-link-register" class="${activeKey === 'register' ? 'active' : ''}" style="color: var(--accent-gold); font-weight: 700;">Create Account <span>→</span></a>
+        <a href="/login" id="mobile-link-login" class="${activeKey === 'login' ? 'active' : ''}" style="display: ${isAuthenticated ? 'none' : 'flex'};">Sign In <span>→</span></a>
+        <a href="/register" id="mobile-link-register" class="${activeKey === 'register' ? 'active' : ''}" style="display: ${isAuthenticated ? 'none' : 'flex'}; color: var(--accent-gold); font-weight: 700;">Create Account <span>→</span></a>
       </div>
 
       <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.75rem; border-top: 1px solid var(--border-base, rgba(255,255,255,0.08)); margin-top: 0.25rem;">
         <button type="button" class="mini-btn" onclick="toggleTheme()" style="gap: 0.5rem; padding: 0.45rem 0.85rem;">
-          <span id="mobile-theme-icon">${SUN_ICON}</span>
+          <span id="mobile-theme-icon">${currentThemeIcon}</span>
           <span>Switch Theme</span>
         </button>
-        <button type="button" id="mobile-btn-logout" class="mini-btn danger" onclick="handleLogout()" style="display: none; gap: 0.4rem; padding: 0.45rem 0.85rem;">
+        <button type="button" id="mobile-btn-logout" class="mini-btn danger" onclick="handleLogout()" style="display: ${isAuthenticated ? 'inline-flex' : 'none'}; gap: 0.4rem; padding: 0.45rem 0.85rem;">
           <span>Sign Out</span>
         </button>
       </div>
@@ -395,12 +430,20 @@
     if (!user) return;
     const displayName = user.username || (user.name ? user.name.split(' ')[0] : 'Researcher');
     const role = (user.role || 'user').toUpperCase();
+    const initialChar = (displayName || 'R').charAt(0).toUpperCase();
 
     // Name elements
     const nameSelectors = ['#user-nav-name', '#nav-user-name', '#user-name-display', '#mobile-user-name-txt'];
     nameSelectors.forEach(sel => {
       const el = document.querySelector(sel);
       if (el) el.textContent = displayName;
+    });
+
+    // Avatar monogram elements
+    const avatarSelectors = ['#nav-user-avatar', '#mobile-user-avatar'];
+    avatarSelectors.forEach(sel => {
+      const el = document.querySelector(sel);
+      if (el) el.textContent = initialChar;
     });
 
     // Dropdown details
@@ -446,33 +489,48 @@
     // Mobile specific controls
     const mobileProfileBox = document.getElementById('mobile-user-profile-box');
     const mobileLinkDashboard = document.getElementById('mobile-link-dashboard');
+    const mobileLinkWorkspace = document.getElementById('mobile-link-workspace');
     const mobileLinkProfile = document.getElementById('mobile-link-profile');
     const mobileLinkLogin = document.getElementById('mobile-link-login');
     const mobileLinkRegister = document.getElementById('mobile-link-register');
     const mobileBtnLogout = document.getElementById('mobile-btn-logout');
 
     if (isAuthenticated) {
-      if (guestGroup) guestGroup.style.display = 'none';
-      if (authGroup) authGroup.style.display = 'flex';
+      if (guestGroup) {
+        guestGroup.classList.add('nav-hidden');
+        guestGroup.style.setProperty('display', 'none', 'important');
+      }
+      if (authGroup) {
+        authGroup.classList.remove('nav-hidden');
+        authGroup.style.setProperty('display', 'flex', 'important');
+      }
       if (heroAuthBanner) heroAuthBanner.style.display = 'none';
 
-      if (mobileProfileBox) mobileProfileBox.style.display = 'flex';
-      if (mobileLinkDashboard) mobileLinkDashboard.style.display = 'flex';
-      if (mobileLinkProfile) mobileLinkProfile.style.display = 'flex';
-      if (mobileLinkLogin) mobileLinkLogin.style.display = 'none';
-      if (mobileLinkRegister) mobileLinkRegister.style.display = 'none';
-      if (mobileBtnLogout) mobileBtnLogout.style.display = 'inline-flex';
+      if (mobileProfileBox) mobileProfileBox.style.setProperty('display', 'flex', 'important');
+      if (mobileLinkDashboard) mobileLinkDashboard.style.setProperty('display', 'flex', 'important');
+      if (mobileLinkWorkspace) mobileLinkWorkspace.style.setProperty('display', 'flex', 'important');
+      if (mobileLinkProfile) mobileLinkProfile.style.setProperty('display', 'flex', 'important');
+      if (mobileLinkLogin) mobileLinkLogin.style.setProperty('display', 'none', 'important');
+      if (mobileLinkRegister) mobileLinkRegister.style.setProperty('display', 'none', 'important');
+      if (mobileBtnLogout) mobileBtnLogout.style.setProperty('display', 'inline-flex', 'important');
     } else {
-      if (guestGroup) guestGroup.style.display = 'flex';
-      if (authGroup) authGroup.style.display = 'none';
+      if (guestGroup) {
+        guestGroup.classList.remove('nav-hidden');
+        guestGroup.style.setProperty('display', 'flex', 'important');
+      }
+      if (authGroup) {
+        authGroup.classList.add('nav-hidden');
+        authGroup.style.setProperty('display', 'none', 'important');
+      }
       if (heroAuthBanner) heroAuthBanner.style.display = 'block';
 
-      if (mobileProfileBox) mobileProfileBox.style.display = 'none';
-      if (mobileLinkDashboard) mobileLinkDashboard.style.display = 'none';
-      if (mobileLinkProfile) mobileLinkProfile.style.display = 'none';
-      if (mobileLinkLogin) mobileLinkLogin.style.display = 'flex';
-      if (mobileLinkRegister) mobileLinkRegister.style.display = 'flex';
-      if (mobileBtnLogout) mobileBtnLogout.style.display = 'none';
+      if (mobileProfileBox) mobileProfileBox.style.setProperty('display', 'none', 'important');
+      if (mobileLinkDashboard) mobileLinkDashboard.style.setProperty('display', 'none', 'important');
+      if (mobileLinkWorkspace) mobileLinkWorkspace.style.setProperty('display', 'none', 'important');
+      if (mobileLinkProfile) mobileLinkProfile.style.setProperty('display', 'none', 'important');
+      if (mobileLinkLogin) mobileLinkLogin.style.setProperty('display', 'flex', 'important');
+      if (mobileLinkRegister) mobileLinkRegister.style.setProperty('display', 'flex', 'important');
+      if (mobileBtnLogout) mobileBtnLogout.style.setProperty('display', 'none', 'important');
     }
   }
 

@@ -191,8 +191,15 @@ router.get('/papers/:id/highlights', (req, res) => {
   const db = getDb();
 
   try {
+    const hlCols = db.prepare("PRAGMA table_info(paper_highlights)").all();
+    const hasText = hlCols.some(c => c.name === 'text');
+    const hasSelectedText = hlCols.some(c => c.name === 'selected_text');
+    const textSelect = (hasText && hasSelectedText)
+      ? "COALESCE(selected_text, text, '') AS text, COALESCE(selected_text, text, '') AS selected_text"
+      : (hasSelectedText ? "selected_text AS text, selected_text" : "text, text AS selected_text");
+
     const rows = db.prepare(`
-      SELECT id, paper_id, user_id, page_number, text, quads_json, color, color_label, note, created_at
+      SELECT id, paper_id, user_id, page_number, ${textSelect}, quads_json, color, color_label, note, created_at
       FROM paper_highlights
       WHERE paper_id = ?
       ORDER BY id ASC
@@ -203,6 +210,7 @@ router.get('/papers/:id/highlights', (req, res) => {
       try { parsedRects = JSON.parse(r.quads_json || '[]'); } catch (e) {}
       return {
         ...r,
+        text: r.text || r.selected_text || '',
         rects: parsedRects
       };
     });
@@ -247,10 +255,27 @@ router.post('/papers/:id/highlights', (req, res) => {
     const finalLabel = color_label || 'Default';
     const userId = req.user ? req.user.id : 1;
 
-    const result = db.prepare(`
-      INSERT INTO paper_highlights (paper_id, user_id, page_number, text, quads_json, color, color_label, note)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(paperId, userId, page_number, text.trim(), quadsString, finalColor, finalLabel, note ? note.trim() : null);
+    const hlCols = db.prepare("PRAGMA table_info(paper_highlights)").all();
+    const hasText = hlCols.some(c => c.name === 'text');
+    const hasSelectedText = hlCols.some(c => c.name === 'selected_text');
+
+    let result;
+    if (hasText && hasSelectedText) {
+      result = db.prepare(`
+        INSERT INTO paper_highlights (paper_id, user_id, page_number, selected_text, text, quads_json, color, color_label, note)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(paperId, userId, page_number, text.trim(), text.trim(), quadsString, finalColor, finalLabel, note ? note.trim() : null);
+    } else if (hasSelectedText) {
+      result = db.prepare(`
+        INSERT INTO paper_highlights (paper_id, user_id, page_number, selected_text, quads_json, color, color_label, note)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(paperId, userId, page_number, text.trim(), quadsString, finalColor, finalLabel, note ? note.trim() : null);
+    } else {
+      result = db.prepare(`
+        INSERT INTO paper_highlights (paper_id, user_id, page_number, text, quads_json, color, color_label, note)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(paperId, userId, page_number, text.trim(), quadsString, finalColor, finalLabel, note ? note.trim() : null);
+    }
 
     const newHighlight = db.prepare("SELECT * FROM paper_highlights WHERE id = ?").get(result.lastInsertRowid);
     let parsedRects = [];
@@ -260,6 +285,7 @@ router.post('/papers/:id/highlights', (req, res) => {
       message: 'Highlight created successfully.',
       highlight: {
         ...newHighlight,
+        text: newHighlight.text || newHighlight.selected_text || text.trim(),
         rects: parsedRects
       }
     });

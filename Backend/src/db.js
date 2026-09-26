@@ -344,6 +344,19 @@ function initDb() {
       db.exec("ALTER TABLE clusters ADD COLUMN position INTEGER DEFAULT 0;");
       db.exec("UPDATE clusters SET position = id WHERE position IS NULL OR position = 0;");
     }
+
+    // Paper highlights migrations (support both selected_text and text)
+    const hlCols = db.prepare("PRAGMA table_info(paper_highlights)").all();
+    if (hlCols.length > 0) {
+      if (!hlCols.some(c => c.name === 'text')) {
+        db.exec("ALTER TABLE paper_highlights ADD COLUMN text TEXT;");
+        db.exec("UPDATE paper_highlights SET text = selected_text WHERE text IS NULL AND selected_text IS NOT NULL;");
+      }
+      if (!hlCols.some(c => c.name === 'selected_text')) {
+        db.exec("ALTER TABLE paper_highlights ADD COLUMN selected_text TEXT;");
+        db.exec("UPDATE paper_highlights SET selected_text = text WHERE selected_text IS NULL AND text IS NOT NULL;");
+      }
+    }
   } catch (err) {
     console.warn('Migration note:', err.message);
   }
