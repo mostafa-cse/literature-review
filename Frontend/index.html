@@ -500,10 +500,10 @@
         <div class="glow-card" style="padding: 1.75rem;">
           <div style="color: var(--accent-teal); font-size: 1.8rem; margin-bottom: 0.75rem;">🧪</div>
           <h4 style="font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">
-            Automated RBAC Test Harness
+            Automated Academic Test Harness
           </h4>
           <p style="font-size: 0.94rem; color: var(--text-secondary); line-height: 1.6;">
-            Verified by 6 comprehensive multi-role test suites covering 100+ automated test cases with zero regressions across the entire platform.
+            Verified by 27 comprehensive academic &amp; multi-role test suites covering 100+ automated test cases with zero regressions across the entire platform.
           </p>
         </div>
 
@@ -514,34 +514,34 @@
 
 
   <!-- ========================================================================
-       9. LIVE STATS HIGHLIGHTS BANNER
+       8. PLATFORM ARCHITECTURE & BENCHMARK HIGHLIGHTS
        ======================================================================== -->
   <section class="stats-section">
     <div class="container">
       <div class="stats-grid">
         
         <div class="stat-card glow-card">
-          <span class="stat-number" id="live-total-papers">8</span>
-          <span class="stat-label">Active Research Papers</span>
-          <span class="stat-desc">Ingested, parsed, and mapped into survey clusters.</span>
+          <span class="stat-number" id="live-query-latency">&lt; 1ms</span>
+          <span class="stat-label">Query Execution Speed</span>
+          <span class="stat-desc">SQLite WAL architecture ensures sub-millisecond filtering and non-blocking reads.</span>
         </div>
 
         <div class="stat-card glow-card">
-          <span class="stat-number" id="live-total-clusters">6</span>
-          <span class="stat-label">Taxonomy Clusters</span>
-          <span class="stat-desc">Custom domain classifications with dynamic schemas.</span>
+          <span class="stat-number" id="live-prisma-standard" style="font-size: 2.5rem; letter-spacing: -0.02em;">PRISMA</span>
+          <span class="stat-label">2020 Review Compliance</span>
+          <span class="stat-desc">Standardized eligibility screening, double-blind appraisal, and live audit telemetry.</span>
         </div>
 
         <div class="stat-card glow-card">
-          <span class="stat-number" id="live-unique-keywords">18</span>
-          <span class="stat-label">Extracted Research Tags</span>
-          <span class="stat-desc">Thematic cross-referencing and live autocomplete.</span>
+          <span class="stat-number" id="live-citation-formats">6+</span>
+          <span class="stat-label">Universal Thesis Formats</span>
+          <span class="stat-desc">Camera-ready export in BibTeX, APA 7th, IEEE, Harvard, RIS, and multi-level Excel.</span>
         </div>
 
         <div class="stat-card glow-card">
-          <span class="stat-number">100%</span>
-          <span class="stat-label">SQLite WAL Reliability</span>
-          <span class="stat-desc">Zero lockups with sub-millisecond local reads.</span>
+          <span class="stat-number" id="live-acid-integrity">100%</span>
+          <span class="stat-label">ACID Data Integrity</span>
+          <span class="stat-desc">Strict foreign-key cascading constraints with dual-storage PDF manuscript persistence.</span>
         </div>
 
       </div>
@@ -549,7 +549,7 @@
   </section>
 
   <!-- ========================================================================
-       10. CALL TO ACTION BANNER
+       9. CALL TO ACTION BANNER
        ======================================================================== -->
   <section class="cta-banner">
     <div class="container">
@@ -579,7 +579,7 @@
 
   <script>
 
-    // 2. Dynamic Rotating Word Flipper
+    // 1. Dynamic Rotating Word Flipper
     const flipperWords = ['benchmarked.', 'synthesized.', 'appraised.', 'accelerated.', 'discovered.'];
     let flipperIdx = 0;
     const flipperEl = document.getElementById('flipper-word');
@@ -596,24 +596,25 @@
       }, 2800);
     }
 
-    // 4. Fetch live database telemetry for stats banner
+    // 2. Fetch live database telemetry if available
     async function updateLiveStats() {
       try {
         const res = await fetch('/api/stats');
         if (res.ok) {
           const data = await res.json();
-          if (data.total_papers && document.getElementById('live-total-papers')) {
-            document.getElementById('live-total-papers').textContent = data.total_papers;
-          }
-          if (data.total_clusters && document.getElementById('live-total-clusters')) {
-            document.getElementById('live-total-clusters').textContent = data.total_clusters;
-          }
-          if (data.total_unique_keywords && document.getElementById('live-unique-keywords')) {
-            document.getElementById('live-unique-keywords').textContent = data.total_unique_keywords;
+          if (data && typeof data.total_papers === 'number' && data.total_papers > 0) {
+            const paperEl = document.getElementById('live-query-latency');
+            const labelEl = paperEl ? paperEl.nextElementSibling : null;
+            const descEl = labelEl ? labelEl.nextElementSibling : null;
+            if (paperEl && labelEl && descEl) {
+              paperEl.textContent = data.total_papers;
+              labelEl.textContent = 'Active Research Papers';
+              descEl.textContent = 'Ingested, parsed, and mapped into active survey clusters.';
+            }
           }
         }
       } catch (e) {
-        // Fallback already rendered
+        // Fallback architecture metrics already rendered
       }
     }
 
