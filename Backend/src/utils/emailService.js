@@ -7,14 +7,24 @@ const nodemailer = require('nodemailer');
 
 // Create reusable transporter object using the default SMTP transport
 const getTransporter = () => {
+  const user = (process.env.EMAIL_USER || '').trim();
+  const pass = (process.env.EMAIL_PASS || '').trim().replace(/^["']|["']$/g, '');
+  const host = (process.env.EMAIL_HOST || '').trim();
+  const port = parseInt(process.env.EMAIL_PORT, 10) || 587;
+
+  // If using Gmail, 'service: gmail' is the most robust transport config in nodemailer
+  if (host === 'smtp.gmail.com' || (!host && user.endsWith('@gmail.com'))) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user, pass },
+    });
+  }
+
   return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: process.env.EMAIL_PORT || 587,
-    secure: process.env.EMAIL_PORT == 465, // true for 465, false for other ports
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
+    host: host || 'smtp.gmail.com',
+    port: port,
+    secure: port === 465,
+    auth: { user, pass },
   });
 };
 
@@ -25,11 +35,19 @@ const getTransporter = () => {
  * @param {string} name - (Optional) User's name
  */
 async function sendPasswordResetEmail(toEmail, resetCode, name = 'Researcher') {
-  // If no live SMTP credentials are provided or running in test, simulate the dispatch in console.
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS || process.env.EMAIL_PASS.includes('your_16_char_app_password') || process.env.NODE_ENV === 'test') {
-    console.warn('\n⚠️ [EMAIL SERVICE WARNING] Live SMTP credentials not configured in .env.');
-    console.log(`📧 Simulated Email Dispatch to: ${toEmail} | Code: ${resetCode}\n`);
-    return true; // Simulate success
+  const user = (process.env.EMAIL_USER || '').trim();
+  const pass = (process.env.EMAIL_PASS || '').trim().replace(/^["']|["']$/g, '');
+
+  // If running in test environment, simulate the dispatch
+  if (process.env.NODE_ENV === 'test') {
+    console.log(`🧪 [TEST EMAIL] Simulated Email Dispatch to: ${toEmail} | Code: ${resetCode}`);
+    return true;
+  }
+
+  // If live SMTP credentials are not configured, reject clearly
+  if (!user || !pass || pass.includes('your_16_char_app_password')) {
+    console.error('❌ [EMAIL SERVICE ERROR] Live SMTP credentials not configured (EMAIL_USER or EMAIL_PASS missing).');
+    throw new Error('Email service is not configured on the server. Please set EMAIL_USER and EMAIL_PASS environment variables.');
   }
 
   const transporter = getTransporter();
@@ -58,7 +76,7 @@ async function sendPasswordResetEmail(toEmail, resetCode, name = 'Researcher') {
           <!-- Code Box -->
           <div style="margin: 35px 0; padding: 25px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; text-align: center;">
             <p style="margin: 0 0 10px 0; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Verification Passcode</p>
-            <div style="font-family: monospace; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #0f172a;">
+            <div style="font-family: monospace; font-size: 34px; font-weight: 700; letter-spacing: 8px; color: #0f172a;">
               ${resetCode}
             </div>
             <p style="margin: 15px 0 0 0; font-size: 13px; color: #ef4444;">
@@ -82,8 +100,10 @@ async function sendPasswordResetEmail(toEmail, resetCode, name = 'Researcher') {
     </div>
   `;
 
+  const fromAddress = (process.env.EMAIL_FROM || '').trim() || `"LitSphere Security" <${user}>`;
+
   const mailOptions = {
-    from: process.env.EMAIL_FROM || '"LitSphere Security" <security@litsphere.ac>',
+    from: fromAddress,
     to: toEmail,
     subject: 'LitSphere — Password Reset Verification Passcode',
     html: htmlContent,
@@ -91,11 +111,11 @@ async function sendPasswordResetEmail(toEmail, resetCode, name = 'Researcher') {
 
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log(`✅ [EMAIL SERVICE] Sent message: ${info.messageId}`);
+    console.log(`✅ [EMAIL SERVICE] Sent password reset verification email to ${toEmail}: ${info.messageId}`);
     return true;
   } catch (error) {
-    console.error('❌ [EMAIL SERVICE] Error sending email:', error);
-    throw new Error('Failed to dispatch email. Please check server SMTP configuration.');
+    console.error(`❌ [EMAIL SERVICE] Error sending email to ${toEmail}:`, error);
+    throw new Error('Failed to dispatch email. Please check server SMTP configuration: ' + error.message);
   }
 }
 

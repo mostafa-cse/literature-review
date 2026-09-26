@@ -1245,7 +1245,6 @@
 
   <script>
     let currentAuthMode = 'login';
-    let generatedResetCode = '';
     let currentResetIdentifier = '';
 
     // Universal Theme Management
@@ -1930,9 +1929,8 @@
         }
 
         currentResetIdentifier = identifier;
-        generatedResetCode = data.reset_code || '';
 
-        console.log('4. Verification Code Generated:', data.reset_code);
+        console.log('4. Verification passcode dispatched to email address.');
         console.log('5. Code valid for:', data.expires_in_minutes, 'minutes');
         console.groupEnd();
 
@@ -1987,7 +1985,6 @@
           throw new Error(data.error || 'Failed to resend verification code.');
         }
 
-        generatedResetCode = data.reset_code || '';
         const codeInput = document.getElementById('reset-code');
         if (codeInput) {
           codeInput.value = '';
@@ -1997,7 +1994,7 @@
         startPasswordResetCountdown(data.expires_in_minutes || 15);
         startResendCooldown(30);
 
-        console.log('🔄 [Forgot Password] New passcode sent to email successfully.');
+        console.log('🔄 [Forgot Password] New passcode dispatched to email successfully.');
       } catch (err) {
         if (errEl) {
           errEl.textContent = err.message;
@@ -2041,7 +2038,7 @@
 
       console.group('🔑 [Forgot Password - Submit Reset]');
       console.log('1. Account identifier:', currentResetIdentifier);
-      console.log('2. Verification code:', code);
+      console.log('2. Verification code: [SUBMITTED]');
       console.log('3. POST /api/auth/reset-password');
 
       try {

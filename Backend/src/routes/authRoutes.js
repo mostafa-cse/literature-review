@@ -662,7 +662,7 @@ router.post('/forgot-password', async (req, res) => {
       message: `Password reset verification code dispatched to ${user.email}.`,
       email: user.email,
       username: user.username,
-      reset_code: resetCode, // Preserved in API payload for test suites
+      ...(process.env.NODE_ENV === 'test' ? { reset_code: resetCode } : {}),
       expires_in_minutes: 15
     });
   } catch (err) {

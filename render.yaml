@@ -13,3 +13,13 @@ services:
         value: production
       - key: PORT
         value: 10000
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: 587
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: EMAIL_FROM
+        value: "LitSphere Security <mostafakamal.cse2022@gmail.com>"
