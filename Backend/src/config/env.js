@@ -41,6 +41,15 @@ const envSchema = z.object({
   EMAIL_PASS: z.string().default(''),
   EMAIL_FROM: z.string().default('LitSphere Security <onboarding@resend.dev>'),
   RESEND_API_KEY: z.string().default(''),
+
+  // Firebase Single Sign-On Configuration
+  FIREBASE_API_KEY: z.string().default(''),
+  FIREBASE_AUTH_DOMAIN: z.string().default(''),
+  FIREBASE_PROJECT_ID: z.string().default(''),
+  FIREBASE_STORAGE_BUCKET: z.string().default(''),
+  FIREBASE_MESSAGING_SENDER_ID: z.string().default(''),
+  FIREBASE_APP_ID: z.string().default(''),
+  FIREBASE_MEASUREMENT_ID: z.string().default(''),
 });
 
 let parsedEnv;

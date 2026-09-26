@@ -159,7 +159,8 @@ router.get('/firebase-config', (req, res) => {
     projectId: process.env.FIREBASE_PROJECT_ID || "litsphere-research",
     storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "litsphere-research.appspot.com",
     messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "849201938472",
-    appId: process.env.FIREBASE_APP_ID || "1:849201938472:web:9c8d7e6f5a4b3c2d1e0f"
+    appId: process.env.FIREBASE_APP_ID || "1:849201938472:web:9c8d7e6f5a4b3c2d1e0f",
+    measurementId: process.env.FIREBASE_MEASUREMENT_ID || ""
   };
   res.json({ success: true, config });
 });
