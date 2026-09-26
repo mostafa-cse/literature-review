@@ -242,6 +242,16 @@ function initDb() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS email_login_codes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL,
+      code TEXT NOT NULL,
+      token TEXT NOT NULL,
+      expires_at DATETIME NOT NULL,
+      used INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS paper_highlights (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       paper_id INTEGER NOT NULL,
@@ -366,6 +376,8 @@ function initDb() {
     CREATE INDEX IF NOT EXISTS idx_paper_files_filename ON paper_files(filename);
     CREATE INDEX IF NOT EXISTS idx_password_resets_email ON password_resets(email);
     CREATE INDEX IF NOT EXISTS idx_password_resets_code ON password_resets(code);
+    CREATE INDEX IF NOT EXISTS idx_email_login_codes_email ON email_login_codes(email);
+    CREATE INDEX IF NOT EXISTS idx_email_login_codes_code ON email_login_codes(code);
   `);
 
   // Migrate existing PDF files from uploads directories into paper_files database table

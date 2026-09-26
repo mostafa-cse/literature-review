@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getDb, hashPassword, verifyPassword } = require('../db');
 const { generateToken, authenticateToken, logAuditEvent, recalculateUserStorage } = require('../utils/auth');
-const { sendPasswordResetEmail } = require('../utils/emailService');
+const { sendPasswordResetEmail, sendLoginOtpEmail } = require('../utils/emailService');
 const {
   createSession,
   destroySession,
@@ -168,11 +168,29 @@ router.get('/firebase-config', (req, res) => {
 router.post('/google', async (req, res) => {
   const { email, name, displayName, avatar_url, avatar, photoURL, google_id, firebase_uid, firebaseUid, uid, id_token, idToken } = req.body;
 
-  const rawEmail = (email || '').trim().toLowerCase();
-  const rawName = (displayName || name || '').trim();
-  const rawAvatar = (avatar_url || avatar || photoURL || '').trim();
-  const rawUid = (firebase_uid || firebaseUid || uid || google_id || '').trim();
+  let rawEmail = (email || '').trim().toLowerCase();
+  let rawName = (displayName || name || '').trim();
+  let rawAvatar = (avatar_url || avatar || photoURL || '').trim();
+  let rawUid = (firebase_uid || firebaseUid || uid || google_id || '').trim();
   const rawIdToken = (id_token || idToken || '').trim();
+
+  // Support Google Identity Services (GSI) credential JWT tokens
+  if (req.body.credential && !rawEmail) {
+    try {
+      const parts = req.body.credential.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+        if (payload.email) {
+          rawEmail = payload.email.trim().toLowerCase();
+          rawName = rawName || payload.name || rawEmail.split('@')[0];
+          rawAvatar = rawAvatar || payload.picture || '';
+          rawUid = rawUid || payload.sub || '';
+        }
+      }
+    } catch (gsiErr) {
+      console.warn('Could not parse Google GSI credential token:', gsiErr.message);
+    }
+  }
 
   if (!rawEmail) {
     return res.status(400).json({ error: 'Google email address is required.' });
@@ -451,6 +469,181 @@ router.post('/login', async (req, res) => {
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Login authentication failure: ' + err.message });
+  }
+});
+
+// POST /api/auth/send-login-otp - Send 6-digit one-time passcode to email for passwordless login
+router.post('/send-login-otp', async (req, res) => {
+  const { email } = req.body;
+  const rawEmail = (email || '').trim().toLowerCase();
+
+  if (!rawEmail || !rawEmail.includes('@') || !rawEmail.includes('.')) {
+    return res.status(400).json({ error: 'A valid email address is required.' });
+  }
+
+  const db = getDb();
+  try {
+    const user = db.prepare("SELECT id, username, name, email, status FROM users WHERE LOWER(email) = ?").get(rawEmail);
+    if (user && (user.status === 'deactivated' || user.status === 'banned')) {
+      return res.status(403).json({ error: `Account is ${user.status}. Please contact the laboratory administrator.` });
+    }
+
+    // Generate 6-digit verification code
+    const loginCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const token = require('crypto').randomBytes(24).toString('hex');
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 minutes expiry
+
+    // Invalidate previous unused codes for this email
+    db.prepare("UPDATE email_login_codes SET used = 1 WHERE LOWER(email) = ? AND used = 0").run(rawEmail);
+
+    // Save new code
+    db.prepare(`
+      INSERT INTO email_login_codes (email, code, token, expires_at, used)
+      VALUES (?, ?, ?, ?, 0)
+    `).run(rawEmail, loginCode, token, expiresAt);
+
+    logAuditEvent(req, 'EMAIL_LOGIN_OTP_REQUEST', `Login passcode requested for ${rawEmail} (Code: ${loginCode})`, 'SUCCESS', user ? user.id : null, rawEmail);
+
+    // Dispatch the professional HTML email
+    await sendLoginOtpEmail(rawEmail, loginCode, user ? (user.name || user.username) : 'Researcher');
+
+    res.json({
+      success: true,
+      message: `Login verification code dispatched to ${rawEmail}.`,
+      email: rawEmail,
+      is_registered: !!user,
+      expires_in_minutes: 15,
+      ...(process.env.NODE_ENV === 'test' ? { login_code: loginCode } : {})
+    });
+  } catch (err) {
+    console.error('Send login OTP error:', err);
+    res.status(500).json({ error: 'Failed to send login verification code: ' + err.message });
+  }
+});
+
+// POST /api/auth/verify-login-otp - Verify 6-digit one-time passcode and create session
+router.post('/verify-login-otp', async (req, res) => {
+  const { email, code } = req.body;
+  const rawEmail = (email || '').trim().toLowerCase();
+  const cleanCode = (code || '').trim();
+
+  if (!rawEmail || !cleanCode) {
+    return res.status(400).json({ error: 'Email and 6-digit verification code are required.' });
+  }
+
+  const db = getDb();
+  try {
+    const record = db.prepare(`
+      SELECT id, email, code, expires_at, used
+      FROM email_login_codes
+      WHERE LOWER(email) = ? AND code = ? AND used = 0
+      ORDER BY id DESC
+      LIMIT 1
+    `).get(rawEmail, cleanCode);
+
+    if (!record) {
+      return res.status(400).json({ error: 'Invalid verification passcode. Please check code or request a new one.' });
+    }
+
+    if (new Date(record.expires_at).getTime() < Date.now()) {
+      return res.status(400).json({ error: 'Verification code has expired. Please request a new passcode.' });
+    }
+
+    // Mark code as used
+    db.prepare("UPDATE email_login_codes SET used = 1 WHERE id = ?").run(record.id);
+
+    // Find or auto-create researcher user account
+    let user = db.prepare(`
+      SELECT id, username, name, email, role, institution, status, token_version, avatar_url,
+             ai_token_quota, ai_tokens_used, storage_quota_mb, storage_used_mb 
+      FROM users 
+      WHERE LOWER(email) = ?
+    `).get(rawEmail);
+
+    let isNewUser = false;
+
+    if (!user) {
+      // Auto-register new researcher account
+      const tokenSetting = db.prepare("SELECT value FROM system_settings WHERE key = 'default_user_token_quota'").get();
+      const storageSetting = db.prepare("SELECT value FROM system_settings WHERE key = 'default_user_storage_quota_mb'").get();
+      const tokenQuota = tokenSetting ? parseInt(tokenSetting.value, 10) : 100000;
+      const storageQuota = storageSetting ? parseInt(storageSetting.value, 10) : 500;
+
+      const randomPassword = require('crypto').randomBytes(16).toString('hex');
+      const passwordHash = hashPassword(randomPassword);
+      const userName = rawEmail.split('@')[0];
+
+      let baseHandle = rawEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
+      if (!baseHandle) baseHandle = `user_${Date.now()}`;
+      let userHandle = baseHandle;
+      const existingHandle = db.prepare("SELECT id FROM users WHERE LOWER(username) = ?").get(userHandle);
+      if (existingHandle) {
+        userHandle = `${baseHandle}_${Math.floor(100 + Math.random() * 900)}`;
+      }
+
+      const finalAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(rawEmail)}`;
+      const userCount = db.prepare("SELECT COUNT(*) as count FROM users").get().count;
+      const assignedRole = userCount === 0 ? 'admin' : 'user';
+
+      const result = db.prepare(`
+        INSERT INTO users (username, name, email, password_hash, role, institution, status, avatar_url, ai_token_quota, storage_quota_mb)
+        VALUES (?, ?, ?, ?, ?, 'Academic Research Institute', 'active', ?, ?, ?)
+      `).run(userHandle, userName, rawEmail, passwordHash, assignedRole, finalAvatar, tokenQuota, storageQuota);
+
+      user = {
+        id: Number(result.lastInsertRowid),
+        username: userHandle,
+        name: userName,
+        email: rawEmail,
+        role: assignedRole,
+        institution: 'Academic Research Institute',
+        status: 'active',
+        avatar_url: finalAvatar,
+        ai_token_quota: tokenQuota,
+        ai_tokens_used: 0,
+        storage_quota_mb: storageQuota,
+        storage_used_mb: 0.0
+      };
+
+      isNewUser = true;
+      logAuditEvent(req, 'EMAIL_OTP_REGISTER_SUCCESS', `New user registered via Email OTP: ${userName} (${rawEmail})`, 'SUCCESS', user.id, rawEmail);
+    } else {
+      if (user.status === 'deactivated' || user.status === 'banned') {
+        logAuditEvent(req, 'EMAIL_OTP_LOGIN_BLOCKED', `Blocked Email OTP login for ${user.status} account: ${rawEmail}`, 'WARNING', user.id, rawEmail);
+        return res.status(403).json({ error: `Account is ${user.status}. Please contact the laboratory administrator.` });
+      }
+
+      db.prepare("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?").run(user.id);
+      logAuditEvent(req, 'EMAIL_OTP_LOGIN_SUCCESS', `User signed in with Email OTP: ${user.username || user.email}`, 'SUCCESS', user.id, rawEmail);
+    }
+
+    const sessionResult = await createSession(user, req);
+    attachSessionCookie(res, sessionResult.token);
+
+    res.json({
+      success: true,
+      message: isNewUser ? 'Account created and signed in successfully via Email Passcode.' : 'Signed in successfully via Email Passcode.',
+      token: sessionResult.token,
+      session_id: sessionResult.sessionId,
+      user: {
+        id: user.id,
+        username: user.username || user.email.split('@')[0],
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        institution: user.institution,
+        status: user.status,
+        avatar_url: user.avatar_url,
+        ai_token_quota: user.ai_token_quota,
+        ai_tokens_used: user.ai_tokens_used,
+        storage_quota_mb: user.storage_quota_mb,
+        storage_used_mb: user.storage_used_mb
+      },
+      is_new_user: isNewUser
+    });
+  } catch (err) {
+    console.error('Verify login OTP error:', err);
+    res.status(500).json({ error: 'Failed to verify login passcode: ' + err.message });
   }
 });
 

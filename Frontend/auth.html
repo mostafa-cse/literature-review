@@ -671,6 +671,55 @@
       color: var(--accent-gold);
     }
 
+    /* Mail Login Method Switcher */
+    .mail-method-selector {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 1.15rem;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-base);
+      border-radius: 10px;
+      padding: 4px;
+    }
+    .method-select-btn {
+      flex: 1;
+      padding: 0.55rem 0.75rem;
+      border-radius: 7px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      font-family: 'JetBrains Mono', monospace;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .method-select-btn:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .method-select-btn.active {
+      background: rgba(212, 175, 55, 0.18);
+      color: var(--accent-gold);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(212, 175, 55, 0.35);
+    }
+    [data-theme="light"] .method-select-btn.active {
+      background: #ffffff;
+      color: #92400e;
+      border-color: rgba(180, 83, 9, 0.35);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    .google-account-card:hover {
+      background: rgba(66, 133, 244, 0.12) !important;
+      border-color: rgba(66, 133, 244, 0.45) !important;
+      transform: translateY(-2px);
+    }
+
     /* Radiant Overleaf Action CTA Button */
     .btn-overleaf-action {
       width: 100%; padding: 0.92rem 1.5rem;
@@ -972,35 +1021,114 @@
         <!-- Error Banner -->
         <div class="auth-error-banner" id="auth-error-msg"></div>
 
+        <!-- Google SSO Button -->
+        <div class="sso-btn-wrap">
+          <button type="button" class="btn-sso-pill" id="google-sso-btn" onclick="handleGoogleSignIn()">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.02h3.88c2.27-2.09 3.665-5.17 3.665-9.12z"/>
+              <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.02c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.76-2.11-6.71-4.96H1.28v3.11C3.26 21.3 7.37 24 12 24z"/>
+              <path fill="#FBBC05" d="M5.29 14.27c-.24-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.62H1.28C.46 8.24 0 10.06 0 12s.46 3.76 1.28 5.38l4.01-3.11z"/>
+              <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.37 0 3.26 2.7 1.28 6.62l4.01 3.11c.95-2.85 3.59-4.98 6.71-4.98z"/>
+            </svg>
+            <span id="google-btn-text">Continue with Google</span>
+          </button>
+        </div>
+
+        <!-- Academic Divider -->
+        <div class="auth-divider">
+          <span>or continue with email</span>
+        </div>
+
         <!-- SIGN IN FORM (Single Action Form) -->
         <form id="signin-form" onsubmit="handleSignInSubmit(event)">
-          <!-- Username or Email (Sign In) -->
-          <div class="form-group" id="group-signin-id">
-            <label class="form-label" for="auth-identifier">
-              <span>Username or Email *</span>
-            </label>
-            <div class="input-icon-wrap">
-              <input type="text" class="form-control" id="auth-identifier" required placeholder="e.g. researcher_alex or scholar@gmail.com" autocomplete="username">
-            </div>
+          <!-- Mail Login Method Selector (Password vs One-Time Email Code) -->
+          <div class="mail-method-selector">
+            <button type="button" id="method-btn-password" class="method-select-btn active" onclick="setMailMethod('password')">
+              <span>🔑</span> Password
+            </button>
+            <button type="button" id="method-btn-otp" class="method-select-btn" onclick="setMailMethod('otp')">
+              <span>✉️</span> One-Time Email Code
+            </button>
           </div>
 
-          <!-- Password (Sign In) -->
-          <div class="form-group" id="group-signin-pw">
-            <label class="form-label" for="auth-signin-password">
-              <span>Password *</span>
-              <a href="javascript:void(0)" id="auth-forgot-pw-link" onclick="openForgotPasswordModal()" style="font-size: 0.76rem; color: var(--accent-gold); text-decoration: none; text-transform: none; font-weight: 600;">Forgot Password?</a>
-            </label>
-            <div class="input-icon-wrap">
-              <input type="password" class="form-control" id="auth-signin-password" required placeholder="••••••••" autocomplete="current-password">
-              <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('auth-signin-password', this)" title="Show/Hide Password">Show</button>
+          <!-- Section A: Standard Password Login -->
+          <div id="signin-password-section">
+            <!-- Username or Email (Sign In) -->
+            <div class="form-group" id="group-signin-id">
+              <label class="form-label" for="auth-identifier">
+                <span>Username or Email *</span>
+              </label>
+              <div class="input-icon-wrap">
+                <input type="text" class="form-control" id="auth-identifier" required placeholder="e.g. researcher_alex or scholar@gmail.com" autocomplete="username">
+              </div>
             </div>
+
+            <!-- Password (Sign In) -->
+            <div class="form-group" id="group-signin-pw">
+              <label class="form-label" for="auth-signin-password">
+                <span>Password *</span>
+                <a href="javascript:void(0)" id="auth-forgot-pw-link" onclick="openForgotPasswordModal()" style="font-size: 0.76rem; color: var(--accent-gold); text-decoration: none; text-transform: none; font-weight: 600;">Forgot Password?</a>
+              </label>
+              <div class="input-icon-wrap">
+                <input type="password" class="form-control" id="auth-signin-password" required placeholder="••••••••" autocomplete="current-password">
+                <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('auth-signin-password', this)" title="Show/Hide Password">Show</button>
+              </div>
+            </div>
+
+            <!-- Sign In Submit Button -->
+            <button type="submit" class="btn-overleaf-action" id="signin-submit-btn">
+              <span>Log In to Workspace</span>
+              <span>→</span>
+            </button>
           </div>
 
-          <!-- Sign In Submit Button -->
-          <button type="submit" class="btn-overleaf-action" id="signin-submit-btn">
-            <span>Log In to Workspace</span>
-            <span>→</span>
-          </button>
+          <!-- Section B: Passwordless Email OTP Login -->
+          <div id="signin-otp-section" style="display: none;">
+            <div class="form-group" id="group-otp-email">
+              <label class="form-label" for="otp-email-input">
+                <span>Email Address *</span>
+              </label>
+              <div class="input-icon-wrap">
+                <input type="email" class="form-control" id="otp-email-input" placeholder="e.g. scholar@gmail.com" autocomplete="email">
+              </div>
+              <div style="font-size: 0.76rem; color: var(--text-tertiary); margin-top: 0.35rem;">
+                We'll dispatch a 6-digit verification passcode directly to your inbox.
+              </div>
+            </div>
+
+            <!-- Send OTP Button (Step 1) -->
+            <button type="button" class="btn-overleaf-action" id="otp-send-btn" onclick="sendLoginOtp()" style="margin-bottom: 0.75rem;">
+              <span id="otp-send-btn-text">Send Login Passcode</span>
+              <span>✉️</span>
+            </button>
+
+            <!-- Verification Code Input (Step 2, hidden until code sent) -->
+            <div id="otp-verify-block" style="display: none; animation: modalFade 0.25s ease;">
+              <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 0.65rem 0.85rem; font-size: 0.82rem; color: #34d399; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                <span id="otp-sent-feedback">Passcode sent! Check your inbox.</span>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="otp-code-input">
+                  <span>Enter 6-Digit Passcode *</span>
+                  <span id="otp-countdown" class="pw-expiry-pill" style="font-size: 0.75rem;">⏱ 15:00</span>
+                </label>
+                <input type="text" maxlength="6" inputmode="numeric" class="form-control pw-digit-code-input" id="otp-code-input" placeholder="••••••" autocomplete="one-time-code">
+              </div>
+
+              <button type="button" class="btn-overleaf-action" id="otp-verify-btn" onclick="verifyLoginOtp()">
+                <span id="otp-verify-btn-text">Verify Code & Enter Workspace</span>
+                <span>→</span>
+              </button>
+
+              <div style="text-align: center; margin-top: 0.85rem;">
+                <a href="javascript:void(0)" onclick="sendLoginOtp()" style="font-size: 0.78rem; color: var(--accent-gold); text-decoration: underline; font-family: 'JetBrains Mono', monospace;">
+                  Didn't receive code? Resend
+                </a>
+              </div>
+            </div>
+          </div>
         </form>
 
         <!-- CREATE ACCOUNT (REGISTER) FORM (Single Action Form) -->
@@ -1243,6 +1371,57 @@
     </div>
   </div>
 
+  <!-- GOOGLE SSO ACCOUNT SELECTION MODAL -->
+  <div class="modal-overlay" id="google-sso-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(5, 8, 16, 0.85); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); z-index: 10000; align-items: center; justify-content: center; padding: 1.5rem;" onclick="closeGoogleModal()">
+    <div class="modal-box" style="background: linear-gradient(180deg, #131926 0%, #0d121f 100%); border: 1.5px solid rgba(66, 133, 244, 0.45); border-radius: 18px; max-width: 460px; width: 100%; padding: 2rem 2.2rem; box-shadow: 0 25px 60px rgba(0,0,0,0.85), 0 0 35px rgba(66, 133, 244, 0.15); text-align: center; position: relative; animation: modalFade 0.25s cubic-bezier(0.16, 1, 0.3, 1);" onclick="event.stopPropagation()">
+      
+      <button style="position: absolute; top: 1.1rem; right: 1.1rem; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; width: 32px; height: 32px; font-size: 1rem; color: var(--text-secondary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s ease;" onclick="closeGoogleModal()" title="Close Modal">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+
+      <!-- Google G Brand Header -->
+      <div style="width: 52px; height: 52px; border-radius: 50%; background: #ffffff; margin: 0 auto 1.1rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(0,0,0,0.3);">
+        <svg width="28" height="28" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.02h3.88c2.27-2.09 3.665-5.17 3.665-9.12z"/>
+          <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.02c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.76-2.11-6.71-4.96H1.28v3.11C3.26 21.3 7.37 24 12 24z"/>
+          <path fill="#FBBC05" d="M5.29 14.27c-.24-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.62H1.28C.46 8.24 0 10.06 0 12s.46 3.76 1.28 5.38l4.01-3.11z"/>
+          <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.37 0 3.26 2.7 1.28 6.62l4.01 3.11c.95-2.85 3.59-4.98 6.71-4.98z"/>
+        </svg>
+      </div>
+
+      <h3 style="font-family: 'Cinzel', 'Outfit', serif; font-size: 1.35rem; color: #ffffff; margin-bottom: 0.35rem; font-weight: 700;">Google Authentication</h3>
+      <p style="font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 1.4rem; line-height: 1.5;">Choose an account to continue to LitSphere Research Platform</p>
+
+      <!-- Account Selection List -->
+      <div style="display: flex; flex-direction: column; gap: 0.65rem; margin-bottom: 1.25rem;">
+        <!-- Preconfigured / Active User -->
+        <button type="button" class="google-account-card" onclick="selectGoogleAccount('mostafakamal.cse2022@gmail.com', 'Mostafa Kamal')" style="display: flex; align-items: center; gap: 0.85rem; padding: 0.85rem 1rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 12px; cursor: pointer; text-align: left; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);">
+          <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #4285F4, #34A853); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #ffffff; font-size: 1rem;">M</div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 700; color: #ffffff; font-size: 0.92rem;">Mostafa Kamal</div>
+            <div style="color: var(--text-secondary); font-size: 0.78rem; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-family: 'JetBrains Mono', monospace;">mostafakamal.cse2022@gmail.com</div>
+          </div>
+          <span style="font-size: 0.74rem; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 0.2rem 0.5rem; border-radius: 6px; font-weight: 600;">1-Click</span>
+        </button>
+      </div>
+
+      <!-- Divider -->
+      <div class="auth-divider" style="margin: 0.85rem 0 1.15rem;">
+        <span>or enter another Google email</span>
+      </div>
+
+      <!-- Custom Google Email Input -->
+      <div style="display: flex; gap: 0.5rem; margin-bottom: 0.85rem;">
+        <input type="email" id="custom-google-email" class="form-control" placeholder="your_name@gmail.com" style="padding-left: 1rem; font-size: 0.88rem;">
+        <button type="button" class="btn-overleaf-action" onclick="submitCustomGoogleAccount()" style="width: auto; padding: 0.82rem 1.25rem; font-size: 0.88rem; white-space: nowrap;">
+          Sign In
+        </button>
+      </div>
+
+      <div id="google-modal-feedback" style="display: none; font-size: 0.82rem; margin-top: 0.5rem;"></div>
+    </div>
+  </div>
+
   <script>
     let currentAuthMode = 'login';
     let currentResetIdentifier = '';
@@ -1325,7 +1504,7 @@
         if (registerForm) registerForm.style.display = 'none';
 
         cardHeading.textContent = 'Researcher Portal';
-        cardSubheading.textContent = 'Sign in with your Username or Email to access your workspace';
+        cardSubheading.textContent = 'Sign in with Google or Email to access your workspace';
         const googleText = document.getElementById('google-btn-text');
         if (googleText) googleText.textContent = 'Continue with Google';
       } else {
@@ -1525,6 +1704,318 @@
       }
     }
 
+    // Centralized Authentication Redirect & Session Storage
+    function completeAuthRedirect(data) {
+      if (data && data.token) {
+        localStorage.setItem('litsphere_auth_token', data.token);
+        if (data.user) localStorage.setItem('litsphere_user', JSON.stringify(data.user));
+        const _wKey = 'litsphere_welcome_dismissed_' + data.token.slice(-12);
+        localStorage.removeItem(_wKey);
+      }
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectUrl = urlParams.get('redirect');
+
+      if (data && data.is_new_user) {
+        window.location.href = '/profile?notice=welcome' + (redirectUrl ? '&redirect=' + encodeURIComponent(redirectUrl) : '');
+      } else if (redirectUrl && (redirectUrl.startsWith('/dashboard') || redirectUrl.startsWith('/workspace') || redirectUrl.startsWith('/profile') || redirectUrl.startsWith('/admin'))) {
+        window.location.href = redirectUrl;
+      } else if (data && data.user && data.user.role === 'admin') {
+        window.location.href = '/admin';
+      } else {
+        window.location.href = '/dashboard';
+      }
+    }
+
+    // Google SSO Modal controls
+    function openGoogleModal() {
+      const modal = document.getElementById('google-sso-modal');
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function closeGoogleModal() {
+      const modal = document.getElementById('google-sso-modal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    window.openGoogleFallbackModal = openGoogleModal;
+
+    // Google Sign-In handler (triggered when clicking the Google button)
+    async function handleGoogleSignIn() {
+      const errEl = document.getElementById('auth-error-msg');
+      if (errEl) errEl.style.display = 'none';
+
+      // 1. If Firebase Auth is initialized with live key, use signInWithPopup
+      if (window.LitSphereFirebase && window.LitSphereFirebase.isConfigured()) {
+        try {
+          await window.LitSphereFirebase.signInWithGoogle({
+            onSuccess: (data) => completeAuthRedirect(data),
+            onError: (err) => openGoogleModal()
+          });
+          return;
+        } catch (e) {
+          console.warn('Firebase Google note:', e);
+        }
+      }
+
+      // 2. Open the Google Account Selection Portal Modal
+      openGoogleModal();
+    }
+
+    async function selectGoogleAccount(email, name) {
+      const feedback = document.getElementById('google-modal-feedback');
+      if (feedback) {
+        feedback.textContent = 'Authenticating with Google...';
+        feedback.style.color = '#38bdf8';
+        feedback.style.display = 'block';
+      }
+
+      try {
+        const res = await fetch('/api/auth/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: email,
+            name: name,
+            displayName: name,
+            avatar_url: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`
+          })
+        });
+
+        const text = await res.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          throw new Error('Server returned unexpected response during Google authentication.');
+        }
+
+        if (!res.ok) throw new Error(data.error || 'Google authentication failed.');
+
+        if (feedback) {
+          feedback.textContent = 'Authenticated! Redirecting to workspace...';
+          feedback.style.color = '#10b981';
+        }
+
+        setTimeout(() => {
+          closeGoogleModal();
+          completeAuthRedirect(data);
+        }, 350);
+      } catch (err) {
+        if (feedback) {
+          feedback.textContent = err.message;
+          feedback.style.color = '#f43f5e';
+          feedback.style.display = 'block';
+        }
+      }
+    }
+
+    function submitCustomGoogleAccount() {
+      const input = document.getElementById('custom-google-email');
+      const email = (input ? input.value : '').trim();
+      if (!email || !email.includes('@') || !email.includes('.')) {
+        const feedback = document.getElementById('google-modal-feedback');
+        if (feedback) {
+          feedback.textContent = 'Please enter a valid Google email address.';
+          feedback.style.color = '#f43f5e';
+          feedback.style.display = 'block';
+        }
+        return;
+      }
+      const name = email.split('@')[0];
+      selectGoogleAccount(email, name);
+    }
+
+    // Mail Login (Password vs OTP) Switcher
+    let currentMailMethod = 'password';
+    let loginOtpCountdownTimer = null;
+
+    function setMailMethod(method) {
+      currentMailMethod = method;
+      const btnPw = document.getElementById('method-btn-password');
+      const btnOtp = document.getElementById('method-btn-otp');
+      const pwSec = document.getElementById('signin-password-section');
+      const otpSec = document.getElementById('signin-otp-section');
+      const errEl = document.getElementById('auth-error-msg');
+      if (errEl) errEl.style.display = 'none';
+
+      if (method === 'otp') {
+        if (btnPw) btnPw.classList.remove('active');
+        if (btnOtp) btnOtp.classList.add('active');
+        if (pwSec) pwSec.style.display = 'none';
+        if (otpSec) otpSec.style.display = 'block';
+        const emailInput = document.getElementById('otp-email-input');
+        const signinIdInput = document.getElementById('auth-identifier');
+        if (emailInput && signinIdInput && signinIdInput.value.includes('@')) {
+          emailInput.value = signinIdInput.value.trim();
+        }
+      } else {
+        if (btnPw) btnPw.classList.add('active');
+        if (btnOtp) btnOtp.classList.remove('active');
+        if (pwSec) pwSec.style.display = 'block';
+        if (otpSec) otpSec.style.display = 'none';
+      }
+    }
+
+    async function sendLoginOtp() {
+      const emailInput = document.getElementById('otp-email-input');
+      const sendBtn = document.getElementById('otp-send-btn');
+      const sendBtnText = document.getElementById('otp-send-btn-text');
+      const errEl = document.getElementById('auth-error-msg');
+      const verifyBlock = document.getElementById('otp-verify-block');
+      const feedbackEl = document.getElementById('otp-sent-feedback');
+
+      if (errEl) errEl.style.display = 'none';
+      const email = (emailInput ? emailInput.value : '').trim().toLowerCase();
+
+      if (!email || !email.includes('@') || !email.includes('.')) {
+        if (errEl) {
+          errEl.textContent = 'Please enter a valid email address to receive your login passcode.';
+          errEl.style.display = 'flex';
+        }
+        return;
+      }
+
+      if (sendBtn) {
+        sendBtn.disabled = true;
+        sendBtn.style.opacity = '0.7';
+        if (sendBtnText) sendBtnText.textContent = 'Dispatching Passcode...';
+      }
+
+      try {
+        const res = await fetch('/api/auth/send-login-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+
+        const text = await res.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          throw new Error('Server returned unexpected response during passcode dispatch. Please try again.');
+        }
+
+        if (!res.ok) throw new Error(data.error || 'Failed to dispatch passcode.');
+
+        if (feedbackEl) {
+          feedbackEl.textContent = `Passcode sent to ${email}! Check your inbox.`;
+        }
+        if (verifyBlock) verifyBlock.style.display = 'block';
+        if (sendBtn) sendBtn.style.display = 'none';
+
+        const codeInput = document.getElementById('otp-code-input');
+        if (codeInput) {
+          codeInput.focus();
+          codeInput.onkeyup = (ev) => {
+            if (ev.key === 'Enter') verifyLoginOtp();
+          };
+        }
+
+        startLoginOtpCountdown(15 * 60);
+      } catch (err) {
+        if (errEl) {
+          errEl.textContent = err.message;
+          errEl.style.display = 'flex';
+        }
+        if (sendBtn) {
+          sendBtn.disabled = false;
+          sendBtn.style.opacity = '1';
+          if (sendBtnText) sendBtnText.textContent = 'Send Login Passcode';
+        }
+      }
+    }
+
+    function startLoginOtpCountdown(seconds) {
+      clearInterval(loginOtpCountdownTimer);
+      let remaining = seconds;
+      const timerEl = document.getElementById('otp-countdown');
+
+      function update() {
+        const m = Math.floor(remaining / 60);
+        const s = remaining % 60;
+        if (timerEl) {
+          timerEl.textContent = `⏱ ${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+        if (remaining <= 0) {
+          clearInterval(loginOtpCountdownTimer);
+          if (timerEl) timerEl.textContent = '⏱ Expired';
+        }
+        remaining--;
+      }
+
+      update();
+      loginOtpCountdownTimer = setInterval(update, 1000);
+    }
+
+    async function verifyLoginOtp() {
+      const emailInput = document.getElementById('otp-email-input');
+      const codeInput = document.getElementById('otp-code-input');
+      const verifyBtn = document.getElementById('otp-verify-btn');
+      const verifyBtnText = document.getElementById('otp-verify-btn-text');
+      const errEl = document.getElementById('auth-error-msg');
+
+      if (errEl) errEl.style.display = 'none';
+      const email = (emailInput ? emailInput.value : '').trim().toLowerCase();
+      const code = (codeInput ? codeInput.value : '').trim();
+
+      if (!email || !code) {
+        if (errEl) {
+          errEl.textContent = 'Please enter your email and the 6-digit verification code.';
+          errEl.style.display = 'flex';
+        }
+        return;
+      }
+
+      if (code.length < 6) {
+        if (errEl) {
+          errEl.textContent = 'Please enter the full 6-digit verification passcode.';
+          errEl.style.display = 'flex';
+        }
+        return;
+      }
+
+      if (verifyBtn) {
+        verifyBtn.disabled = true;
+        verifyBtn.style.opacity = '0.7';
+        if (verifyBtnText) verifyBtnText.textContent = 'Verifying Passcode...';
+      }
+
+      try {
+        const res = await fetch('/api/auth/verify-login-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, code })
+        });
+
+        const text = await res.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          throw new Error('Server returned unexpected response during verification.');
+        }
+
+        if (!res.ok) throw new Error(data.error || 'Verification passcode incorrect or expired.');
+
+        if (verifyBtnText) verifyBtnText.textContent = 'Verified! Entering Workspace...';
+        setTimeout(() => {
+          completeAuthRedirect(data);
+        }, 350);
+      } catch (err) {
+        if (errEl) {
+          errEl.textContent = err.message;
+          errEl.style.display = 'flex';
+        }
+        if (verifyBtn) {
+          verifyBtn.disabled = false;
+          verifyBtn.style.opacity = '1';
+          if (verifyBtnText) verifyBtnText.textContent = 'Verify Code & Enter Workspace';
+        }
+      }
+    }
+
     // Sign In Form Handler
     async function handleSignInSubmit(e) {
       e.preventDefault();
@@ -1549,26 +2040,17 @@
           body: JSON.stringify({ identifier, password })
         });
 
-        const data = await res.json();
+        const text = await res.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          throw new Error('Server returned unexpected response during login.');
+        }
+
         if (!res.ok) throw new Error(data.error || 'Authentication failed. Please check credentials.');
 
-        localStorage.setItem('litsphere_auth_token', data.token);
-        localStorage.setItem('litsphere_user', JSON.stringify(data.user));
-        const _wKey = 'litsphere_welcome_dismissed_' + data.token.slice(-12);
-        localStorage.removeItem(_wKey);
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const redirectUrl = urlParams.get('redirect');
-
-        if (data.is_new_user) {
-          window.location.href = '/profile?notice=welcome' + (redirectUrl ? '&redirect=' + encodeURIComponent(redirectUrl) : '');
-        } else if (redirectUrl && (redirectUrl.startsWith('/dashboard') || redirectUrl.startsWith('/workspace') || redirectUrl.startsWith('/profile') || redirectUrl.startsWith('/admin'))) {
-          window.location.href = redirectUrl;
-        } else if (data.user.role === 'admin') {
-          window.location.href = '/admin';
-        } else {
-          window.location.href = '/dashboard';
-        }
+        completeAuthRedirect(data);
       } catch (err) {
         errEl.textContent = err.message;
         errEl.style.display = 'flex';
@@ -1729,26 +2211,17 @@
           body: JSON.stringify({ username, email, password, confirmPassword })
         });
 
-        const data = await res.json();
+        const text = await res.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          throw new Error('Server returned unexpected response during registration.');
+        }
+
         if (!res.ok) throw new Error(data.error || 'Registration failed.');
 
-        localStorage.setItem('litsphere_auth_token', data.token);
-        localStorage.setItem('litsphere_user', JSON.stringify(data.user));
-        const _wKey = 'litsphere_welcome_dismissed_' + data.token.slice(-12);
-        localStorage.removeItem(_wKey);
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const redirectUrl = urlParams.get('redirect');
-
-        if (data.is_new_user) {
-          window.location.href = '/profile?notice=welcome' + (redirectUrl ? '&redirect=' + encodeURIComponent(redirectUrl) : '');
-        } else if (redirectUrl && (redirectUrl.startsWith('/dashboard') || redirectUrl.startsWith('/workspace') || redirectUrl.startsWith('/profile') || redirectUrl.startsWith('/admin'))) {
-          window.location.href = redirectUrl;
-        } else if (data.user.role === 'admin') {
-          window.location.href = '/admin';
-        } else {
-          window.location.href = '/dashboard';
-        }
+        completeAuthRedirect(data);
       } catch (err) {
         errEl.textContent = err.message;
         errEl.style.display = 'flex';
@@ -2226,6 +2699,7 @@
   </script>
 
   <!-- Modular Core Scripts -->
+  <script src="/js/core/firebase-auth.js"></script>
   <script src="/js/core/navbar.js"></script>
   <script src="/js/core/footer.js"></script>
 </body>
