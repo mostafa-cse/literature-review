@@ -213,7 +213,7 @@
         <a href="/about" class="nav-link-academic ${activeKey === 'about' ? 'active' : ''}" id="nav-link-about" data-nav="about">About</a>
         <a href="/dashboard" class="nav-link-academic ${activeKey === 'dashboard' ? 'active' : ''}" id="nav-link-dashboard" data-nav="dashboard">Dashboard</a>
         <a href="/workspace" class="nav-link-academic ${activeKey === 'workspace' ? 'active' : ''}" id="nav-link-workspace" data-nav="workspace">Workspace</a>
-        <a href="/admin" id="nav-admin-link" class="nav-link-academic ${activeKey === 'admin' ? 'active' : ''}" data-nav="admin" style="display: ${isAdmin ? 'inline-flex' : 'none'}; color: var(--accent-rose);">Admin</a>
+        <a href="/admin" id="nav-admin-link" class="nav-link-academic ${activeKey === 'admin' ? 'active' : ''}" data-nav="admin" style="display: ${isAdmin ? 'inline-flex' : 'none'};">Admin</a>
 
         <button type="button" class="theme-toggle-academic theme-toggle-pill" id="theme-toggle-auth" onclick="toggleTheme()" title="Toggle Dark/Light Mode" aria-label="Toggle Theme">
           <span class="theme-icon-indicator" id="theme-icon-auth">${currentThemeIcon}</span>
@@ -251,7 +251,7 @@
               <span>Matrix Workspace</span>
             </a>
 
-            <a href="/admin" class="dropdown-item ${activeKey === 'admin' ? 'active' : ''}" id="dropdown-admin-link" style="display: ${isAdmin ? 'flex' : 'none'}; color: var(--accent-rose);">
+            <a href="/admin" class="dropdown-item ${activeKey === 'admin' ? 'active' : ''}" id="dropdown-admin-link" style="display: ${isAdmin ? 'flex' : 'none'};">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.85;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
               <span>Admin Console</span>
             </a>
@@ -291,11 +291,11 @@
         <a href="/dashboard" id="mobile-link-dashboard" class="${activeKey === 'dashboard' ? 'active' : ''}" style="display: ${isAuthenticated ? 'flex' : 'none'};">Dashboard <span>→</span></a>
         <a href="/workspace" id="mobile-link-workspace" class="${activeKey === 'workspace' ? 'active' : ''}" style="display: ${isAuthenticated ? 'flex' : 'none'};">Workspace <span>→</span></a>
         <a href="/profile" id="mobile-link-profile" class="${activeKey === 'profile' ? 'active' : ''}" style="display: ${isAuthenticated ? 'flex' : 'none'};">Profile &amp; Settings <span>→</span></a>
-        <a href="/admin" id="mobile-link-admin" class="${activeKey === 'admin' ? 'active' : ''}" style="display: ${isAdmin ? 'flex' : 'none'}; color: var(--accent-rose);">Admin Console <span>→</span></a>
+        <a href="/admin" id="mobile-link-admin" class="${activeKey === 'admin' ? 'active' : ''}" style="display: ${isAdmin ? 'flex' : 'none'};">Admin Console <span>→</span></a>
         
         <!-- Unauthenticated links -->
         <a href="/login" id="mobile-link-login" class="${activeKey === 'login' ? 'active' : ''}" style="display: ${isAuthenticated ? 'none' : 'flex'};">Sign In <span>→</span></a>
-        <a href="/register" id="mobile-link-register" class="${activeKey === 'register' ? 'active' : ''}" style="display: ${isAuthenticated ? 'none' : 'flex'}; color: var(--accent-gold); font-weight: 700;">Create Account <span>→</span></a>
+        <a href="/register" id="mobile-link-register" class="${activeKey === 'register' ? 'active' : ''}" style="display: ${isAuthenticated ? 'none' : 'flex'}; font-weight: 600;">Create Account <span>→</span></a>
       </div>
 
       <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.75rem; border-top: 1px solid var(--border-base, rgba(255,255,255,0.08)); margin-top: 0.25rem;">
