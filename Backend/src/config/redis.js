@@ -33,9 +33,9 @@ function getRedisClient() {
   if (!redisClient) {
     const isTls = typeof env.REDIS_URL === 'string' && env.REDIS_URL.startsWith('rediss://');
     redisClient = new Redis(env.REDIS_URL, {
-      maxRetriesPerRequest: 20,
+      maxRetriesPerRequest: 3,
       enableReadyCheck: true,
-      connectTimeout: 10000,
+      connectTimeout: 2500,
       keepAlive: 15000,
       family: 4,
       ...(isTls ? { tls: { rejectUnauthorized: false } } : {}),

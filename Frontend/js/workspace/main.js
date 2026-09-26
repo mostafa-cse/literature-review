@@ -45,13 +45,32 @@ window.init = async function () {
     window.restoreKeywordsSectionCollapseState();
   }
 
-  // Load Project Hierarchy
-  await loadProjects();
-  await loadClusters();
-  await loadDynamicColumns();
-  await loadPapers();
-  await loadStats();
-  await loadSynthesisInsights();
+  // Load Project Hierarchy concurrently to eliminate waterfall delays
+  if (activeProjectId) {
+    // If active project is already known from URL, fetch core data in parallel
+    await Promise.all([
+      loadProjects(),
+      loadClusters(),
+      loadDynamicColumns(),
+      loadPapers()
+    ]);
+  } else {
+    // If no project specified in URL, resolve default project first, then parallel load
+    await loadProjects();
+    await Promise.all([
+      loadClusters(),
+      loadDynamicColumns(),
+      loadPapers()
+    ]);
+  }
+
+  // Non-blocking secondary analytics background loading
+  if (typeof loadStats === 'function') {
+    loadStats().catch(err => console.warn('Telemetry load notice:', err.message));
+  }
+  if (typeof loadSynthesisInsights === 'function') {
+    loadSynthesisInsights().catch(err => console.warn('Synthesis load notice:', err.message));
+  }
 
   // If cluster URL parameter was provided, activate cluster focus
   if (clusterParam && clusterParam !== 'all') {

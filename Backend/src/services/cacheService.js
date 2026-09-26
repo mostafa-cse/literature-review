@@ -107,47 +107,73 @@ async function addKeyToTags(key, tags, ttlSeconds = TTL_DEFAULT) {
 }
 
 /**
- * Low-level GET with decompression and memory fallback
+ * Low-level GET with Tier-1 In-Memory L1 Cache + Tier-2 Redis L2 Cache with decompression
  */
 async function get(key) {
-  const redis = getRedisClient();
-  if (redis && redis.status === 'ready') {
-    try {
-      const data = await redis.get(key);
-      if (data === null || data === undefined) return null;
-      const raw = decompressPayload(data);
+  // Tier-1: Ultra-fast local in-memory L1 cache check (sub-millisecond, zero network overhead)
+  if (!isMemoryExpired(key) && memoryCache.has(key)) {
+    const memVal = memoryCache.get(key);
+    if (memVal !== null && memVal !== undefined) {
+      const raw = decompressPayload(memVal);
       try {
         return JSON.parse(raw);
       } catch {
         return raw;
       }
+    }
+  }
+
+  // Tier-2: Distributed Redis L2 cache with strict 1.2s timeout to prevent thread blocking
+  const redis = getRedisClient();
+  if (redis && redis.status === 'ready') {
+    try {
+      const data = await Promise.race([
+        redis.get(key),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Redis GET timeout')), 1200))
+      ]);
+      if (data !== null && data !== undefined) {
+        // Populate Tier-1 L1 memory cache with a 120-second TTL to accelerate subsequent hits
+        memoryCache.set(key, data);
+        memoryExpiry.set(key, Date.now() + 120000);
+
+        const raw = decompressPayload(data);
+        try {
+          return JSON.parse(raw);
+        } catch {
+          return raw;
+        }
+      }
+      return null;
     } catch (err) {
       if (env.NODE_ENV !== 'test') {
-        console.warn(`⚠️ [Cache] Redis GET failed for "${key}":`, err.message);
+        console.warn(`⚠️ [Cache] Redis GET failed or timed out for "${key}":`, err.message);
       }
     }
   }
 
-  // Fallback to in-memory store
-  if (isMemoryExpired(key)) return null;
-  const memVal = memoryCache.has(key) ? memoryCache.get(key) : null;
-  if (memVal === null || memVal === undefined) return null;
-  const raw = decompressPayload(memVal);
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return raw;
-  }
+  return null;
 }
 
 /**
- * Low-level SET with transparent compression, tags, TTL and fallback
+ * Low-level SET with transparent compression, tags, TTL and multi-tier persistence
  */
 async function set(key, value, ttlSeconds = TTL_DEFAULT, tags = []) {
   const serialized = typeof value === 'string' ? value : JSON.stringify(value);
   const payloadToStore = compressPayload(serialized);
   const redis = getRedisClient();
 
+  // Tier-1: Always populate local RAM cache immediately
+  memoryCache.set(key, payloadToStore);
+  const l1Ttl = Math.min(ttlSeconds && ttlSeconds > 0 ? ttlSeconds : 120, 300);
+  memoryExpiry.set(key, Date.now() + l1Ttl * 1000);
+  if (tags && tags.length > 0) {
+    for (const tag of tags) {
+      if (!memoryTags.has(tag)) memoryTags.set(tag, new Set());
+      memoryTags.get(tag).add(key);
+    }
+  }
+
+  // Tier-2: Distributed Redis cluster
   if (redis && redis.status === 'ready') {
     try {
       if (ttlSeconds && ttlSeconds > 0) {
@@ -166,16 +192,6 @@ async function set(key, value, ttlSeconds = TTL_DEFAULT, tags = []) {
     }
   }
 
-  // Fallback to in-memory store
-  memoryCache.set(key, payloadToStore);
-  if (ttlSeconds && ttlSeconds > 0) {
-    memoryExpiry.set(key, Date.now() + ttlSeconds * 1000);
-  } else {
-    memoryExpiry.delete(key);
-  }
-  if (tags && tags.length > 0) {
-    await addKeyToTags(key, tags, ttlSeconds);
-  }
   return true;
 }
 
