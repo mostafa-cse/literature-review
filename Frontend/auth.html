@@ -1921,7 +1921,18 @@
           body: JSON.stringify({ identifier })
         });
 
-        const data = await res.json();
+        const rawText = await res.text();
+        let data = {};
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          throw new Error(
+            res.status === 502 || res.status === 504
+              ? 'Backend server is starting up or connection timed out. Please wait a few seconds and try again.'
+              : `Server responded with ${res.status} ${res.statusText}.`
+          );
+        }
+
         console.log('3. Server Response Status:', res.status, res.statusText);
 
         if (!res.ok) {
@@ -1980,7 +1991,14 @@
           body: JSON.stringify({ identifier: currentResetIdentifier })
         });
 
-        const data = await res.json();
+        const rawText = await res.text();
+        let data = {};
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          throw new Error('Server error (' + res.status + '). Please try again in a few seconds.');
+        }
+
         if (!res.ok) {
           throw new Error(data.error || 'Failed to resend verification code.');
         }
@@ -2053,7 +2071,14 @@
           })
         });
 
-        const data = await res.json();
+        const rawText = await res.text();
+        let data = {};
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          throw new Error('Server error (' + res.status + '). Please try again.');
+        }
+
         console.log('4. Server Response Status:', res.status, res.statusText);
 
         if (!res.ok) {

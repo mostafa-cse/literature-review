@@ -25,3 +25,5 @@ services:
         value: "LitSphere Security <mostafakamal.cse2022@gmail.com>"
       - key: REDIS_URL
         sync: false
+      - key: RESEND_API_KEY
+        sync: false

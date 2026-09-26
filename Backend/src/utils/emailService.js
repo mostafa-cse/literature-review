@@ -5,18 +5,25 @@ const nodemailer = require('nodemailer');
  * Handles dispatching verification emails.
  */
 
-// Create reusable transporter object using the default SMTP transport
+// Create reusable transporter object using the default SMTP transport with strict timeouts
 const getTransporter = () => {
   const user = (process.env.EMAIL_USER || '').trim();
   const pass = (process.env.EMAIL_PASS || '').trim().replace(/^["']|["']$/g, '');
   const host = (process.env.EMAIL_HOST || '').trim();
   const port = parseInt(process.env.EMAIL_PORT, 10) || 587;
 
+  const timeoutConfig = {
+    connectionTimeout: 4000, // 4s timeout prevents proxy 502 Gateway Timeouts
+    greetingTimeout: 4000,
+    socketTimeout: 5000,
+  };
+
   // If using Gmail, 'service: gmail' is the most robust transport config in nodemailer
   if (host === 'smtp.gmail.com' || (!host && user.endsWith('@gmail.com'))) {
     return nodemailer.createTransport({
       service: 'gmail',
       auth: { user, pass },
+      ...timeoutConfig,
     });
   }
 
@@ -25,11 +32,15 @@ const getTransporter = () => {
     port: port,
     secure: port === 465,
     auth: { user, pass },
+    ...timeoutConfig,
   });
 };
 
 /**
  * Sends a highly professional academic password reset verification email.
+ * Supports HTTP Email APIs (Resend, Brevo) over HTTPS port 443 (ideal for Render Free Tier which blocks SMTP),
+ * as well as direct SMTP with strict timeouts.
+ *
  * @param {string} toEmail - The recipient's email address
  * @param {string} resetCode - The 6-digit cryptographic verification passcode
  * @param {string} name - (Optional) User's name
@@ -37,20 +48,14 @@ const getTransporter = () => {
 async function sendPasswordResetEmail(toEmail, resetCode, name = 'Researcher') {
   const user = (process.env.EMAIL_USER || '').trim();
   const pass = (process.env.EMAIL_PASS || '').trim().replace(/^["']|["']$/g, '');
+  const resendKey = (process.env.RESEND_API_KEY || '').trim();
+  const brevoKey = (process.env.BREVO_API_KEY || '').trim();
 
   // If running in test environment, simulate the dispatch
   if (process.env.NODE_ENV === 'test') {
     console.log(`🧪 [TEST EMAIL] Simulated Email Dispatch to: ${toEmail} | Code: ${resetCode}`);
     return true;
   }
-
-  // If live SMTP credentials are not configured, reject clearly
-  if (!user || !pass || pass.includes('your_16_char_app_password')) {
-    console.error('❌ [EMAIL SERVICE ERROR] Live SMTP credentials not configured (EMAIL_USER or EMAIL_PASS missing).');
-    throw new Error('Email service is not configured on the server. Please set EMAIL_USER and EMAIL_PASS environment variables.');
-  }
-
-  const transporter = getTransporter();
 
   // Create a stunning, professional HTML email template
   const htmlContent = `
@@ -100,6 +105,74 @@ async function sendPasswordResetEmail(toEmail, resetCode, name = 'Researcher') {
     </div>
   `;
 
+  // 1. HTTP Email Delivery via Resend (HTTPS Port 443 - works everywhere including Render Free Tier)
+  if (resendKey) {
+    try {
+      const fromAddr = (process.env.EMAIL_FROM || '').trim() || 'LitSphere Security <onboarding@resend.dev>';
+      const resendRes = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: fromAddr,
+          to: [toEmail],
+          subject: 'LitSphere — Password Reset Verification Passcode',
+          html: htmlContent,
+        }),
+      });
+
+      const resendData = await resendRes.json().catch(() => ({}));
+      if (!resendRes.ok) {
+        throw new Error(resendData.message || `Resend HTTP error ${resendRes.status}`);
+      }
+
+      console.log(`✅ [EMAIL SERVICE] Sent verification email via Resend API to ${toEmail}: ${resendData.id}`);
+      return true;
+    } catch (resendErr) {
+      console.error('❌ [EMAIL SERVICE] Resend HTTP API error:', resendErr);
+      throw new Error('Failed to dispatch email via Resend: ' + resendErr.message);
+    }
+  }
+
+  // 2. HTTP Email Delivery via Brevo (Sendinblue)
+  if (brevoKey) {
+    try {
+      const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: { name: 'LitSphere Security', email: user || 'security@litsphere.org' },
+          to: [{ email: toEmail }],
+          subject: 'LitSphere — Password Reset Verification Passcode',
+          htmlContent: htmlContent,
+        }),
+      });
+
+      const brevoData = await brevoRes.json().catch(() => ({}));
+      if (!brevoRes.ok) {
+        throw new Error(brevoData.message || `Brevo HTTP error ${brevoRes.status}`);
+      }
+
+      console.log(`✅ [EMAIL SERVICE] Sent verification email via Brevo API to ${toEmail}`);
+      return true;
+    } catch (brevoErr) {
+      console.error('❌ [EMAIL SERVICE] Brevo HTTP API error:', brevoErr);
+      throw new Error('Failed to dispatch email via Brevo: ' + brevoErr.message);
+    }
+  }
+
+  // 3. SMTP Delivery (Nodemailer)
+  if (!user || !pass || pass.includes('your_16_char_app_password')) {
+    console.error('❌ [EMAIL SERVICE ERROR] Live email credentials not configured.');
+    throw new Error('Email service is not configured. Please set EMAIL_USER/EMAIL_PASS (or RESEND_API_KEY) in server environment.');
+  }
+
+  const transporter = getTransporter();
   const fromAddress = (process.env.EMAIL_FROM || '').trim() || `"LitSphere Security" <${user}>`;
 
   const mailOptions = {
@@ -115,7 +188,13 @@ async function sendPasswordResetEmail(toEmail, resetCode, name = 'Researcher') {
     return true;
   } catch (error) {
     console.error(`❌ [EMAIL SERVICE] Error sending email to ${toEmail}:`, error);
-    throw new Error('Failed to dispatch email. Please check server SMTP configuration: ' + error.message);
+
+    // Render free tier blocks outbound SMTP ports 25, 465, and 587
+    if (error.code === 'ETIMEDOUT' || error.message.includes('timeout') || error.message.includes('ECONNREFUSED')) {
+      throw new Error('SMTP connection timed out. On Render Free Tier, SMTP ports 465/587 are blocked. Please add RESEND_API_KEY to your Render environment variables to send emails over HTTPS.');
+    }
+
+    throw new Error('Failed to dispatch email: ' + error.message);
   }
 }
 
