@@ -132,6 +132,19 @@ header.site-header.scrolled {
   box-shadow: 0 2px 8px rgba(180, 83, 9, 0.15) !important;
 }
 
+.brand-logo-img {
+  width: 25px !important;
+  height: 25px !important;
+  object-fit: contain !important;
+  display: block !important;
+  filter: drop-shadow(0 0 5px rgba(245, 158, 11, 0.45));
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.brand-group:hover .brand-logo-img {
+  transform: scale(1.12);
+}
+
 .brand-title-wrap {
   display: flex !important;
   flex-direction: column !important;
