@@ -20,8 +20,8 @@
       <!-- Brand & Mission Column -->
       <div class="footer-brand-col">
         <div class="footer-brand-header">
-          <div class="brand-logo-crest" style="width: 38px; height: 38px; font-size: 1.05rem;">
-            <img src="/assets/logo.svg" alt="LitSphere Logo" class="brand-logo-img" width="25" height="25" onerror="this.outerHTML='LS'">
+          <div class="brand-logo-crest" style="width: 36px; height: 36px; background: transparent; border: none; box-shadow: none;">
+            <img src="/assets/logo.svg" alt="LitSphere Logo" class="brand-logo-img" width="34" height="34" onerror="this.outerHTML='LS'">
           </div>
           <div class="brand-title-wrap">
             <span class="brand-name" style="font-size: 1.15rem;">LitSphere Inc.</span>

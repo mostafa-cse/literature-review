@@ -188,7 +188,7 @@
       <!-- Left: Logo Crest + Brand Title -->
       <a href="/" class="brand-group" title="LitSphere - Home">
         <div class="brand-logo-crest">
-          <img src="/assets/logo.svg" alt="LitSphere Logo" class="brand-logo-img" width="25" height="25" onerror="this.outerHTML='LS'">
+          <img src="/assets/logo.svg" alt="LitSphere Logo" class="brand-logo-img" width="34" height="34" onerror="this.outerHTML='LS'">
         </div>
         <div class="brand-title-wrap">
           <span class="brand-name">LitSphere</span>
