@@ -17,6 +17,7 @@
   status = 200
   force = true
 
+# Home & Landing Routes
 [[redirects]]
   from = "/"
   to = "/index.html"
@@ -32,6 +33,33 @@
   to = "/index.html"
   status = 200
 
+# Authentication Routes
+[[redirects]]
+  from = "/login"
+  to = "/auth.html"
+  status = 200
+
+[[redirects]]
+  from = "/signin"
+  to = "/auth.html"
+  status = 200
+
+[[redirects]]
+  from = "/signup"
+  to = "/auth.html"
+  status = 200
+
+[[redirects]]
+  from = "/register"
+  to = "/auth.html"
+  status = 200
+
+[[redirects]]
+  from = "/auth"
+  to = "/auth.html"
+  status = 200
+
+# Workspace & Matrix Routes
 [[redirects]]
   from = "/workspace"
   to = "/workspace.html"
@@ -43,41 +71,123 @@
   status = 200
 
 [[redirects]]
+  from = "/matrix"
+  to = "/workspace.html"
+  status = 200
+
+[[redirects]]
+  from = "/shared/*"
+  to = "/workspace.html"
+  status = 200
+
+# Dashboard & Project Surveys
+[[redirects]]
   from = "/dashboard"
   to = "/dashboard.html"
   status = 200
 
+[[redirects]]
+  from = "/surveys"
+  to = "/dashboard.html"
+  status = 200
+
+[[redirects]]
+  from = "/my-surveys"
+  to = "/dashboard.html"
+  status = 200
+
+[[redirects]]
+  from = "/projects"
+  to = "/dashboard.html"
+  status = 200
+
+# Split-Screen Review / Reader
 [[redirects]]
   from = "/review"
   to = "/review.html"
   status = 200
 
 [[redirects]]
+  from = "/reader"
+  to = "/review.html"
+  status = 200
+
+[[redirects]]
+  from = "/paper-preview"
+  to = "/review.html"
+  status = 200
+
+# Admin Control Center
+[[redirects]]
   from = "/admin"
   to = "/admin.html"
   status = 200
 
+[[redirects]]
+  from = "/admin-dashboard"
+  to = "/admin.html"
+  status = 200
+
+[[redirects]]
+  from = "/control-center"
+  to = "/admin.html"
+  status = 200
+
+# Database Explorer
 [[redirects]]
   from = "/db"
   to = "/db.html"
   status = 200
 
 [[redirects]]
-  from = "/login"
-  to = "/auth.html"
+  from = "/database"
+  to = "/db.html"
   status = 200
 
 [[redirects]]
-  from = "/auth"
-  to = "/auth.html"
+  from = "/db-explorer"
+  to = "/db.html"
   status = 200
 
+[[redirects]]
+  from = "/schema"
+  to = "/db.html"
+  status = 200
+
+[[redirects]]
+  from = "/db-schema"
+  to = "/db.html"
+  status = 200
+
+# Profile & Account Settings
 [[redirects]]
   from = "/profile"
   to = "/profile.html"
   status = 200
 
 [[redirects]]
+  from = "/settings"
+  to = "/profile.html"
+  status = 200
+
+[[redirects]]
+  from = "/account"
+  to = "/profile.html"
+  status = 200
+
+# About & Features
+[[redirects]]
   from = "/about"
   to = "/about.html"
   status = 200
+
+[[redirects]]
+  from = "/about-us"
+  to = "/about.html"
+  status = 200
+
+[[redirects]]
+  from = "/features"
+  to = "/about.html"
+  status = 200
+
