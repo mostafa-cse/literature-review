@@ -25,15 +25,23 @@ window.loadTeamMembers = async function() {
 
   // Get cached user info
   let currentUserId = null;
-  const cachedUserStr = localStorage.getItem('litsphere_user');
+  let currentUserRole = null;
+  const cachedUserStr = localStorage.getItem('litsphere_user') || localStorage.getItem('user');
   if (cachedUserStr) {
-    try { currentUserId = JSON.parse(cachedUserStr).id; } catch(e) {}
+    try {
+      const parsed = JSON.parse(cachedUserStr);
+      currentUserId = Number(parsed.id);
+      currentUserRole = parsed.role;
+    } catch(e) {}
   }
+  const isGlobalAdmin = currentUserRole === 'admin' || (window.currentUser && window.currentUser.role === 'admin');
 
   const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
 
   try {
-    const res = await fetch(`/api/projects/${pid}/members`, { headers: getAuthHeaders() });
+    const res = await fetch(`/api/projects/${pid}/members`, {
+      headers: (typeof getAuthHeaders === 'function') ? getAuthHeaders() : { 'Content-Type': 'application/json' }
+    });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
       throw new Error(errData.error || 'Failed to load project members');
@@ -43,7 +51,7 @@ window.loadTeamMembers = async function() {
     const members = Array.isArray(data.members) ? data.members : [];
 
     // Filter out owner from members if already listed to avoid duplicates
-    const collaborators = members.filter(m => !owner || (m.user_id !== owner.id && m.id !== owner.id));
+    const collaborators = members.filter(m => !owner || (Number(m.user_id) !== Number(owner.id) && Number(m.id) !== Number(owner.id)));
     const totalCount = (owner ? 1 : 0) + collaborators.length;
 
     if (rosterCount) {
@@ -51,7 +59,7 @@ window.loadTeamMembers = async function() {
     }
 
     // Determine current user's effective role
-    const isOwner = (owner && currentUserId === owner.id) || currentProjectRole === 'owner';
+    const isOwner = (owner && Number(currentUserId) === Number(owner.id)) || currentProjectRole === 'owner' || isGlobalAdmin;
 
     if (addMemberBar) {
       addMemberBar.style.display = isOwner ? 'block' : 'none';
@@ -68,7 +76,7 @@ window.loadTeamMembers = async function() {
     // 1. Render Project Owner Card
     if (owner) {
       const ownerInitials = (owner.name || 'Owner').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
-      const isYou = currentUserId === owner.id;
+      const isYou = currentUserId && Number(currentUserId) === Number(owner.id);
       html += `
         <div class="team-member-card owner-card">
           <div style="display: flex; align-items: center; gap: 0.75rem; min-width: 0; flex: 1;">
@@ -103,7 +111,7 @@ window.loadTeamMembers = async function() {
       collaborators.forEach(m => {
         const role = (m.project_role || m.role || 'editor').toLowerCase();
         const initials = (m.name || 'User').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
-        const isYou = currentUserId === m.user_id;
+        const isYou = currentUserId && Number(currentUserId) === Number(m.user_id);
 
         html += `
           <div class="team-member-card">
@@ -148,8 +156,16 @@ window.loadTeamMembers = async function() {
 };
 
 window.submitInviteCollaborator = async function(e) {
-  if (currentProjectRole !== 'owner') {
-    showToast('Permission Denied: Only the project Owner can invite team members.', 'warning');
+  const cachedUserStr = localStorage.getItem('litsphere_user') || localStorage.getItem('user');
+  let isGlobalAdmin = false;
+  try {
+    if (cachedUserStr) isGlobalAdmin = JSON.parse(cachedUserStr).role === 'admin';
+  } catch(e) {}
+  const effectiveRole = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  const canManage = effectiveRole === 'owner' || isGlobalAdmin;
+
+  if (!canManage) {
+    showToast('Permission Denied: Only the project Owner or administrator can invite team members.', 'warning');
     return;
   }
   const emailInput = document.getElementById('team-invite-email');
@@ -169,7 +185,7 @@ window.submitInviteCollaborator = async function(e) {
   try {
     const res = await fetch(`/api/projects/${pid}/members`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: (typeof getAuthHeaders === 'function') ? getAuthHeaders() : { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, role })
     });
 
@@ -188,15 +204,24 @@ window.submitInviteCollaborator = async function(e) {
 };
 
 window.updateCollaboratorRole = async function(userId, newRole) {
-  if ((window.isProjectViewer && window.isProjectViewer()) || currentProjectRole === 'viewer') {
+  const cachedUserStr = localStorage.getItem('litsphere_user') || localStorage.getItem('user');
+  let isGlobalAdmin = false;
+  try {
+    if (cachedUserStr) isGlobalAdmin = JSON.parse(cachedUserStr).role === 'admin';
+  } catch(e) {}
+  const effectiveRole = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  const canManage = effectiveRole === 'owner' || isGlobalAdmin;
+
+  if (!canManage) {
     showToast('View-only access: You cannot modify collaborator roles.', 'warning');
+    loadTeamMembers();
     return;
   }
   const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
   try {
     const res = await fetch(`/api/projects/${pid}/members/${userId}`, {
       method: 'PUT',
-      headers: getAuthHeaders(),
+      headers: (typeof getAuthHeaders === 'function') ? getAuthHeaders() : { 'Content-Type': 'application/json' },
       body: JSON.stringify({ role: newRole })
     });
 
@@ -212,22 +237,48 @@ window.updateCollaboratorRole = async function(userId, newRole) {
 };
 
 window.removeCollaborator = async function(userId, memberName = 'this collaborator') {
-  if (memberName !== 'yourself' && ((window.isProjectViewer && window.isProjectViewer()) || currentProjectRole === 'viewer')) {
-    showToast('View-only access: You cannot remove team members.', 'warning');
+  const cachedUserStr = localStorage.getItem('litsphere_user') || localStorage.getItem('user');
+  let isGlobalAdmin = false;
+  let curUid = null;
+  try {
+    if (cachedUserStr) {
+      const u = JSON.parse(cachedUserStr);
+      isGlobalAdmin = u.role === 'admin';
+      curUid = Number(u.id);
+    }
+  } catch(e) {}
+
+  const isSelf = memberName === 'yourself' || (curUid && Number(userId) === curUid);
+  const effectiveRole = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  const canManage = effectiveRole === 'owner' || isGlobalAdmin;
+
+  if (!isSelf && !canManage) {
+    showToast('Only the project owner or administrator can remove team members.', 'warning');
     return;
   }
-  if (!confirm(`Are you sure you want to remove ${memberName} from this project?`)) return;
+
+  const promptMsg = isSelf
+    ? 'Are you sure you want to leave this project? You will no longer have access to this survey workspace.'
+    : `Are you sure you want to remove ${memberName} from this project?`;
+
+  if (!confirm(promptMsg)) return;
   const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
   try {
     const res = await fetch(`/api/projects/${pid}/members/${userId}`, {
       method: 'DELETE',
-      headers: getAuthHeaders()
+      headers: (typeof getAuthHeaders === 'function') ? getAuthHeaders() : { 'Content-Type': 'application/json' }
     });
 
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
-      showToast(data.message || 'Collaborator removed successfully', 'success');
-      loadTeamMembers();
+      showToast(data.message || (isSelf ? 'You have left the project' : 'Collaborator removed successfully'), 'success');
+      if (isSelf) {
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 800);
+      } else {
+        loadTeamMembers();
+      }
     } else {
       throw new Error(data.error || 'Failed to remove collaborator');
     }

@@ -765,11 +765,11 @@ router.post('/projects/:id/duplicate', authenticateToken, async (req, res) => {
   }
 });
 
-// Reset/Clear all extracted paper column values in master matrix (Owner only, with Distributed Lock protection)
+// Reset/Clear all extracted paper column values in master matrix (Owner or Admin)
 router.post('/projects/:id/reset-matrix', authenticateToken, async (req, res) => {
   try {
     const db = getDb();
-    const pid = req.params.id;
+    const pid = Number(req.params.id);
 
     const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(pid);
     if (!project) return res.status(404).json({ error: 'Project not found' });
@@ -780,26 +780,26 @@ router.post('/projects/:id/reset-matrix', authenticateToken, async (req, res) =>
     }
 
     let delChanges = 0;
-    await cacheService.withLock(`survey:${pid}:matrix`, 15, async () => {
+    try {
       db.exec('BEGIN TRANSACTION;');
-      try {
-        // 1. Delete all cell extractions for papers in this project
-        const delValues = db.prepare('DELETE FROM paper_column_values WHERE paper_id IN (SELECT id FROM papers WHERE project_id = ?)').run(pid);
-        delChanges = delValues.changes;
-        
-        // 2. Reset paper statuses to 'unread'
-        db.prepare("UPDATE papers SET status = 'unread' WHERE project_id = ?").run(pid);
+      // 1. Delete all cell extractions for papers in this project
+      const delValues = db.prepare('DELETE FROM paper_column_values WHERE paper_id IN (SELECT id FROM papers WHERE project_id = ?)').run(pid);
+      delChanges = delValues ? (delValues.changes || 0) : 0;
+      
+      // 2. Reset paper statuses to 'unread'
+      db.prepare("UPDATE papers SET status = 'unread' WHERE project_id = ?").run(pid);
 
-        db.exec('COMMIT;');
-      } catch (e) {
-        db.exec('ROLLBACK;');
-        throw e;
-      }
-    });
+      db.exec('COMMIT;');
+    } catch (txErr) {
+      try { db.exec('ROLLBACK;'); } catch (_) {}
+      throw txErr;
+    }
 
     // Invalidate cached survey matrix & stats
-    await cacheService.invalidateSurveyCache(pid);
-    await cacheService.invalidateTag('stats');
+    try {
+      await cacheService.invalidateSurveyCache(pid);
+      await cacheService.invalidateTag('stats');
+    } catch (_) {}
 
     logAuditEvent(req, 'PROJECT_MATRIX_RESET', `Reset matrix cell values and paper status on project ${pid} (${project.name})`, 'SUCCESS');
 

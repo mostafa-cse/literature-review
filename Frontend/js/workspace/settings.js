@@ -301,8 +301,14 @@ window.downloadCurrentSurveyBackup = function() {
 
 window.resetCurrentSurveyMatrix = async function() {
   const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
-  if (role !== 'owner') {
-    showToast('Only the project owner can reset matrix cell values.', 'warning');
+  const cachedUserStr = localStorage.getItem('user');
+  let isGlobalAdmin = false;
+  try {
+    if (cachedUserStr) isGlobalAdmin = JSON.parse(cachedUserStr).role === 'admin';
+  } catch(e) {}
+
+  if (role !== 'owner' && !isGlobalAdmin) {
+    showToast('Only the project owner or administrator can reset matrix cell values.', 'warning');
     return;
   }
   const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
@@ -311,10 +317,17 @@ window.resetCurrentSurveyMatrix = async function() {
     return;
   }
 
+  const btn = document.getElementById('btn-reset-matrix-cells') || document.querySelector('.settings-feature-card.warning-card button');
+  const originalText = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Resetting...';
+  }
+
   try {
     const res = await fetch(`/api/projects/${pid}/reset-matrix`, {
       method: 'POST',
-      headers: getAuthHeaders()
+      headers: (typeof getAuthHeaders === 'function') ? getAuthHeaders() : { 'Content-Type': 'application/json' }
     });
 
     if (!res.ok) {
@@ -328,16 +341,27 @@ window.resetCurrentSurveyMatrix = async function() {
 
     // Reload workspace data & matrix
     await loadPapers();
-    await loadStats();
+    if (typeof loadStats === 'function') await loadStats();
   } catch (err) {
     showToast(err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
   }
 };
 
 window.deleteCurrentSurveyFromSettings = async function() {
   const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
-  if (role !== 'owner') {
-    showToast('Only the project owner can delete this survey.', 'warning');
+  const cachedUserStr = localStorage.getItem('user');
+  let isGlobalAdmin = false;
+  try {
+    if (cachedUserStr) isGlobalAdmin = JSON.parse(cachedUserStr).role === 'admin';
+  } catch(e) {}
+
+  if (role !== 'owner' && !isGlobalAdmin) {
+    showToast('Only the project owner or administrator can delete this survey.', 'warning');
     return;
   }
   const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
@@ -354,10 +378,17 @@ window.deleteCurrentSurveyFromSettings = async function() {
     return;
   }
 
+  const btn = document.querySelector('.settings-feature-card.danger-card button');
+  const originalText = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Deleting...';
+  }
+
   try {
     const res = await fetch(`/api/projects/${pid}`, {
       method: 'DELETE',
-      headers: getAuthHeaders()
+      headers: (typeof getAuthHeaders === 'function') ? getAuthHeaders() : { 'Content-Type': 'application/json' }
     });
 
     if (!res.ok) {
@@ -371,5 +402,10 @@ window.deleteCurrentSurveyFromSettings = async function() {
     }, 800);
   } catch (err) {
     showToast(err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
   }
 };

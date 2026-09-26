@@ -311,16 +311,19 @@ function getProjectRole(userId, projectId) {
   if (!userId || !projectId) return 'viewer';
   try {
     const db = getDb();
+    const uid = Number(userId);
+    const pid = Number(projectId);
+
     // 1. Platform admin gets owner permissions everywhere
-    const user = db.prepare("SELECT role FROM users WHERE id = ?").get(userId);
+    const user = db.prepare("SELECT role FROM users WHERE id = ?").get(uid);
     if (user && user.role === 'admin') return 'owner';
 
     // 2. Check if direct project owner
-    const project = db.prepare("SELECT owner_id FROM projects WHERE id = ?").get(projectId);
-    if (project && project.owner_id === userId) return 'owner';
+    const project = db.prepare("SELECT owner_id FROM projects WHERE id = ?").get(pid);
+    if (project && Number(project.owner_id) === uid) return 'owner';
 
     // 3. Check project_members table
-    const member = db.prepare("SELECT role FROM project_members WHERE project_id = ? AND user_id = ?").get(projectId, userId);
+    const member = db.prepare("SELECT role FROM project_members WHERE project_id = ? AND user_id = ?").get(pid, uid);
     if (member && member.role) {
       return member.role === 'owner' ? 'editor' : member.role;
     }
