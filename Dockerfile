@@ -1,6 +1,9 @@
 # Production Dockerfile for LitSphere Literature Review System
 FROM node:22-bookworm-slim
 
+# Install OpenSSL (required by Prisma engine on Debian)
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 # Set working directory
 WORKDIR /app
 
@@ -10,7 +13,11 @@ ENV PORT=3000
 
 # Install dependencies first for better caching
 COPY package*.json ./
-RUN npm ci --omit=dev || npm install --omit=dev
+COPY prisma ./prisma/
+RUN npm install
+
+# Generate Prisma Client at build time
+RUN npx prisma generate
 
 # Copy application code
 COPY . .
@@ -21,5 +28,6 @@ RUN mkdir -p /app/data /app/uploads /app/Backend/uploads
 # Expose server port
 EXPOSE 3000
 
-# Start server
-CMD ["node", "Backend/server.js"]
+# Start server (ensures Prisma client is generated before booting)
+CMD ["sh", "-c", "npx prisma generate && node Backend/server.js"]
+
