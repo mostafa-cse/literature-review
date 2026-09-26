@@ -26,21 +26,25 @@ if (!global.__bullmq_eviction_warning_deduped) {
 let redisClient = null;
 
 function getRedisClient() {
-  if (!redisClient && isRedisConfigured()) {
+  if (!isRedisConfigured()) {
+    return null;
+  }
+
+  if (!redisClient) {
     redisClient = new Redis(env.REDIS_URL, {
       maxRetriesPerRequest: 20,
       enableReadyCheck: true,
-      connectTimeout: 20000,
+      connectTimeout: 10000,
       keepAlive: 15000,
       family: 4,
       retryStrategy(times) {
-        // Exponential backoff with jitter up to max 3000ms
-        const delay = Math.min(times * 150, 3000);
-        if (times > 10 && env.NODE_ENV === 'development') {
-          // In development, stop hammering if Redis is not running locally
+        if (times > 5) {
+          if (env.NODE_ENV !== 'test') {
+            console.warn('⚠️ [Redis] Reconnection limit reached. Fallback to in-memory caching active.');
+          }
           return null;
         }
-        return delay;
+        return Math.min(times * 150, 2000);
       },
       reconnectOnError(err) {
         const targetErrors = ['READONLY', 'ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED'];
@@ -133,9 +137,10 @@ function getBullMQConnectionOptions() {
       host: '127.0.0.1',
       port: 6379,
       maxRetriesPerRequest: null,
-      connectTimeout: 20000,
+      connectTimeout: 5000,
       keepAlive: 15000,
       family: 4,
+      retryStrategy: () => null,
     };
   }
 
@@ -149,13 +154,18 @@ function getBullMQConnectionOptions() {
       password: parsed.password || undefined,
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
-      connectTimeout: 30000,
+      connectTimeout: 20000,
       keepAlive: 15000,
       family: 4,
       ...(isTls ? { tls: { rejectUnauthorized: false } } : {}),
       retryStrategy(times) {
-        // Capped exponential retry strategy up to 5000ms
-        return Math.min(times * 250, 5000);
+        if (times > 5) {
+          if (env.NODE_ENV !== 'test') {
+            console.warn('⚠️ [BullMQ] Redis connection unavailable. Background queues running in local memory fallback.');
+          }
+          return null;
+        }
+        return Math.min(times * 250, 3000);
       },
       reconnectOnError(err) {
         const targetErrors = ['READONLY', 'ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED'];
@@ -167,9 +177,10 @@ function getBullMQConnectionOptions() {
       host: '127.0.0.1',
       port: 6379,
       maxRetriesPerRequest: null,
-      connectTimeout: 20000,
+      connectTimeout: 5000,
       keepAlive: 15000,
       family: 4,
+      retryStrategy: () => null,
     };
   }
 }

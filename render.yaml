@@ -23,3 +23,5 @@ services:
         sync: false
       - key: EMAIL_FROM
         value: "LitSphere Security <mostafakamal.cse2022@gmail.com>"
+      - key: REDIS_URL
+        sync: false

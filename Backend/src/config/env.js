@@ -72,7 +72,12 @@ const isR2Configured = () => {
 };
 
 const isRedisConfigured = () => {
-  return Boolean(parsedEnv.REDIS_URL);
+  const url = (process.env.REDIS_URL || '').trim();
+  if (!url) return false;
+  if (parsedEnv.NODE_ENV === 'production' && (url.includes('localhost') || url.includes('127.0.0.1'))) {
+    return false;
+  }
+  return true;
 };
 
 module.exports = {
