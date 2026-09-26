@@ -31,12 +31,14 @@ function getRedisClient() {
   }
 
   if (!redisClient) {
+    const isTls = typeof env.REDIS_URL === 'string' && env.REDIS_URL.startsWith('rediss://');
     redisClient = new Redis(env.REDIS_URL, {
       maxRetriesPerRequest: 20,
       enableReadyCheck: true,
       connectTimeout: 10000,
       keepAlive: 15000,
       family: 4,
+      ...(isTls ? { tls: { rejectUnauthorized: false } } : {}),
       retryStrategy(times) {
         if (times > 5) {
           if (env.NODE_ENV !== 'test') {
