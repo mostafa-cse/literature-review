@@ -108,7 +108,11 @@ async function sendPasswordResetEmail(toEmail, resetCode, name = 'Researcher') {
   // 1. HTTP Email Delivery via Resend (HTTPS Port 443 - works everywhere including Render Free Tier)
   if (resendKey) {
     try {
-      const fromAddr = (process.env.EMAIL_FROM || '').trim() || 'LitSphere Security <onboarding@resend.dev>';
+      let fromAddr = (process.env.EMAIL_FROM || '').trim();
+      // Resend requires onboarding@resend.dev unless a custom domain is verified
+      if (!fromAddr || fromAddr.includes('@gmail.com') || !fromAddr.includes('@')) {
+        fromAddr = 'LitSphere Security <onboarding@resend.dev>';
+      }
       const resendRes = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
