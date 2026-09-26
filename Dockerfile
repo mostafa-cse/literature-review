@@ -28,6 +28,6 @@ RUN mkdir -p /app/data /app/uploads /app/Backend/uploads
 # Expose server port
 EXPOSE 3000
 
-# Start server (ensures Prisma client is generated before booting)
-CMD ["sh", "-c", "npx prisma generate && node Backend/server.js"]
+# Start server (Prisma client is pre-generated at build time)
+CMD ["node", "--no-warnings", "Backend/server.js"]
 

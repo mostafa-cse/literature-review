@@ -5,8 +5,8 @@
   "main": "Backend/server.js",
   "scripts": {
     "build": "npx prisma generate",
-    "start": "node Backend/server.js",
-    "dev": "node --watch Backend/server.js",
+    "start": "node --no-warnings Backend/server.js",
+    "dev": "node --no-warnings --watch Backend/server.js",
     "test": "node Backend/tests/run_all.js",
     "test:infra": "node Backend/tests/infrastructure_phase1.test.js",
     "test:prisma": "node Backend/tests/prisma_phase2.test.js",
@@ -82,8 +82,5 @@
     "postcss": "^8.5.28",
     "tailwindcss": "^3.4.19",
     "typescript": "^7.0.2"
-  },
-  "prisma": {
-    "seed": "node prisma/seed.js"
   }
 }
