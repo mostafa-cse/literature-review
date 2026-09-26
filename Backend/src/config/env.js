@@ -39,7 +39,7 @@ const envSchema = z.object({
   EMAIL_PORT: z.coerce.number().default(587),
   EMAIL_USER: z.string().default(''),
   EMAIL_PASS: z.string().default(''),
-  EMAIL_FROM: z.string().default('LitSphere Research <noreply@litsphere.org>'),
+  EMAIL_FROM: z.string().default('LitSphere Security <onboarding@resend.dev>'),
   RESEND_API_KEY: z.string().default(''),
 });
 

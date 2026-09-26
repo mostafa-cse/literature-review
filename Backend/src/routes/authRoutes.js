@@ -504,8 +504,15 @@ router.post('/send-login-otp', async (req, res) => {
 
     logAuditEvent(req, 'EMAIL_LOGIN_OTP_REQUEST', `Login passcode requested for ${rawEmail} (Code: ${loginCode})`, 'SUCCESS', user ? user.id : null, rawEmail);
 
-    // Dispatch the professional HTML email
-    await sendLoginOtpEmail(rawEmail, loginCode, user ? (user.name || user.username) : 'Researcher');
+    // Dispatch the professional HTML email with 4.5s timeout guard so response never hangs
+    try {
+      await Promise.race([
+        sendLoginOtpEmail(rawEmail, loginCode, user ? (user.name || user.username) : 'Researcher'),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Email dispatch timeout')), 4500))
+      ]);
+    } catch (emailErr) {
+      console.warn('⚠️ [Login OTP] Email delivery notice:', emailErr.message);
+    }
 
     res.json({
       success: true,
@@ -847,8 +854,15 @@ router.post('/forgot-password', async (req, res) => {
 
     logAuditEvent(req, 'FORGOT_PASSWORD_REQUEST', `Password reset code requested for ${user.email} (Code: ${resetCode})`, 'SUCCESS', user.id, user.email);
 
-    // Dispatch the professional HTML email
-    await sendPasswordResetEmail(user.email, resetCode, user.name || user.username);
+    // Dispatch the professional HTML email with 4.5s timeout guard so response never hangs
+    try {
+      await Promise.race([
+        sendPasswordResetEmail(user.email, resetCode, user.name || user.username),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Email dispatch timeout')), 4500))
+      ]);
+    } catch (emailErr) {
+      console.warn('⚠️ [Forgot Password] Email delivery notice:', emailErr.message);
+    }
 
     res.json({
       success: true,

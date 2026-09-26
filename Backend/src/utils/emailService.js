@@ -72,6 +72,7 @@ async function dispatchEmail({ toEmail, subject, htmlContent }) {
           subject,
           html: htmlContent,
         }),
+        signal: AbortSignal.timeout(5000),
       });
 
       const resendData = await resendRes.json().catch(() => ({}));
@@ -102,6 +103,7 @@ async function dispatchEmail({ toEmail, subject, htmlContent }) {
           subject,
           htmlContent,
         }),
+        signal: AbortSignal.timeout(5000),
       });
 
       const brevoData = await brevoRes.json().catch(() => ({}));
@@ -118,9 +120,15 @@ async function dispatchEmail({ toEmail, subject, htmlContent }) {
   }
 
   // 3. SMTP Delivery (Nodemailer)
+  // Detect Render cloud environment where outbound SMTP (ports 465/587) is blocked by firewall
+  const isRender = Boolean(process.env.RENDER || process.env.RENDER_SERVICE_ID);
+  if (isRender && !resendKey && !brevoKey) {
+    throw new Error('Render Free Tier blocks outbound SMTP ports (465/587). Please add RESEND_API_KEY to your Render Dashboard Environment Variables to deliver emails over HTTPS.');
+  }
+
   if (!user || !pass || pass.includes('your_16_char_app_password')) {
     console.error('❌ [EMAIL SERVICE ERROR] Live email credentials not configured.');
-    throw new Error('Email service is not configured. Please set EMAIL_USER/EMAIL_PASS (or RESEND_API_KEY) in server environment.');
+    throw new Error('Email service is not configured. Please add RESEND_API_KEY to server environment variables.');
   }
 
   const transporter = getTransporter();

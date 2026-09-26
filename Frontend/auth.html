@@ -2388,11 +2388,25 @@
       console.log('2. POST /api/auth/forgot-password');
 
       try {
-        const res = await fetch('/api/auth/forgot-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ identifier })
-        });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        let res;
+        try {
+          res = await fetch('/api/auth/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier }),
+            signal: controller.signal
+          });
+        } catch (fetchErr) {
+          if (fetchErr.name === 'AbortError') {
+            throw new Error('Request timed out. The server took too long to respond. Please try again.');
+          }
+          throw fetchErr;
+        } finally {
+          clearTimeout(timeoutId);
+        }
 
         const rawText = await res.text();
         let data = {};
