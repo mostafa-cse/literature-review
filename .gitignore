@@ -3,6 +3,7 @@ literature.db
 literature.db-shm
 literature.db-wal
 literature.db.bak
+literature_backup_*.db
 *.db-shm
 *.db-wal
 *.sqlite

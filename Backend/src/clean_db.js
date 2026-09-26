@@ -78,11 +78,15 @@ function wipeAllUsersAndData() {
       DELETE FROM keywords;
       DELETE FROM paper_screening;
       DELETE FROM paper_comments;
+      DELETE FROM paper_highlights;
+      DELETE FROM paper_files;
       DELETE FROM papers;
       DELETE FROM clusters;
       DELETE FROM project_members;
       DELETE FROM projects;
       DELETE FROM audit_logs;
+      DELETE FROM password_resets;
+      DELETE FROM email_login_codes;
       DELETE FROM users;
       DELETE FROM sqlite_sequence;
     `);
@@ -93,13 +97,22 @@ function wipeAllUsersAndData() {
       INSERT OR REPLACE INTO system_settings (key, value) VALUES ('maintenance_message', 'LitSphere Platform is currently undergoing scheduled maintenance.');
       INSERT OR REPLACE INTO system_settings (key, value) VALUES ('allow_registration', 'true');
       INSERT OR REPLACE INTO system_settings (key, value) VALUES ('default_user_quota', '100000');
+      INSERT OR REPLACE INTO system_settings (key, value) VALUES ('default_user_token_quota', '100000');
+      INSERT OR REPLACE INTO system_settings (key, value) VALUES ('default_user_storage_quota_mb', '500');
     `);
 
     db.exec('COMMIT;');
     db.exec('PRAGMA foreign_keys = ON;');
 
+    try {
+      db.exec('VACUUM;');
+      console.log('📦 Database vacuumed and optimized.');
+    } catch (vErr) {
+      console.warn('VACUUM notice:', vErr.message);
+    }
+
     console.log('✅ [LitSphere DB Wipe] Database is now 100% completely empty!');
-    console.log('👤 Users: 0 (Ready for you to create your own account)');
+    console.log('👤 Users: 0 (The first registered user will automatically become Platform Admin)');
     console.log('📁 Projects/Surveys: 0 (Ready for fresh creation)');
   } catch (err) {
     db.exec('ROLLBACK;');
