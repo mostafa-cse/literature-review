@@ -1728,9 +1728,19 @@
     }
 
     // Google SSO Modal controls
-    function openGoogleModal() {
+    function openGoogleModal(msg) {
       const modal = document.getElementById('google-sso-modal');
       if (modal) modal.style.display = 'flex';
+      const feedback = document.getElementById('google-modal-feedback');
+      if (feedback) {
+        if (msg) {
+          feedback.textContent = msg;
+          feedback.style.color = '#38bdf8';
+          feedback.style.display = 'block';
+        } else {
+          feedback.style.display = 'none';
+        }
+      }
     }
 
     function closeGoogleModal() {
