@@ -1,10 +1,11 @@
+const { EventEmitter } = require('events');
 const { Queue, Worker, QueueEvents } = require('bullmq');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
 const XLSX = require('xlsx');
 
-const { env } = require('../config/env');
+const { env, isRedisConfigured } = require('../config/env');
 const { getBullMQConnectionOptions, getRedisClient } = require('../config/redis');
 const { parsePdfMetadata } = require('../utils/pdfParser');
 const { getDb } = require('../db');
@@ -34,10 +35,195 @@ const queues = {};
 const workers = {};
 const queueEvents = {};
 
+// ======================================================================
+// HIGH-PERFORMANCE IN-MEMORY QUEUE & WORKER FALLBACK (ZERO REDIS REQUIRED)
+// ======================================================================
+class InMemoryJob {
+  constructor(queueName, id, name, data, opts = {}) {
+    this.queueName = queueName;
+    this.id = String(id);
+    this.name = name;
+    this.data = data;
+    this.opts = opts || {};
+    this.progress = 0;
+    this.state = 'waiting';
+    this.returnvalue = null;
+    this.failedReason = null;
+    this.attemptsMade = 0;
+    this.maxAttempts = opts?.attempts || 1;
+    this.timestamp = Date.now();
+    this.processedOn = null;
+    this.finishedOn = null;
+    this._timer = null;
+  }
+
+  async getState() {
+    return this.state;
+  }
+
+  async updateProgress(progress) {
+    this.progress = typeof progress === 'number'
+      ? progress
+      : (typeof progress === 'object' && progress !== null && typeof progress.percent === 'number' ? progress.percent : 0);
+    this._progressData = progress;
+    const worker = workers[this.queueName];
+    if (worker) {
+      worker.emit('progress', this, progress);
+    }
+    return true;
+  }
+
+  async retry() {
+    this.state = 'waiting';
+    this.failedReason = null;
+    this.attemptsMade = 0;
+    this.progress = 0;
+    this.finishedOn = null;
+    const queue = queues[this.queueName];
+    if (queue && typeof queue._scheduleJob === 'function') {
+      queue._scheduleJob(this);
+    }
+    return true;
+  }
+
+  async remove() {
+    if (this._timer) {
+      clearTimeout(this._timer);
+      this._timer = null;
+    }
+    this.state = 'removed';
+    const queue = queues[this.queueName];
+    if (queue && typeof queue._removeJob === 'function') {
+      queue._removeJob(this.id);
+    }
+    return true;
+  }
+}
+
+class InMemoryQueue extends EventEmitter {
+  constructor(name) {
+    super();
+    this.name = name;
+    this.jobs = new Map();
+    this._nextId = 1;
+  }
+
+  async add(name, data, opts = {}) {
+    const id = String(this._nextId++);
+    const job = new InMemoryJob(this.name, id, name, data, opts);
+    this.jobs.set(id, job);
+
+    this._scheduleJob(job);
+    return job;
+  }
+
+  _scheduleJob(job) {
+    const execute = async () => {
+      if (job.state === 'removed') return;
+      const worker = workers[this.name];
+      const processor = worker?.processor || (
+        this.name === QUEUES.PDF_PROCESSING ? processPdfJob :
+        this.name === QUEUES.CROSSREF_ENRICHMENT ? processCrossRefJob :
+        this.name === QUEUES.CITATION_EXPORT ? processCitationExportJob : null
+      );
+      if (!processor) return;
+
+      job.state = 'active';
+      job.processedOn = Date.now();
+      try {
+        const result = await processor(job);
+        job.state = 'completed';
+        job.progress = 100;
+        job.finishedOn = Date.now();
+        job.returnvalue = result;
+        if (worker) {
+          worker.emit('completed', job, result);
+        }
+      } catch (err) {
+        job.attemptsMade++;
+        job.failedReason = err?.message || String(err);
+        const maxAttempts = job.opts?.attempts || 1;
+        if (job.attemptsMade < maxAttempts) {
+          job.state = 'waiting';
+          job._timer = setTimeout(() => {
+            execute();
+          }, 1000);
+        } else {
+          job.state = 'failed';
+          job.finishedOn = Date.now();
+          if (worker) {
+            worker.emit('failed', job, err);
+          }
+        }
+      }
+    };
+
+    if (job.opts?.delay && job.opts.delay > 0) {
+      job._timer = setTimeout(execute, job.opts.delay);
+    } else {
+      setImmediate(execute);
+    }
+  }
+
+  _removeJob(id) {
+    this.jobs.delete(String(id));
+  }
+
+  async getJob(id) {
+    return this.jobs.get(String(id)) || null;
+  }
+
+  async getFailed(start = 0, end = 50) {
+    const failed = [];
+    for (const job of this.jobs.values()) {
+      if (job.state === 'failed') {
+        failed.push(job);
+      }
+    }
+    return failed.slice(start, end);
+  }
+
+  async getJobCounts(...types) {
+    const counts = { waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0, paused: 0 };
+    for (const job of this.jobs.values()) {
+      if (job.state === 'waiting') {
+        if (job.opts?.delay && job.opts.delay > 0 && !job.processedOn) {
+          counts.delayed++;
+        } else {
+          counts.waiting++;
+        }
+      } else if (counts[job.state] !== undefined) {
+        counts[job.state]++;
+      }
+    }
+    return counts;
+  }
+
+  async close() {
+    for (const job of this.jobs.values()) {
+      if (job._timer) clearTimeout(job._timer);
+    }
+    return Promise.resolve();
+  }
+}
+
+class InMemoryWorker extends EventEmitter {
+  constructor(name, processor, opts = {}) {
+    super();
+    this.name = name;
+    this.processor = processor;
+    this.opts = opts;
+  }
+
+  async close() {
+    return Promise.resolve();
+  }
+}
+
 // Helper to attach resilient error and lifecycle listeners to BullMQ instances
 const lastErrorLogTimes = {};
 function attachErrorHandlers(instance, name, type = 'Queue') {
-  if (!instance) return;
+  if (!instance || typeof instance.on !== 'function') return;
 
   instance.on('error', (err) => {
     const now = Date.now();
@@ -59,10 +245,29 @@ function attachErrorHandlers(instance, name, type = 'Queue') {
   }
 }
 
+let inMemoryNoticeLogged = false;
+
 /**
- * Initialize BullMQ Queues with retry and dead-letter retention options
+ * Initialize Queues (BullMQ with Redis, or high-performance in-memory fallback)
  */
 function initQueues() {
+  if (!isRedisConfigured()) {
+    if (!inMemoryNoticeLogged && process.env.NODE_ENV !== 'test') {
+      inMemoryNoticeLogged = true;
+      console.log('ℹ️ [BullMQ] Running background queues in high-performance in-memory mode (Redis unconfigured).');
+    }
+    if (!queues[QUEUES.PDF_PROCESSING]) {
+      queues[QUEUES.PDF_PROCESSING] = new InMemoryQueue(QUEUES.PDF_PROCESSING);
+    }
+    if (!queues[QUEUES.CROSSREF_ENRICHMENT]) {
+      queues[QUEUES.CROSSREF_ENRICHMENT] = new InMemoryQueue(QUEUES.CROSSREF_ENRICHMENT);
+    }
+    if (!queues[QUEUES.CITATION_EXPORT]) {
+      queues[QUEUES.CITATION_EXPORT] = new InMemoryQueue(QUEUES.CITATION_EXPORT);
+    }
+    return queues;
+  }
+
   const connection = getBullMQConnectionOptions();
 
   // 1. PDF Processing Queue
@@ -748,6 +953,61 @@ async function processCitationExportJob(job) {
  * Initialize Workers
  */
 function initWorkers() {
+  if (!isRedisConfigured()) {
+    if (!workers[QUEUES.PDF_PROCESSING]) {
+      workers[QUEUES.PDF_PROCESSING] = new InMemoryWorker(
+        QUEUES.PDF_PROCESSING,
+        processPdfJob,
+        { concurrency: 4 }
+      );
+      workers[QUEUES.PDF_PROCESSING].on('progress', (job, progress) => {
+        sseManager.emitJobProgress(QUEUES.PDF_PROCESSING, job.id, progress);
+      });
+      workers[QUEUES.PDF_PROCESSING].on('completed', (job, result) => {
+        sseManager.emitJobCompleted(QUEUES.PDF_PROCESSING, job.id, result);
+      });
+      workers[QUEUES.PDF_PROCESSING].on('failed', (job, err) => {
+        sseManager.emitJobFailed(QUEUES.PDF_PROCESSING, job.id, err);
+      });
+    }
+
+    if (!workers[QUEUES.CROSSREF_ENRICHMENT]) {
+      workers[QUEUES.CROSSREF_ENRICHMENT] = new InMemoryWorker(
+        QUEUES.CROSSREF_ENRICHMENT,
+        processCrossRefJob,
+        { concurrency: 3 }
+      );
+      workers[QUEUES.CROSSREF_ENRICHMENT].on('progress', (job, progress) => {
+        sseManager.emitJobProgress(QUEUES.CROSSREF_ENRICHMENT, job.id, progress);
+      });
+      workers[QUEUES.CROSSREF_ENRICHMENT].on('completed', (job, result) => {
+        sseManager.emitJobCompleted(QUEUES.CROSSREF_ENRICHMENT, job.id, result);
+      });
+      workers[QUEUES.CROSSREF_ENRICHMENT].on('failed', (job, err) => {
+        sseManager.emitJobFailed(QUEUES.CROSSREF_ENRICHMENT, job.id, err);
+      });
+    }
+
+    if (!workers[QUEUES.CITATION_EXPORT]) {
+      workers[QUEUES.CITATION_EXPORT] = new InMemoryWorker(
+        QUEUES.CITATION_EXPORT,
+        processCitationExportJob,
+        { concurrency: 2 }
+      );
+      workers[QUEUES.CITATION_EXPORT].on('progress', (job, progress) => {
+        sseManager.emitJobProgress(QUEUES.CITATION_EXPORT, job.id, progress);
+      });
+      workers[QUEUES.CITATION_EXPORT].on('completed', (job, result) => {
+        sseManager.emitJobCompleted(QUEUES.CITATION_EXPORT, job.id, result);
+      });
+      workers[QUEUES.CITATION_EXPORT].on('failed', (job, err) => {
+        sseManager.emitJobFailed(QUEUES.CITATION_EXPORT, job.id, err);
+      });
+    }
+
+    return workers;
+  }
+
   const connection = getBullMQConnectionOptions();
 
   if (!workers[QUEUES.PDF_PROCESSING]) {
@@ -840,7 +1100,20 @@ async function addJob(queueName, data, opts = {}) {
   if (!targetQueue) {
     throw new Error(`Queue '${queueName}' is not recognized`);
   }
-  return await targetQueue.add(queueName, data, opts);
+  try {
+    return await targetQueue.add(queueName, data, opts);
+  } catch (err) {
+    // If BullMQ fails to enqueue due to connection error, fallback gracefully to in-memory queue
+    if (typeof targetQueue.add !== 'function' || err.message?.includes('connect') || err.message?.includes('ENOTFOUND') || err.message?.includes('ECONNREFUSED')) {
+      if (process.env.NODE_ENV !== 'test') {
+        console.warn(`⚠️ [BullMQ] Fallback to in-memory queue for ${queueName}: ${err.message}`);
+      }
+      const memQueue = new InMemoryQueue(queueName);
+      queues[queueName] = memQueue;
+      return await memQueue.add(queueName, data, opts);
+    }
+    throw err;
+  }
 }
 
 /**
@@ -854,17 +1127,22 @@ async function getJob(queueName, jobId) {
   if (!job) return null;
 
   const state = await job.getState();
+  const rawProgress = job.progress;
+  const numericProgress = typeof rawProgress === 'number'
+    ? rawProgress
+    : (typeof rawProgress === 'object' && rawProgress !== null && typeof rawProgress.percent === 'number' ? rawProgress.percent : 0);
+
   return {
     id: job.id,
     name: job.name,
     queue: queueName,
     state,
-    progress: job.progress || 0,
+    progress: numericProgress,
     data: job.data,
     returnvalue: job.returnvalue || null,
     returnValue: job.returnvalue || null,
     failedReason: job.failedReason || null,
-    attemptsMade: job.attemptsMade,
+    attemptsMade: job.attemptsMade || 0,
     maxAttempts: job.opts?.attempts || 1,
     timestamp: job.timestamp,
     processedOn: job.processedOn || null,

@@ -74,7 +74,9 @@ const isR2Configured = () => {
 
 const isRedisConfigured = () => {
   const url = (process.env.REDIS_URL || '').trim();
-  if (!url) return false;
+  if (!url || url === 'undefined' || url === 'null' || url === 'false' || url === 'disabled' || url === 'none') {
+    return false;
+  }
   if (parsedEnv.NODE_ENV === 'production' && (url.includes('localhost') || url.includes('127.0.0.1'))) {
     return false;
   }
