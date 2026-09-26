@@ -1,5 +1,9 @@
 [build]
   publish = "Frontend"
+  command = ""
+
+[build.environment]
+  NETLIFY_NEXT_PLUGIN_SKIP = "true"
 
 [[redirects]]
   from = "/api/*"
