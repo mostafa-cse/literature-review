@@ -27,8 +27,8 @@
     { "source": "/about-us", "destination": "/about" },
     { "source": "/features", "destination": "/about" },
     { "source": "/shared/:token", "destination": "/workspace" },
-    { "source": "/api/:path*", "destination": "https://literature-review-8rxv.onrender.com/api/:path*" },
-    { "source": "/uploads/:path*", "destination": "https://literature-review-8rxv.onrender.com/uploads/:path*" }
+    { "source": "/api/:path*", "destination": "https://litsphere.onrender.com/api/:path*" },
+    { "source": "/uploads/:path*", "destination": "https://litsphere.onrender.com/uploads/:path*" }
   ],
   "headers": [
     {
