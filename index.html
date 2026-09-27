@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LitSphere — Intelligent Literature Review Platform</title>
+  <meta name="description" content="LitSphere: An Intelligent Literature Review and Systematic Benchmarking Platform. Built for PRISMA 2020 Reviews and Academic Research.">
+  
+  <!-- Instant Redirect to Live Full-Stack Application on Render -->
+  <meta http-equiv="refresh" content="0; url=https://literature-review-8rxv.onrender.com/">
+  <link rel="canonical" href="https://literature-review-8rxv.onrender.com/">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --card-bg: rgba(17, 24, 39, 0.85);
+      --card-border: rgba(212, 175, 55, 0.28);
+      --accent-gold: #d4af37;
+      --accent-gold-hover: #f59e0b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-gold: #fbbf24;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(ellipse at 50% 10%, rgba(212, 175, 55, 0.15), transparent 60%),
+        radial-gradient(circle at 15% 90%, rgba(56, 189, 248, 0.08), transparent 45%);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow-x: hidden;
+    }
+
+    .gateway-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 48px 40px;
+      max-width: 580px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 40px rgba(212, 175, 55, 0.12);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      position: relative;
+      animation: fadeIn 0.6s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .logo-badge {
+      width: 68px;
+      height: 68px;
+      margin: 0 auto 20px;
+      background: linear-gradient(135deg, rgba(212, 175, 55, 0.25), rgba(212, 175, 55, 0.05));
+      border: 1.5px solid rgba(212, 175, 55, 0.45);
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 24px rgba(212, 175, 55, 0.2);
+    }
+
+    .logo-badge svg {
+      width: 36px;
+      height: 36px;
+      color: var(--text-gold);
+    }
+
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-gold);
+      background: rgba(212, 175, 55, 0.12);
+      border: 1px solid rgba(212, 175, 55, 0.3);
+      padding: 4px 12px;
+      border-radius: 9999px;
+      margin-bottom: 16px;
+      letter-spacing: 0.5px;
+    }
+
+    h1 {
+      font-family: 'Cinzel', serif;
+      font-size: 32px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 12px;
+      letter-spacing: 0.5px;
+    }
+
+    h1 span {
+      background: linear-gradient(135deg, #fef08a 0%, #d4af37 60%, #b45309 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    p.subtitle {
+      font-size: 14.5px;
+      line-height: 1.6;
+      color: var(--text-muted);
+      margin-bottom: 28px;
+    }
+
+    .spinner-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 28px;
+      font-size: 13.5px;
+      color: #cbd5e1;
+    }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid rgba(212, 175, 55, 0.25);
+      border-top-color: var(--accent-gold);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .btn-launch {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 14px 24px;
+      background: linear-gradient(135deg, #d4af37 0%, #b45309 100%);
+      color: #0f172a;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(212, 175, 55, 0.35);
+      transition: all 0.2s ease;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-launch:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 30px rgba(212, 175, 55, 0.5);
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
+
+    .links-group {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      font-size: 12.5px;
+    }
+
+    .links-group a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .links-group a:hover {
+      color: var(--text-gold);
+    }
+  </style>
+
+  <script>
+    // Immediate redirect to full-stack live application
+    window.location.replace("https://literature-review-8rxv.onrender.com/");
+  </script>
+</head>
+<body>
+  <div class="gateway-card">
+    <div class="logo-badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+      </svg>
+    </div>
+
+    <div class="badge-pill">FINAL YEAR PROJECT • PRISMA 2020</div>
+    
+    <h1><span>LitSphere</span> Workbench</h1>
+    <p class="subtitle">
+      Intelligent Literature Review &amp; Research Discovery Platform.<br>
+      Connecting you to the live cloud application...
+    </p>
+
+    <div class="spinner-wrap">
+      <div class="spinner"></div>
+      <span>Launching application...</span>
+    </div>
+
+    <a href="https://literature-review-8rxv.onrender.com/" class="btn-launch" id="btn-launch">
+      <span>Open LitSphere Application</span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+        <polyline points="15 3 21 3 21 9"></polyline>
+        <line x1="10" y1="14" x2="21" y2="3"></line>
+      </svg>
+    </a>
+
+    <div class="links-group">
+      <a href="https://github.com/mostafa-cse/literature-review" target="_blank" rel="noopener">GitHub Repository ↗</a>
+      <a href="https://literature-review-8rxv.onrender.com/about" target="_blank" rel="noopener">About Platform ↗</a>
+      <a href="https://literature-review-8rxv.onrender.com/login" target="_blank" rel="noopener">Sign In ↗</a>
+    </div>
+  </div>
+</body>
+</html>
