@@ -60,8 +60,7 @@ router.get('/projects', (req, res) => {
             GROUP BY p.project_id
           ),
           user_roles AS (
-            SELECT project_id, 
-                   CASE WHEN role = 'owner' THEN 'editor' ELSE role END as role
+            SELECT project_id, role
             FROM project_members
             WHERE user_id = ?
           )
@@ -135,8 +134,7 @@ router.get('/projects', (req, res) => {
             GROUP BY p.project_id
           ),
           user_roles AS (
-            SELECT project_id, 
-                   CASE WHEN role = 'owner' THEN 'editor' ELSE role END as role
+            SELECT project_id, role
             FROM project_members
             WHERE user_id = ?
           )
@@ -577,26 +575,45 @@ router.delete('/projects/:id', async (req, res) => {
     const db = getDb();
     const pid = req.params.id;
 
-    if (req.user && req.user.role !== 'admin') {
-      const role = getProjectRole(req.user.id, pid);
-      if (role !== 'owner') {
-        return res.status(403).json({ error: `Access Denied. Only the project Owner can delete this project (Your role: ${role}).` });
-      }
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required to delete survey.' });
+    }
+
+    const project = db.prepare('SELECT id, name, owner_id FROM projects WHERE id = ?').get(pid);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+
+    const isDirectOwner = Number(project.owner_id) === Number(req.user.id);
+    const role = getProjectRole(req.user.id, pid);
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isDirectOwner && role !== 'owner' && !isAdmin) {
+      return res.status(403).json({ error: `Access Denied. Only the project Owner can delete this survey (Your role: ${role}).` });
     }
 
     db.exec('BEGIN TRANSACTION;');
     try {
       db.prepare('DELETE FROM paper_column_values WHERE paper_id IN (SELECT id FROM papers WHERE project_id = ?)').run(pid);
       db.prepare('DELETE FROM keywords WHERE paper_id IN (SELECT id FROM papers WHERE project_id = ?)').run(pid);
+      db.prepare('DELETE FROM paper_files WHERE paper_id IN (SELECT id FROM papers WHERE project_id = ?)').run(pid);
+      db.prepare('DELETE FROM paper_comments WHERE paper_id IN (SELECT id FROM papers WHERE project_id = ?)').run(pid);
+      db.prepare('DELETE FROM paper_screening WHERE paper_id IN (SELECT id FROM papers WHERE project_id = ?)').run(pid);
+      db.prepare('DELETE FROM paper_highlights WHERE paper_id IN (SELECT id FROM papers WHERE project_id = ?)').run(pid);
       db.prepare('DELETE FROM papers WHERE project_id = ?').run(pid);
       db.prepare('DELETE FROM dynamic_columns WHERE cluster_id IN (SELECT id FROM clusters WHERE project_id = ?)').run(pid);
       db.prepare('DELETE FROM clusters WHERE project_id = ?').run(pid);
+      db.prepare('DELETE FROM project_members WHERE project_id = ?').run(pid);
       const result = db.prepare('DELETE FROM projects WHERE id = ?').run(pid);
       db.exec('COMMIT;');
+
       if (result.changes === 0) return res.status(404).json({ error: 'Project not found' });
+
+      try {
+        logAuditEvent(req.user.id, 'DELETE_PROJECT', `Survey "${project.name}" (ID #${pid}) permanently deleted`, 'SUCCESS', req.ip);
+      } catch (_) {}
+
       await cacheService.invalidateSurveyCache(pid);
       await cacheService.invalidateTag('stats');
-      res.json({ success: true, message: 'Project and all related data purged' });
+      res.json({ success: true, message: 'Survey and all related data purged' });
     } catch (e) {
       db.exec('ROLLBACK;');
       throw e;

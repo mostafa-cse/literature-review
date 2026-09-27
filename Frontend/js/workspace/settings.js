@@ -6,22 +6,55 @@
 
 window.currentSettingsTab = 'general';
 
+function getActiveSurveyId() {
+  const urlParam = new URLSearchParams(window.location.search).get('project');
+  if (urlParam && !isNaN(parseInt(urlParam, 10))) {
+    return parseInt(urlParam, 10);
+  }
+  if (window.currentProject && window.currentProject.id) {
+    return Number(window.currentProject.id);
+  }
+  if (typeof activeProjectId !== 'undefined' && activeProjectId) {
+    return Number(activeProjectId);
+  }
+  if (window.activeProjectId) {
+    return Number(window.activeProjectId);
+  }
+  return 1;
+}
+
 window.openSurveySettingsModal = async function(initialTab = 'general') {
-  const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
-  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
-  if (role === 'reviewer') {
+  const pid = getActiveSurveyId();
+  const cachedUserStr = localStorage.getItem('user');
+  let isGlobalAdmin = false;
+  let currentUser = null;
+  try {
+    if (cachedUserStr) {
+      currentUser = JSON.parse(cachedUserStr);
+      isGlobalAdmin = currentUser.role === 'admin';
+    }
+  } catch(e) {}
+
+  let role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  if (role === 'reviewer' && !isGlobalAdmin) {
     showToast("[Access Denied] Settings are not available for Reviewers.", 'warning');
     return;
   }
-  const isOwner = role === 'owner';
-  const isEditor = role === 'editor';
-  const canModify = isOwner || isEditor;
 
   // Load project details
   try {
-    const res = await fetch(`/api/projects/${pid}`, { headers: getAuthHeaders() });
-    if (!res.ok) throw new Error('Failed to load survey settings');
-    const project = await res.json();
+    const res = await (window.api && typeof window.api.get === 'function'
+      ? window.api.get(`/api/projects/${pid}`)
+      : fetch(`/api/projects/${pid}`, { headers: (typeof getAuthHeaders === 'function' ? getAuthHeaders() : {}), credentials: 'include' }).then(r => {
+          if (!r.ok) throw new Error('Failed to load survey settings');
+          return r.json();
+        }));
+    const project = res;
+    window.currentProject = project;
+
+    const isOwner = role === 'owner' || isGlobalAdmin || (currentUser && Number(project.owner_id) === Number(currentUser.id));
+    const isEditor = role === 'editor';
+    const canModify = isOwner || isEditor || isGlobalAdmin;
 
     // Populate General Form
     const nameInput = document.getElementById('setting-survey-name');
@@ -77,6 +110,17 @@ window.openSurveySettingsModal = async function(initialTab = 'general') {
     const deleteMatchName = document.getElementById('setting-delete-target-name');
     if (deleteMatchName) deleteMatchName.textContent = project.name;
 
+    const confirmInput = document.getElementById('setting-delete-confirm-input');
+    if (confirmInput) {
+      confirmInput.value = '';
+      confirmInput.onkeydown = function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          window.deleteCurrentSurveyFromSettings();
+        }
+      };
+    }
+
     switchSettingsTab(initialTab);
     openModal('settings-modal-overlay');
   } catch (err) {
@@ -115,7 +159,7 @@ window.saveGeneralSettings = async function(e) {
     showToast(`[Read-Only] Role '${role.toUpperCase()}' cannot edit survey details.`, 'info');
     return;
   }
-  const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
+  const pid = getActiveSurveyId();
   const nameInput = document.getElementById('setting-survey-name');
   const descInput = document.getElementById('setting-survey-desc');
 
@@ -191,7 +235,7 @@ window.transferSurveyOwnership = async function(e) {
     showToast('Only the project owner can transfer survey ownership.', 'warning');
     return;
   }
-  const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
+  const pid = getActiveSurveyId();
   const emailInput = document.getElementById('setting-transfer-email');
   const keepEditorCheckbox = document.getElementById('setting-transfer-keep-editor');
 
@@ -240,7 +284,7 @@ window.duplicateCurrentSurvey = async function() {
     showToast('View-only access: You cannot duplicate this survey.', 'warning');
     return;
   }
-  const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
+  const pid = getActiveSurveyId();
   const cloneNameInput = document.getElementById('setting-clone-name');
   const includePapersCheckbox = document.getElementById('setting-clone-include-papers');
 
@@ -275,7 +319,7 @@ window.downloadCurrentSurveyBackup = function() {
     showToast('Administrative JSON database backups are restricted. Use the Export button for data inspection & downloads.', 'info');
     return;
   }
-  const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
+  const pid = getActiveSurveyId();
   
   // Download via authenticated fetch blob
   fetch(`/api/projects/${pid}/backup`, { headers: getAuthHeaders() })
@@ -311,7 +355,7 @@ window.resetCurrentSurveyMatrix = async function() {
     showToast('Only the project owner or administrator can reset matrix cell values.', 'warning');
     return;
   }
-  const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
+  const pid = getActiveSurveyId();
 
   if (!confirm('⚠️ WARNING: This will permanently wipe all extracted cell values and notes across all papers in this survey, and reset reading statuses to unread.\n\nPapers and taxonomy columns will NOT be deleted.\n\nDo you wish to proceed?')) {
     return;
@@ -353,55 +397,74 @@ window.resetCurrentSurveyMatrix = async function() {
 };
 
 window.deleteCurrentSurveyFromSettings = async function() {
-  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  const pid = getActiveSurveyId();
   const cachedUserStr = localStorage.getItem('user');
   let isGlobalAdmin = false;
+  let currentUser = null;
   try {
-    if (cachedUserStr) isGlobalAdmin = JSON.parse(cachedUserStr).role === 'admin';
+    if (cachedUserStr) {
+      currentUser = JSON.parse(cachedUserStr);
+      isGlobalAdmin = currentUser.role === 'admin';
+    }
   } catch(e) {}
 
-  if (role !== 'owner' && !isGlobalAdmin) {
+  const role = (window.currentProjectRole || (typeof currentProjectRole !== 'undefined' ? currentProjectRole : 'viewer') || 'viewer').toLowerCase();
+  const isOwner = role === 'owner' || isGlobalAdmin || (window.currentProject && currentUser && Number(window.currentProject.owner_id) === Number(currentUser.id));
+
+  if (!isOwner) {
     showToast('Only the project owner or administrator can delete this survey.', 'warning');
     return;
   }
-  const pid = (typeof activeProjectId !== 'undefined' && activeProjectId) ? activeProjectId : (window.activeProjectId || 1);
+
   const confirmInput = document.getElementById('setting-delete-confirm-input');
   const targetNameEl = document.getElementById('setting-delete-target-name');
   const requiredName = targetNameEl ? targetNameEl.textContent.trim() : '';
+  const typedName = confirmInput ? confirmInput.value.trim() : '';
 
-  if (!confirmInput || confirmInput.value.trim() !== requiredName) {
-    showToast(`To confirm deletion, please type the exact survey title: "${requiredName}"`, 'warning');
+  if (!typedName || typedName.toLowerCase() !== requiredName.toLowerCase()) {
+    showToast(`To confirm deletion, please type the survey title: "${requiredName}"`, 'warning');
+    if (confirmInput) confirmInput.focus();
     return;
   }
 
-  if (!confirm(`Are you absolutely sure you want to permanently delete "${requiredName}"?\nThis cannot be undone.`)) {
-    return;
-  }
-
-  const btn = document.querySelector('.settings-feature-card.danger-card button');
-  const originalText = btn ? btn.innerHTML : '';
+  const btn = document.getElementById('btn-delete-survey-confirm') || 
+              document.querySelector('.settings-feature-card.danger-card button');
+  const originalText = btn ? btn.innerHTML : 'Permanently Delete Survey';
   if (btn) {
     btn.disabled = true;
-    btn.textContent = 'Deleting...';
+    btn.innerHTML = '<span style="display:inline-block;width:1rem;height:1rem;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin 0.75s linear infinite;margin-right:6px;vertical-align:middle;"></span> Deleting...';
   }
 
   try {
-    const res = await fetch(`/api/projects/${pid}`, {
-      method: 'DELETE',
-      headers: (typeof getAuthHeaders === 'function') ? getAuthHeaders() : { 'Content-Type': 'application/json' }
-    });
-
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Failed to delete survey');
+    if (window.api && typeof window.api.delete === 'function') {
+      await window.api.delete(`/api/projects/${pid}`);
+    } else {
+      const headers = (typeof getAuthHeaders === 'function') 
+        ? getAuthHeaders() 
+        : { 'Content-Type': 'application/json' };
+      const res = await fetch(`/api/projects/${pid}`, {
+        method: 'DELETE',
+        headers,
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to delete survey (HTTP ${res.status})`);
+      }
     }
 
     showToast('Survey permanently deleted. Redirecting to Dashboard...', 'success');
+    closeModal('settings-modal-overlay');
+
+    if (window.api && window.api.cache) {
+      window.api.cache.clear();
+    }
+
     setTimeout(() => {
       window.location.href = '/dashboard';
-    }, 800);
+    }, 700);
   } catch (err) {
-    showToast(err.message, 'error');
+    showToast(err.message || 'Failed to delete survey', 'error');
   } finally {
     if (btn) {
       btn.disabled = false;

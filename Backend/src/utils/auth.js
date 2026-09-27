@@ -291,12 +291,23 @@ function checkMaintenanceMode(req, res, next) {
   next();
 }
 
-function logAuditEvent(req, action, details = '', status = 'SUCCESS', userId = null, userEmail = null) {
+function logAuditEvent(reqOrUserId, action, details = '', status = 'SUCCESS', userId = null, userEmail = null) {
   try {
     const db = getDb();
-    const uId = userId || (req && req.user ? req.user.id : null);
-    const uEmail = userEmail || (req && req.user ? req.user.email : 'system@litsphere.local');
-    const ip = req ? (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1') : '127.0.0.1';
+    let uId = null;
+    let uEmail = 'system@litsphere.local';
+    let ip = '127.0.0.1';
+
+    if (reqOrUserId && typeof reqOrUserId === 'object' && (reqOrUserId.headers || reqOrUserId.user || reqOrUserId.ip || reqOrUserId.socket)) {
+      uId = userId || (reqOrUserId.user ? reqOrUserId.user.id : null);
+      uEmail = userEmail || (reqOrUserId.user ? reqOrUserId.user.email : 'system@litsphere.local');
+      ip = (reqOrUserId.headers && reqOrUserId.headers['x-forwarded-for']) || reqOrUserId.ip || (reqOrUserId.socket && reqOrUserId.socket.remoteAddress) || '127.0.0.1';
+    } else if (typeof reqOrUserId === 'number' || typeof reqOrUserId === 'string') {
+      uId = Number(reqOrUserId) || null;
+      if (typeof userId === 'string' && userId.includes('@')) {
+        uEmail = userId;
+      }
+    }
 
     db.prepare(`
       INSERT INTO audit_logs (user_id, user_email, action, ip_address, details, status)
@@ -325,7 +336,7 @@ function getProjectRole(userId, projectId) {
     // 3. Check project_members table
     const member = db.prepare("SELECT role FROM project_members WHERE project_id = ? AND user_id = ?").get(pid, uid);
     if (member && member.role) {
-      return member.role === 'owner' ? 'editor' : member.role;
+      return member.role;
     }
 
     return 'viewer';
