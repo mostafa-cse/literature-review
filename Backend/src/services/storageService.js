@@ -114,43 +114,58 @@ async function storePaperFile({ paperId, filename, mimetype = 'application/pdf',
  * Retrieve a readable stream for a paper manuscript
  */
 async function getPaperFileStream(paperId) {
-  const fileRecord = await prisma.paperFile.findUnique({
-    where: { paperId },
-  });
-
-  if (!fileRecord) {
-    return null;
-  }
-
-  if (isR2Configured() && fileRecord.r2ObjectKey) {
-    const client = getR2Client();
-    const command = new GetObjectCommand({
-      Bucket: fileRecord.r2Bucket || env.R2_BUCKET_NAME,
-      Key: fileRecord.r2ObjectKey,
+  let fileRecord = null;
+  try {
+    fileRecord = await prisma.paperFile.findUnique({
+      where: { paperId },
     });
-
-    const response = await client.send(command);
-    return {
-      stream: response.Body,
-      mimetype: response.ContentType || fileRecord.mimetype,
-      filename: fileRecord.filename,
-      fileSize: fileRecord.fileSize,
-    };
+  } catch (dbErr) {
+    console.warn(`[storageService] Database lookup notice for paperId=${paperId}:`, dbErr.message);
   }
 
-  // Local fallback
-  const localFiles = fs.readdirSync(LOCAL_STORAGE_DIR);
-  const matching = localFiles.find((f) => f.startsWith(`${paperId}_`));
+  if (fileRecord && isR2Configured() && fileRecord.r2ObjectKey) {
+    try {
+      const client = getR2Client();
+      const command = new GetObjectCommand({
+        Bucket: fileRecord.r2Bucket || env.R2_BUCKET_NAME,
+        Key: fileRecord.r2ObjectKey,
+      });
 
-  if (matching) {
-    const filePath = path.join(LOCAL_STORAGE_DIR, matching);
-    const stream = fs.createReadStream(filePath);
-    return {
-      stream,
-      mimetype: fileRecord.mimetype,
-      filename: fileRecord.filename,
-      fileSize: fileRecord.fileSize,
-    };
+      const response = await client.send(command);
+      return {
+        stream: response.Body,
+        mimetype: response.ContentType || fileRecord.mimetype,
+        filename: fileRecord.filename,
+        fileSize: fileRecord.fileSize,
+      };
+    } catch (r2Err) {
+      console.warn(`[storageService] R2 fetch error for paperId=${paperId}:`, r2Err.message);
+    }
+  }
+
+  // Local fallback: scan both LOCAL_STORAGE_DIR and uploads root
+  try {
+    const searchDirs = [LOCAL_STORAGE_DIR, path.resolve(__dirname, '../../../uploads')];
+    for (const sDir of searchDirs) {
+      if (!fs.existsSync(sDir)) continue;
+      const localFiles = fs.readdirSync(sDir);
+      const matching = localFiles.find((f) => f.startsWith(`${paperId}_`) || f.includes(String(paperId)));
+      if (matching) {
+        const filePath = path.join(sDir, matching);
+        const stats = fs.statSync(filePath);
+        if (stats.isFile()) {
+          const stream = fs.createReadStream(filePath);
+          return {
+            stream,
+            mimetype: fileRecord?.mimetype || 'application/pdf',
+            filename: fileRecord?.filename || matching,
+            fileSize: fileRecord?.fileSize || stats.size,
+          };
+        }
+      }
+    }
+  } catch (fsErr) {
+    console.warn('[storageService] Local file scan notice:', fsErr.message);
   }
 
   return null;
