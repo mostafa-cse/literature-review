@@ -74,7 +74,7 @@
       <div>
         <h4 class="footer-col-title">Preferences</h4>
         <ul class="footer-list">
-          <li><a href="/admin" id="footer-admin-link">Enterprise Admin Center</a></li>
+          <li id="footer-admin-item" class="admin-restricted-link" style="display: none;"><a href="/admin" id="footer-admin-link">Enterprise Admin Center</a></li>
           <li><a href="javascript:void(0)" onclick="typeof toggleTheme === 'function' ? toggleTheme() : window.toggleTheme()">Switch Dark/Light Theme</a></li>
           <li><a href="javascript:void(0)" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">Back to Top ↑</a></li>
         </ul>

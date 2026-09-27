@@ -166,7 +166,7 @@
     const isAuthenticated = !!token;
 
     let user = null;
-    const cachedUserStr = localStorage.getItem('litsphere_user') || localStorage.getItem('litnexis_user');
+    const cachedUserStr = localStorage.getItem('litsphere_user') || localStorage.getItem('user') || localStorage.getItem('litnexis_user');
     if (cachedUserStr) {
       try {
         user = JSON.parse(cachedUserStr);
@@ -178,7 +178,15 @@
     const email = user ? (user.email || 'researcher@litsphere.ac') : 'researcher@litsphere.ac';
     const initialChar = (displayName || 'R').charAt(0).toUpperCase();
     const role = (user && user.role ? user.role : 'user').toUpperCase();
-    const isAdmin = (user && user.role === 'admin');
+    const isAdmin = Boolean(user && user.role === 'admin');
+
+    if (typeof document !== 'undefined' && document.body) {
+      if (isAdmin) {
+        document.body.classList.add('is-admin');
+      } else {
+        document.body.classList.remove('is-admin');
+      }
+    }
 
     const savedTheme = localStorage.getItem('litsphere_theme') || 'dark';
     const currentThemeIcon = savedTheme === 'light' ? SUN_ICON : MOON_ICON;
@@ -213,7 +221,7 @@
         <a href="/about" class="nav-link-academic ${activeKey === 'about' ? 'active' : ''}" id="nav-link-about" data-nav="about">About</a>
         <a href="/dashboard" class="nav-link-academic ${activeKey === 'dashboard' ? 'active' : ''}" id="nav-link-dashboard" data-nav="dashboard">Dashboard</a>
         <a href="/workspace" class="nav-link-academic ${activeKey === 'workspace' ? 'active' : ''}" id="nav-link-workspace" data-nav="workspace">Workspace</a>
-        <a href="/admin" id="nav-admin-link" class="nav-link-academic ${activeKey === 'admin' ? 'active' : ''}" data-nav="admin" style="display: ${isAdmin ? 'inline-flex' : 'none'};">Admin</a>
+        ${isAdmin ? `<a href="/admin" id="nav-admin-link" class="nav-link-academic admin-restricted-link ${activeKey === 'admin' ? 'active' : ''}" data-nav="admin">Admin</a>` : ''}
 
         <button type="button" class="theme-toggle-academic theme-toggle-pill" id="theme-toggle-auth" onclick="toggleTheme()" title="Toggle Dark/Light Mode" aria-label="Toggle Theme">
           <span class="theme-icon-indicator" id="theme-icon-auth">${currentThemeIcon}</span>
@@ -251,10 +259,11 @@
               <span>Matrix Workspace</span>
             </a>
 
-            <a href="/admin" class="dropdown-item ${activeKey === 'admin' ? 'active' : ''}" id="dropdown-admin-link" style="display: ${isAdmin ? 'flex' : 'none'};">
+            ${isAdmin ? `
+            <a href="/admin" class="dropdown-item admin-restricted-link ${activeKey === 'admin' ? 'active' : ''}" id="dropdown-admin-link">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.85;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
               <span>Admin Console</span>
-            </a>
+            </a>` : ''}
 
             <button type="button" class="dropdown-item danger" onclick="handleLogout()">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.85;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
@@ -291,7 +300,7 @@
         <a href="/dashboard" id="mobile-link-dashboard" class="${activeKey === 'dashboard' ? 'active' : ''}" style="display: ${isAuthenticated ? 'flex' : 'none'};">Dashboard <span>→</span></a>
         <a href="/workspace" id="mobile-link-workspace" class="${activeKey === 'workspace' ? 'active' : ''}" style="display: ${isAuthenticated ? 'flex' : 'none'};">Workspace <span>→</span></a>
         <a href="/profile" id="mobile-link-profile" class="${activeKey === 'profile' ? 'active' : ''}" style="display: ${isAuthenticated ? 'flex' : 'none'};">Profile &amp; Settings <span>→</span></a>
-        <a href="/admin" id="mobile-link-admin" class="${activeKey === 'admin' ? 'active' : ''}" style="display: ${isAdmin ? 'flex' : 'none'};">Admin Console <span>→</span></a>
+        ${isAdmin ? `<a href="/admin" id="mobile-link-admin" class="admin-restricted-link ${activeKey === 'admin' ? 'active' : ''}">Admin Console <span>→</span></a>` : ''}
         
         <!-- Unauthenticated links -->
         <a href="/login" id="mobile-link-login" class="${activeKey === 'login' ? 'active' : ''}" style="display: ${isAuthenticated ? 'none' : 'flex'};">Sign In <span>→</span></a>
@@ -468,16 +477,51 @@
       }
     });
 
-    // Admin links
-    const isAdmin = (user.role === 'admin');
+    // Admin links - Strictly restricted to admin users only
+    const isAdmin = Boolean(user && user.role === 'admin');
+    if (document.body) {
+      if (isAdmin) {
+        document.body.classList.add('is-admin');
+      } else {
+        document.body.classList.remove('is-admin');
+      }
+    }
+
     const adminLink = document.getElementById('nav-admin-link');
-    if (adminLink) adminLink.style.display = isAdmin ? 'inline-flex' : 'none';
+    if (adminLink) {
+      if (isAdmin) {
+        adminLink.style.setProperty('display', 'inline-flex', 'important');
+      } else {
+        adminLink.style.setProperty('display', 'none', 'important');
+      }
+    }
 
     const ddAdminLink = document.getElementById('dropdown-admin-link');
-    if (ddAdminLink) ddAdminLink.style.display = isAdmin ? 'flex' : 'none';
+    if (ddAdminLink) {
+      if (isAdmin) {
+        ddAdminLink.style.setProperty('display', 'flex', 'important');
+      } else {
+        ddAdminLink.style.setProperty('display', 'none', 'important');
+      }
+    }
 
     const mobileAdmin = document.getElementById('mobile-link-admin');
-    if (mobileAdmin) mobileAdmin.style.display = isAdmin ? 'flex' : 'none';
+    if (mobileAdmin) {
+      if (isAdmin) {
+        mobileAdmin.style.setProperty('display', 'flex', 'important');
+      } else {
+        mobileAdmin.style.setProperty('display', 'none', 'important');
+      }
+    }
+
+    const footerAdmin = document.getElementById('footer-admin-item') || document.getElementById('footer-admin-link');
+    if (footerAdmin) {
+      if (isAdmin) {
+        footerAdmin.style.setProperty('display', footerAdmin.id === 'footer-admin-item' ? 'list-item' : 'inline', 'important');
+      } else {
+        footerAdmin.style.setProperty('display', 'none', 'important');
+      }
+    }
   }
 
   /**
@@ -533,6 +577,17 @@
       if (mobileLinkLogin) mobileLinkLogin.style.setProperty('display', 'flex', 'important');
       if (mobileLinkRegister) mobileLinkRegister.style.setProperty('display', 'flex', 'important');
       if (mobileBtnLogout) mobileBtnLogout.style.setProperty('display', 'none', 'important');
+
+      // Hide all admin controls for unauthenticated visitors
+      if (document.body) document.body.classList.remove('is-admin');
+      const adminLink = document.getElementById('nav-admin-link');
+      if (adminLink) adminLink.style.setProperty('display', 'none', 'important');
+      const ddAdminLink = document.getElementById('dropdown-admin-link');
+      if (ddAdminLink) ddAdminLink.style.setProperty('display', 'none', 'important');
+      const mobileAdmin = document.getElementById('mobile-link-admin');
+      if (mobileAdmin) mobileAdmin.style.setProperty('display', 'none', 'important');
+      const footerAdmin = document.getElementById('footer-admin-item') || document.getElementById('footer-admin-link');
+      if (footerAdmin) footerAdmin.style.setProperty('display', 'none', 'important');
     }
   }
 

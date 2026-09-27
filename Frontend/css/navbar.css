@@ -210,7 +210,7 @@ header.site-header.scrolled {
   padding: 0 0.85rem !important;
   border-radius: 6px !important;
   transition: all 0.15s ease !important;
-  display: inline-flex !important;
+  display: inline-flex;
   align-items: center !important;
   justify-content: center !important;
   gap: 0.45rem !important;
@@ -528,7 +528,7 @@ header.site-header.scrolled {
 }
 
 .dropdown-item {
-  display: flex !important;
+  display: flex;
   align-items: center !important;
   gap: 0.65rem !important;
   padding: 0.55rem 0.75rem !important;
@@ -771,3 +771,38 @@ header.site-header.scrolled {
   border-color: rgba(0, 0, 0, 0.16) !important;
   color: #0f172a !important;
 }
+
+/* ==========================================================================
+   STRICT ADMIN ACCESS VISIBILITY RULES
+   Admin button and links MUST remain strictly hidden for all non-admin users.
+   Only when body.is-admin is actively authenticated will these elements be revealed.
+   ========================================================================== */
+#nav-admin-link,
+#dropdown-admin-link,
+#mobile-link-admin,
+#footer-admin-item,
+#footer-admin-link,
+.admin-restricted-link {
+  display: none !important;
+}
+
+body.is-admin #nav-admin-link {
+  display: inline-flex !important;
+}
+
+body.is-admin #dropdown-admin-link {
+  display: flex !important;
+}
+
+body.is-admin #mobile-link-admin {
+  display: flex !important;
+}
+
+body.is-admin #footer-admin-item {
+  display: list-item !important;
+}
+
+body.is-admin #footer-admin-link {
+  display: inline !important;
+}
+

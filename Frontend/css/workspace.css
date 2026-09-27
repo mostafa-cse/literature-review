@@ -424,14 +424,7 @@ body {
 }
 
 .stat-box::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--stat-accent, var(--accent-primary));
-  opacity: 0.8;
+  display: none !important;
 }
 
 .stat-number {
