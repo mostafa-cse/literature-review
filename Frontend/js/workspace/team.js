@@ -194,7 +194,15 @@ window.submitInviteCollaborator = async function(e) {
     if (res.ok) {
       if (emailInput) emailInput.value = '';
       showToast(data.message || `Invited ${email} as ${role.toUpperCase()}!`, 'success');
+      if (window.api && window.api.cache) {
+        window.api.cache.delete(`/api/projects/${pid}/my-role`);
+        window.api.cache.delete(`/api/projects/${pid}`);
+        window.api.cache.delete('/api/projects');
+      }
       loadTeamMembers();
+      if (typeof window.refreshProjectRole === 'function') {
+        window.refreshProjectRole().catch(() => {});
+      }
     } else {
       throw new Error(data.error || 'Failed to add collaborator');
     }
@@ -229,7 +237,15 @@ window.updateCollaboratorRole = async function(userId, newRole) {
     if (!res.ok) throw new Error(data.error || 'Failed to update collaborator role');
 
     showToast(data.message || `Role updated to ${newRole.toUpperCase()} successfully`, 'success');
+    if (window.api && window.api.cache) {
+      window.api.cache.delete(`/api/projects/${pid}/my-role`);
+      window.api.cache.delete(`/api/projects/${pid}`);
+      window.api.cache.delete('/api/projects');
+    }
     loadTeamMembers();
+    if (typeof window.refreshProjectRole === 'function') {
+      window.refreshProjectRole().catch(() => {});
+    }
   } catch (err) {
     showToast(err.message, 'error');
     loadTeamMembers();
@@ -272,12 +288,20 @@ window.removeCollaborator = async function(userId, memberName = 'this collaborat
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
       showToast(data.message || (isSelf ? 'You have left the project' : 'Collaborator removed successfully'), 'success');
+      if (window.api && window.api.cache) {
+        window.api.cache.delete(`/api/projects/${pid}/my-role`);
+        window.api.cache.delete(`/api/projects/${pid}`);
+        window.api.cache.delete('/api/projects');
+      }
       if (isSelf) {
         setTimeout(() => {
           window.location.href = '/dashboard';
         }, 800);
       } else {
         loadTeamMembers();
+        if (typeof window.refreshProjectRole === 'function') {
+          window.refreshProjectRole().catch(() => {});
+        }
       }
     } else {
       throw new Error(data.error || 'Failed to remove collaborator');

@@ -142,20 +142,24 @@ window.loadSurveys = async function() {
   const applySurveysData = (raw) => {
     if (!Array.isArray(raw)) return;
     let currentUserId = null;
+    let isGlobalAdmin = false;
     try {
       const u = JSON.parse(localStorage.getItem('litsphere_user') || '{}');
       currentUserId = u.id || null;
+      isGlobalAdmin = u.role === 'admin';
     } catch(e) {}
 
-    // Normalise: API returns `user_role`, frontend filter reads `current_user_role`
+    // Normalise: API returns `user_role` and `current_user_role`
     allSurveys = raw.map(p => {
-      let role = (p.user_role || p.current_user_role || '').toLowerCase();
-      if (currentUserId && p.owner_id && Number(p.owner_id) !== Number(currentUserId) && role === 'owner') {
-        role = 'editor';
+      let role = (p.current_user_role || p.user_role || '').toLowerCase();
+      if (isGlobalAdmin) {
+        role = 'owner';
+      } else if (currentUserId && p.owner_id && Number(p.owner_id) === Number(currentUserId)) {
+        role = 'owner';
       } else if (!role) {
-        role = (currentUserId && p.owner_id && Number(p.owner_id) === Number(currentUserId)) ? 'owner' : 'viewer';
+        role = 'viewer';
       }
-      return { ...p, current_user_role: role };
+      return { ...p, current_user_role: role, user_role: role };
     });
 
     updateTabCounts();

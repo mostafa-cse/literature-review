@@ -259,10 +259,10 @@ window.loadProjects = async function () {
       };
     }
 
-    // Try to get effective role from /api/projects/:id/my-role
+    // Fetch current user's effective role fresh from /api/projects/:id/my-role
     try {
       if (activeProjectId) {
-        const roleData = await window.api.swr(`/api/projects/${activeProjectId}/my-role`, { ttl: 300000 });
+        const roleData = await window.api.get(`/api/projects/${activeProjectId}/my-role`, { abortKey: 'workspace-role' });
         if (roleData && roleData.role) {
           currentProjectRole = roleData.role.toLowerCase();
           window.currentProjectRole = currentProjectRole;
@@ -271,6 +271,20 @@ window.loadProjects = async function () {
     } catch (_) { }
 
     applyWorkspaceRolePermissions();
+  };
+
+  window.refreshProjectRole = async function() {
+    try {
+      const pid = window.activeProjectId || activeProjectId;
+      if (pid) {
+        const roleData = await window.api.get(`/api/projects/${pid}/my-role`);
+        if (roleData && roleData.role) {
+          currentProjectRole = roleData.role.toLowerCase();
+          window.currentProjectRole = currentProjectRole;
+          applyWorkspaceRolePermissions();
+        }
+      }
+    } catch (_) {}
   };
 
   try {

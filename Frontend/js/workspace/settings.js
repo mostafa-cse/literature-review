@@ -53,6 +53,7 @@ window.openSurveySettingsModal = async function(initialTab = 'general') {
     window.currentProject = project;
 
     const isOwner = role === 'owner' || isGlobalAdmin || (currentUser && Number(project.owner_id) === Number(currentUser.id));
+    if (isOwner) role = 'owner';
     const isEditor = role === 'editor';
     const canModify = isOwner || isEditor || isGlobalAdmin;
 

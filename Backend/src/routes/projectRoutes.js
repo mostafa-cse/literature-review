@@ -19,7 +19,8 @@ router.get('/projects', (req, res) => {
     let params;
 
     if (currentUserId) {
-      if (req.user.role === 'admin' && req.query.all === 'true') {
+      const isAdmin = req.user && req.user.role === 'admin';
+      if (isAdmin && req.query.all === 'true') {
         query = `
           WITH p_stats AS (
             SELECT 
@@ -76,11 +77,8 @@ router.get('/projects', (req, res) => {
                  COALESCE(dcs.dynamic_col_count, 0) as dynamic_col_count,
                  COALESCE(ss.screenings_count, 0) as screenings_count,
                  COALESCE(coms.comments_count, 0) as comments_count,
-                 CASE 
-                   WHEN p.owner_id = ? THEN 'owner'
-                   WHEN ur.role IS NOT NULL THEN ur.role
-                   ELSE 'viewer'
-                 END as user_role
+                 'owner' as user_role,
+                 'owner' as current_user_role
           FROM projects p
           LEFT JOIN users u ON u.id = p.owner_id
           LEFT JOIN p_stats ps ON ps.project_id = p.id
@@ -92,7 +90,7 @@ router.get('/projects', (req, res) => {
           LEFT JOIN user_roles ur ON ur.project_id = p.id
           ORDER BY p.id DESC
         `;
-        params = [currentUserId, currentUserId];
+        params = [currentUserId];
       } else {
         query = `
           WITH p_stats AS (
@@ -151,10 +149,15 @@ router.get('/projects', (req, res) => {
                  COALESCE(ss.screenings_count, 0) as screenings_count,
                  COALESCE(coms.comments_count, 0) as comments_count,
                  CASE 
-                   WHEN p.owner_id = ? THEN 'owner'
+                   WHEN ${isAdmin ? '1=1' : 'p.owner_id = ?'} THEN 'owner'
                    WHEN ur.role IS NOT NULL THEN ur.role
                    ELSE 'viewer'
-                 END as user_role
+                 END as user_role,
+                 CASE 
+                   WHEN ${isAdmin ? '1=1' : 'p.owner_id = ?'} THEN 'owner'
+                   WHEN ur.role IS NOT NULL THEN ur.role
+                   ELSE 'viewer'
+                 END as current_user_role
           FROM projects p
           LEFT JOIN users u ON u.id = p.owner_id
           LEFT JOIN p_stats ps ON ps.project_id = p.id
@@ -164,10 +167,10 @@ router.get('/projects', (req, res) => {
           LEFT JOIN s_stats ss ON ss.project_id = p.id
           LEFT JOIN com_stats coms ON coms.project_id = p.id
           LEFT JOIN user_roles ur ON ur.project_id = p.id
-          WHERE p.owner_id = ? OR ur.role IS NOT NULL
+          WHERE ${isAdmin ? '1=1' : '(p.owner_id = ? OR ur.role IS NOT NULL)'}
           ORDER BY p.id DESC
         `;
-        params = [currentUserId, currentUserId, currentUserId];
+        params = isAdmin ? [currentUserId] : [currentUserId, currentUserId, currentUserId];
       }
     } else {
       // If unauthenticated, only return public projects
@@ -431,7 +434,8 @@ router.get('/projects/:id', (req, res) => {
       GROUP BY c.id
     `).all(pid);
 
-    res.json({ ...project, clusters });
+    const effectiveRole = req.user ? getProjectRole(req.user.id, pid) : 'viewer';
+    res.json({ ...project, user_role: effectiveRole, current_user_role: effectiveRole, clusters });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
