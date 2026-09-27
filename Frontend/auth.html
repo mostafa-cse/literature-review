@@ -1397,29 +1397,19 @@
       </div>
 
       <h3 style="font-family: 'Cinzel', 'Outfit', serif; font-size: 1.35rem; color: #ffffff; margin-bottom: 0.35rem; font-weight: 700;">Google Authentication</h3>
-      <p style="font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 1.4rem; line-height: 1.5;">Choose an account to continue to LitSphere Research Platform</p>
+      <p id="google-modal-subtitle" style="font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 1.25rem; line-height: 1.5;">Choose an account to continue to LitSphere Research Platform</p>
 
-      <!-- Account Selection List -->
-      <div style="display: flex; flex-direction: column; gap: 0.65rem; margin-bottom: 1.25rem;">
-        <!-- Preconfigured / Active User -->
-        <button type="button" class="google-account-card" onclick="selectGoogleAccount('mostafakamal.cse2022@gmail.com', 'Mostafa Kamal')" style="display: flex; align-items: center; gap: 0.85rem; padding: 0.85rem 1rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 12px; cursor: pointer; text-align: left; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);">
-          <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #4285F4, #34A853); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #ffffff; font-size: 1rem;">M</div>
-          <div style="flex: 1; min-width: 0;">
-            <div style="font-weight: 700; color: #ffffff; font-size: 0.92rem;">Mostafa Kamal</div>
-            <div style="color: var(--text-secondary); font-size: 0.78rem; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-family: 'JetBrains Mono', monospace;">mostafakamal.cse2022@gmail.com</div>
-          </div>
-          <span style="font-size: 0.74rem; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 0.2rem 0.5rem; border-radius: 6px; font-weight: 600;">1-Click</span>
-        </button>
-      </div>
+      <!-- Dynamic Account Selection List -->
+      <div id="google-accounts-container" style="display: flex; flex-direction: column; gap: 0.65rem; margin-bottom: 0.85rem;"></div>
 
-      <!-- Divider -->
-      <div class="auth-divider" style="margin: 0.85rem 0 1.15rem;">
-        <span>or enter another Google email</span>
+      <!-- Divider (Shown dynamically if saved accounts exist above) -->
+      <div id="google-accounts-divider" class="auth-divider" style="margin: 0.85rem 0 1.15rem; display: none;">
+        <span>or enter your Google email</span>
       </div>
 
       <!-- Custom Google Email Input -->
       <div style="display: flex; gap: 0.5rem; margin-bottom: 0.85rem;">
-        <input type="email" id="custom-google-email" class="form-control" placeholder="your_name@gmail.com" autocomplete="email" onkeydown="if(event.key === 'Enter') submitCustomGoogleAccount()" style="padding-left: 1rem; font-size: 0.88rem;">
+        <input type="email" id="custom-google-email" name="email" class="form-control" placeholder="your_name@gmail.com" autocomplete="username email" onkeydown="if(event.key === 'Enter') submitCustomGoogleAccount()" style="padding-left: 1rem; font-size: 0.88rem;">
         <button type="button" class="btn-overleaf-action" onclick="submitCustomGoogleAccount()" style="width: auto; padding: 0.82rem 1.25rem; font-size: 0.88rem; white-space: nowrap;">
           Sign In
         </button>
@@ -1734,10 +1724,168 @@
       }
     }
 
+    // Dynamic Google Accounts Storage for Browser Profile
+    function getStoredGoogleAccounts() {
+      const accounts = [];
+      const seen = new Set();
+
+      // 1. Check remembered Google user from last successful login
+      try {
+        const last = JSON.parse(localStorage.getItem('litsphere_last_google_user') || 'null');
+        if (last && last.email && !seen.has(last.email.toLowerCase())) {
+          accounts.push({
+            name: last.name || last.email.split('@')[0],
+            email: last.email,
+            avatar: last.avatar || ''
+          });
+          seen.add(last.email.toLowerCase());
+        }
+      } catch (e) {}
+
+      // 2. Check stored Google accounts history list on this browser profile
+      try {
+        const list = JSON.parse(localStorage.getItem('litsphere_google_accounts') || '[]');
+        if (Array.isArray(list)) {
+          list.forEach(item => {
+            if (item && item.email && !seen.has(item.email.toLowerCase())) {
+              accounts.push({
+                name: item.name || item.email.split('@')[0],
+                email: item.email,
+                avatar: item.avatar || ''
+              });
+              seen.add(item.email.toLowerCase());
+            }
+          });
+        }
+      } catch (e) {}
+
+      // 3. Check active session / previously logged in user on this device
+      try {
+        const u = JSON.parse(localStorage.getItem('litsphere_user') || 'null');
+        if (u && u.email && u.email.includes('@') && !seen.has(u.email.toLowerCase())) {
+          accounts.push({
+            name: u.name || u.username || u.email.split('@')[0],
+            email: u.email,
+            avatar: u.avatar_url || ''
+          });
+          seen.add(u.email.toLowerCase());
+        }
+      } catch (e) {}
+
+      // 4. Check remembered email identifier from login form
+      try {
+        const rem = localStorage.getItem('litsphere_remembered_identifier') || localStorage.getItem('litsphere_remembered_email');
+        if (rem && rem.includes('@') && !seen.has(rem.toLowerCase())) {
+          accounts.push({
+            name: rem.split('@')[0],
+            email: rem,
+            avatar: ''
+          });
+          seen.add(rem.toLowerCase());
+        }
+      } catch (e) {}
+
+      return accounts;
+    }
+
+    function saveStoredGoogleAccount(email, name, avatar) {
+      if (!email) return;
+      try {
+        const cleanEmail = email.trim().toLowerCase();
+        const cleanName = (name || cleanEmail.split('@')[0]).trim();
+        const cleanAvatar = avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanEmail)}`;
+
+        const account = { email: cleanEmail, name: cleanName, avatar: cleanAvatar };
+        localStorage.setItem('litsphere_last_google_user', JSON.stringify(account));
+
+        let list = [];
+        try {
+          list = JSON.parse(localStorage.getItem('litsphere_google_accounts') || '[]');
+          if (!Array.isArray(list)) list = [];
+        } catch (e) { list = []; }
+
+        list = [account, ...list.filter(a => a && a.email && a.email.toLowerCase() !== cleanEmail)].slice(0, 4);
+        localStorage.setItem('litsphere_google_accounts', JSON.stringify(list));
+      } catch (e) {}
+    }
+
+    function removeStoredGoogleAccount(emailToRemove, ev) {
+      if (ev) ev.stopPropagation();
+      try {
+        let list = JSON.parse(localStorage.getItem('litsphere_google_accounts') || '[]');
+        if (Array.isArray(list)) {
+          list = list.filter(a => a && a.email && a.email.toLowerCase() !== emailToRemove.toLowerCase());
+          localStorage.setItem('litsphere_google_accounts', JSON.stringify(list));
+        }
+
+        const last = JSON.parse(localStorage.getItem('litsphere_last_google_user') || 'null');
+        if (last && last.email && last.email.toLowerCase() === emailToRemove.toLowerCase()) {
+          localStorage.removeItem('litsphere_last_google_user');
+        }
+      } catch (err) {}
+      renderGoogleAccountsModal();
+    }
+
+    function renderGoogleAccountsModal() {
+      const container = document.getElementById('google-accounts-container');
+      const divider = document.getElementById('google-accounts-divider');
+      const subtitle = document.getElementById('google-modal-subtitle');
+      const customInput = document.getElementById('custom-google-email');
+      if (!container) return;
+
+      const accounts = getStoredGoogleAccounts();
+
+      if (accounts.length > 0) {
+        if (subtitle) subtitle.textContent = 'Choose an account to continue to LitSphere Research Platform';
+        if (divider) divider.style.display = 'flex';
+
+        container.innerHTML = accounts.map((acc, idx) => {
+          const initial = (acc.name || acc.email || 'G').charAt(0).toUpperCase();
+          const avatarHtml = acc.avatar
+            ? `<img src="${acc.avatar}" alt="${acc.name}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`
+            : initial;
+          const bgGradient = idx % 2 === 0 ? 'linear-gradient(135deg, #4285F4, #34A853)' : 'linear-gradient(135deg, #8B5CF6, #3B82F6)';
+
+          const safeEmail = acc.email.replace(/'/g, "\\'");
+          const safeName = (acc.name || '').replace(/'/g, "\\'");
+
+          return `
+            <div style="display: flex; align-items: center; gap: 0.5rem; position: relative;">
+              <button type="button" class="google-account-card" onclick="selectGoogleAccount('${safeEmail}', '${safeName}')" style="display: flex; align-items: center; gap: 0.85rem; padding: 0.85rem 1rem; flex: 1; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 12px; cursor: pointer; text-align: left; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);">
+                <div style="width: 40px; height: 40px; border-radius: 50%; background: ${bgGradient}; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #ffffff; font-size: 1rem; overflow: hidden; flex-shrink: 0;">
+                  ${avatarHtml}
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                  <div style="font-weight: 700; color: #ffffff; font-size: 0.92rem; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${acc.name}</div>
+                  <div style="color: var(--text-secondary); font-size: 0.78rem; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-family: 'JetBrains Mono', monospace;">${acc.email}</div>
+                </div>
+                <span style="font-size: 0.74rem; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 0.2rem 0.5rem; border-radius: 6px; font-weight: 600; white-space: nowrap;">1-Click</span>
+              </button>
+              <button type="button" onclick="removeStoredGoogleAccount('${safeEmail}', event)" title="Remove account from list" style="background: transparent; border: none; color: var(--text-tertiary); cursor: pointer; padding: 0.4rem; font-size: 1rem; border-radius: 6px; transition: color 0.15s ease;" onmouseover="this.style.color='#f43f5e'" onmouseout="this.style.color='var(--text-tertiary)'">✕</button>
+            </div>
+          `;
+        }).join('');
+      } else {
+        // No accounts remembered on this browser profile yet:
+        // Do NOT show any hardcoded dummy email!
+        if (subtitle) subtitle.textContent = 'Enter your Google account email to continue';
+        container.innerHTML = '';
+        if (divider) divider.style.display = 'none';
+
+        setTimeout(() => {
+          if (customInput) customInput.focus();
+        }, 120);
+      }
+    }
+
     // Google SSO Modal controls
     function openGoogleModal(msgOrErr) {
       const modal = document.getElementById('google-sso-modal');
       if (modal) modal.style.display = 'flex';
+
+      // Dynamically populate accounts for the current browser profile
+      renderGoogleAccountsModal();
+
       const feedback = document.getElementById('google-modal-feedback');
       if (feedback) {
         let code = '';
@@ -1843,6 +1991,9 @@
         }
 
         if (!res.ok) throw new Error(data.error || 'Google authentication failed.');
+
+        // Remember this account for future 1-Click sign-in on this browser
+        saveStoredGoogleAccount(email, name, (data.user && data.user.avatar_url) ? data.user.avatar_url : '');
 
         if (feedback) {
           feedback.innerHTML = `
