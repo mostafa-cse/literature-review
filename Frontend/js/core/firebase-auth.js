@@ -171,9 +171,9 @@
           return;
         }
 
-        // Open fallback modal
+        // Open fallback modal with error context
         if (typeof window.openGoogleFallbackModal === 'function') {
-          window.openGoogleFallbackModal(err.message);
+          window.openGoogleFallbackModal(err);
         }
         return;
       }
