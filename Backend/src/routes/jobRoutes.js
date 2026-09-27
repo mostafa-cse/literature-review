@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const queueService = require('../services/queueService');
-const { sseManager } = require('../services/sseService');
+const { sseManager, sseEventBus } = require('../services/sseService');
 const { validateRequest, jobParamSchema, exportTokenParamSchema } = require('../validation');
 
 // ======================================================================
@@ -53,6 +53,7 @@ router.get('/jobs/:queueName/failed', async (req, res) => {
  * Query params: ?job_ids=1,2,3&queue=pdf-processing-queue
  */
 router.get('/jobs/stream/batch', async (req, res) => {
+  let cleanupListeners = null;
   try {
     const rawIds = req.query.job_ids || req.query.jobs || '';
     const queueName = req.query.queue || queueService.QUEUES.PDF_PROCESSING;
@@ -64,34 +65,123 @@ router.get('/jobs/stream/batch', async (req, res) => {
 
     sseManager.initSseHeaders(res);
 
-    // Send initial status for all requested jobs
+    const batchKey = `batch_${Date.now()}_${jobIds.join('_')}`;
+    sseManager.addBatchSubscriber(batchKey, res);
+
+    const pendingJobMap = new Map();
     const initialStatuses = [];
+
     for (const jid of jobIds) {
       const j = await queueService.getJob(queueName, jid);
       if (j) {
         initialStatuses.push({
           jobId: jid,
           state: j.state,
-          progress: j.progress
+          progress: j.progress,
+          result: j.returnValue || j.returnvalue || null
         });
         if (j.state !== 'completed' && j.state !== 'failed') {
-          sseManager.addJobSubscriber(jid, res);
+          pendingJobMap.set(String(jid), j);
         }
+      } else {
+        initialStatuses.push({
+          jobId: jid,
+          state: 'unknown',
+          progress: 0
+        });
       }
     }
 
+    // 1. Send initial batch status frame
     sseManager.sendEvent(res, 'batch_init', {
       count: jobIds.length,
       jobs: initialStatuses,
       timestamp: new Date().toISOString()
     });
 
-    // If all jobs are already terminated, end stream
-    const allDone = initialStatuses.length === jobIds.length && initialStatuses.every(s => s.state === 'completed' || s.state === 'failed');
-    if (allDone) {
-      return res.end();
+    const finishBatch = (summary = {}) => {
+      if (res.writableEnded || res.destroyed) return;
+      if (cleanupListeners) {
+        cleanupListeners();
+        cleanupListeners = null;
+      }
+      sseManager.sendEvent(res, 'batch_completed', {
+        count: jobIds.length,
+        jobs: initialStatuses,
+        ...summary,
+        timestamp: new Date().toISOString()
+      });
+      setTimeout(() => {
+        if (!res.writableEnded && !res.destroyed) {
+          try { res.end(); } catch (_) {}
+        }
+      }, 250);
+    };
+
+    // If all jobs are already terminated, gracefully emit batch_completed and finish
+    if (pendingJobMap.size === 0) {
+      return finishBatch({ message: 'All jobs in batch already completed' });
     }
+
+    const pendingIds = new Set(Array.from(pendingJobMap.keys()));
+
+    const onProgress = ({ jobId, progress }) => {
+      const idStr = String(jobId);
+      if (!pendingIds.has(idStr)) return;
+      sseManager.sendEvent(res, 'progress', {
+        jobId,
+        ...(typeof progress === 'object' ? progress : { progress })
+      });
+    };
+
+    const onCompleted = ({ jobId, result }) => {
+      const idStr = String(jobId);
+      if (!pendingIds.has(idStr)) return;
+      pendingIds.delete(idStr);
+      sseManager.sendEvent(res, 'completed', {
+        jobId,
+        ...(typeof result === 'object' ? result : { result })
+      });
+      if (pendingIds.size === 0) {
+        finishBatch({ message: 'All batch jobs completed' });
+      }
+    };
+
+    const onFailed = ({ jobId, error }) => {
+      const idStr = String(jobId);
+      if (!pendingIds.has(idStr)) return;
+      pendingIds.delete(idStr);
+      sseManager.sendEvent(res, 'failed', {
+        jobId,
+        error: error?.message || error || 'Job failed'
+      });
+      if (pendingIds.size === 0) {
+        finishBatch({ message: 'All batch jobs completed with failures' });
+      }
+    };
+
+    sseEventBus.on('job:progress', onProgress);
+    sseEventBus.on('job:completed', onCompleted);
+    sseEventBus.on('job:failed', onFailed);
+
+    cleanupListeners = () => {
+      sseEventBus.removeListener('job:progress', onProgress);
+      sseEventBus.removeListener('job:completed', onCompleted);
+      sseEventBus.removeListener('job:failed', onFailed);
+    };
+
+    res.on('close', () => {
+      if (cleanupListeners) {
+        cleanupListeners();
+        cleanupListeners = null;
+      }
+    });
+
   } catch (err) {
+    if (cleanupListeners) {
+      cleanupListeners();
+      cleanupListeners = null;
+    }
     console.error('Batch SSE stream error:', err);
     if (!res.headersSent) {
       res.status(500).json({ error: err.message });

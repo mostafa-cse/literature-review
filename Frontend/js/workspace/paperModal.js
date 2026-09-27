@@ -904,7 +904,18 @@ window.submitBulkPdfUpload = async function() {
             setTimeout(resolve, 650);
           },
           onError: (err) => {
-            console.warn('Batch SSE stream notice:', err);
+            if (err && err.message) {
+              console.warn('Batch SSE stream notice:', err.message);
+            }
+            for (let i = 1; i <= 4; i++) {
+              const pill = document.getElementById(`bulk-stage-${i}`);
+              if (pill) {
+                pill.classList.remove('active');
+                pill.classList.add('completed');
+              }
+            }
+            if (bulkFillEl) bulkFillEl.style.width = '100%';
+            if (bulkPctEl) bulkPctEl.textContent = '100%';
             resolve();
           }
         });

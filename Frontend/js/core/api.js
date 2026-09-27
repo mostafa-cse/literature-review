@@ -1215,13 +1215,50 @@ class ApiClient {
     const ids = Array.isArray(jobIds) ? jobIds : [jobIds];
     let isClosed = false;
     let es = null;
+    let pollTimer = null;
 
     const cleanup = () => {
       isClosed = true;
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
       if (es) {
         try { es.close(); } catch (_) {}
         es = null;
       }
+    };
+
+    // Polling fallback if SSE is unavailable or drops connection
+    const startPollingFallback = () => {
+      if (isClosed) return;
+      const pendingIds = new Set(ids);
+      pollTimer = setInterval(async () => {
+        if (isClosed) return;
+        try {
+          for (const jid of Array.from(pendingIds)) {
+            const res = await this.get(`/api/jobs/${encodeURIComponent(queueName)}/${encodeURIComponent(jid)}`, { suppressErrorToast: true });
+            const job = res?.job;
+            if (!job) continue;
+
+            if (job.progress) {
+              onProgress(job.progress);
+            }
+
+            if (job.state === 'completed') {
+              pendingIds.delete(jid);
+              onJobComplete(job.returnValue || job);
+            } else if (job.state === 'failed') {
+              pendingIds.delete(jid);
+            }
+          }
+
+          if (pendingIds.size === 0) {
+            cleanup();
+            onBatchComplete({ polled: true });
+          }
+        } catch (_) {}
+      }, 1500);
     };
 
     if (typeof EventSource !== 'undefined') {
@@ -1256,16 +1293,20 @@ class ApiClient {
           }
         });
 
-        es.onerror = (err) => {
+        es.onerror = () => {
           if (!isClosed) {
-            cleanup();
-            onError(err);
+            if (es) {
+              try { es.close(); } catch (_) {}
+              es = null;
+            }
+            startPollingFallback();
           }
         };
       } catch (err) {
-        cleanup();
-        onError(err);
+        startPollingFallback();
       }
+    } else {
+      startPollingFallback();
     }
 
     return { close: cleanup };
