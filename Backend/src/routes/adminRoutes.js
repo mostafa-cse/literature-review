@@ -227,8 +227,8 @@ router.delete('/users/:id', (req, res) => {
 // 2. SYSTEM HEALTH & TELEMETRY
 // ==========================================
 
-// GET /api/admin/system/health - Live server telemetry metrics
-router.get('/system/health', (req, res) => {
+// GET /api/admin/system/health (or /overview, /stats) - Live server telemetry metrics
+router.get(['/system/health', '/overview', '/stats'], (req, res) => {
   const db = getDb();
 
   try {

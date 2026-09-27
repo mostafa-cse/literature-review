@@ -525,7 +525,11 @@ router.post('/projects', async (req, res) => {
 
     const newProject = db.prepare('SELECT * FROM projects WHERE id = ?').get(newProjectId);
     await cacheService.invalidateTag('stats');
-    res.status(201).json(newProject);
+    res.status(201).json({
+      ...newProject,
+      user_role: 'owner',
+      current_user_role: 'owner'
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

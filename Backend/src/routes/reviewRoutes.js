@@ -30,10 +30,13 @@ router.get('/papers/:id/comments', (req, res) => {
 // POST /api/papers/:id/comments - Add comment / annotation (Owner, Editor, Reviewer)
 router.post('/papers/:id/comments', authenticateToken, async (req, res) => {
   const paperId = req.params.id;
-  const { comment_text, quote_text, page_number } = req.body;
+  const { comment_text, comment, text, quote_text, quote, page_number } = req.body;
+  const cleanCommentText = (comment_text || comment || text || '').trim();
+  const cleanQuoteText = (quote_text || quote || '').trim() || null;
+  const cleanPageNumber = page_number || req.body.page || (req.body.position_data && req.body.position_data.page) || null;
   const db = getDb();
 
-  if (!comment_text || !comment_text.trim()) {
+  if (!cleanCommentText) {
     return res.status(400).json({ error: 'Comment text is required.' });
   }
 
@@ -49,7 +52,7 @@ router.post('/papers/:id/comments', authenticateToken, async (req, res) => {
     const result = db.prepare(`
       INSERT INTO paper_comments (paper_id, user_id, user_name, user_role, comment_text, quote_text, page_number)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(paperId, req.user.id, req.user.name, role, comment_text.trim(), quote_text ? quote_text.trim() : null, page_number || null);
+    `).run(paperId, req.user.id, req.user.name, role, cleanCommentText, cleanQuoteText, cleanPageNumber);
 
     const newComment = db.prepare("SELECT * FROM paper_comments WHERE id = ?").get(result.lastInsertRowid);
 
@@ -60,6 +63,8 @@ router.post('/papers/:id/comments', authenticateToken, async (req, res) => {
 
     res.status(201).json({
       message: 'Comment added successfully.',
+      id: newComment.id,
+      ...newComment,
       comment: newComment
     });
   } catch (err) {
@@ -126,11 +131,6 @@ router.post('/papers/:id/screening', authenticateToken, async (req, res) => {
   const { decision, vote, exclusion_reason, reason, notes } = req.body;
   const db = getDb();
 
-  const finalDecision = (decision || vote || '').toLowerCase();
-  if (!['included', 'excluded', 'uncertain'].includes(finalDecision)) {
-    return res.status(400).json({ error: 'Valid decision (included, excluded, uncertain) is required.' });
-  }
-
   try {
     const paper = db.prepare("SELECT id, project_id, title FROM papers WHERE id = ?").get(paperId);
     if (!paper) return res.status(404).json({ error: 'Paper not found.' });
@@ -138,6 +138,15 @@ router.post('/papers/:id/screening', authenticateToken, async (req, res) => {
     const role = getProjectRole(req.user.id, paper.project_id);
     if (role === 'viewer') {
       return res.status(403).json({ error: 'Viewers have read-only access and cannot vote on PRISMA decisions.' });
+    }
+
+    let finalDecision = (decision || vote || '').toLowerCase().trim();
+    if (finalDecision === 'include') finalDecision = 'included';
+    if (finalDecision === 'exclude') finalDecision = 'excluded';
+    if (finalDecision === 'maybe') finalDecision = 'uncertain';
+
+    if (!['included', 'excluded', 'uncertain'].includes(finalDecision)) {
+      return res.status(400).json({ error: 'Valid decision (included, excluded, uncertain) is required.' });
     }
 
     const cleanReason = (exclusion_reason !== undefined ? exclusion_reason : reason) ? String(exclusion_reason || reason).trim() : null;

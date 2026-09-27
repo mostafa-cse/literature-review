@@ -404,8 +404,8 @@ router.post('/orcid', async (req, res) => {
 
 // POST /api/auth/login - Authenticate user credentials via Username or Email
 router.post('/login', async (req, res) => {
-  const { identifier, email, username, password } = req.body;
-  const rawId = (identifier || email || username || '').trim();
+  const { identifier, email, username, login, password } = req.body;
+  const rawId = (identifier || email || username || login || '').trim();
 
   if (!rawId || !password) {
     return res.status(400).json({ error: 'Username or Email and password are required.' });
