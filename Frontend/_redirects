@@ -1,0 +1,31 @@
+# LitSphere API & Backend Proxy to Live Render Backend
+/api/*  https://litsphere.onrender.com/api/:splat  200!
+/uploads/*  https://litsphere.onrender.com/uploads/:splat  200!
+
+# SPA / Clean URLs fallback
+/login  /auth.html  200
+/signin  /auth.html  200
+/signup  /auth.html  200
+/register  /auth.html  200
+/auth  /auth.html  200
+/workspace  /workspace.html  200
+/app  /workspace.html  200
+/matrix  /workspace.html  200
+/dashboard  /dashboard.html  200
+/surveys  /dashboard.html  200
+/projects  /dashboard.html  200
+/review  /review.html  200
+/reader  /review.html  200
+/paper-preview  /review.html  200
+/admin  /admin.html  200
+/admin-dashboard  /admin.html  200
+/control-center  /admin.html  200
+/db  /db.html  200
+/database  /db.html  200
+/profile  /profile.html  200
+/settings  /profile.html  200
+/account  /profile.html  200
+/about  /about.html  200
+/features  /about.html  200
+/overview  /index.html  200
+/home  /index.html  200

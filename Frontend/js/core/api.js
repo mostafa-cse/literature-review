@@ -675,13 +675,31 @@ class ApiClient {
             ...customFetchOptions
           });
 
+          let activeResponse = response;
+          if ((activeResponse.status === 502 || activeResponse.status === 503) && typeof url === 'string' && url.startsWith('/api')) {
+            try {
+              const directUrl = 'https://litsphere.onrender.com' + url;
+              const directResponse = await fetch(directUrl, {
+                method: upperMethod,
+                headers: requestHeaders,
+                body: requestBody,
+                signal: requestSignal,
+                credentials: 'include',
+                ...customFetchOptions
+              });
+              if (directResponse && directResponse.status !== 502 && directResponse.status !== 503) {
+                activeResponse = directResponse;
+              }
+            } catch (_) {}
+          }
+
           if (timeoutId) clearTimeout(timeoutId);
           if (abortKey && this.abortControllers.get(abortKey) === internalController) {
             this.abortControllers.delete(abortKey);
           }
 
           // Handle 401 Unauthorized
-          if (response.status === 401) {
+          if (activeResponse.status === 401) {
             const isPublicShared = window.location.pathname.startsWith('/shared/');
             const isLoginPage = window.location.pathname === '/login' || window.location.pathname === '/auth';
             if (!isPublicShared && !isLoginPage && !skipAuthRedirect) {
@@ -690,23 +708,23 @@ class ApiClient {
               window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search);
             }
             let errPayload = null;
-            try { errPayload = await response.json(); } catch (_) {}
+            try { errPayload = await activeResponse.json(); } catch (_) {}
             throw new ApiError(errPayload?.error || errPayload?.message || 'Session expired. Please sign in again.', 401, errPayload, url);
           }
 
           // Parse response body
           let parsedData = null;
-          const contentType = response.headers.get('content-type') || '';
+          const contentType = activeResponse.headers.get('content-type') || '';
           if (contentType.includes('application/json')) {
-            parsedData = await response.json();
+            parsedData = await activeResponse.json();
           } else {
-            parsedData = await response.text();
+            parsedData = await activeResponse.text();
           }
 
-          if (!response.ok) {
+          if (!activeResponse.ok) {
             const errMsg = (parsedData && typeof parsedData === 'object' && (parsedData.error || parsedData.message))
-              || `HTTP error ${response.status}: ${response.statusText}`;
-            throw new ApiError(errMsg, response.status, parsedData, url);
+              || `HTTP error ${activeResponse.status}: ${activeResponse.statusText}`;
+            throw new ApiError(errMsg, activeResponse.status, parsedData, url);
           }
 
           return parsedData;

@@ -41,26 +41,30 @@
 
       if (!config) {
         try {
-          const res = await fetch('/api/auth/firebase-config');
-          if (res.ok) {
+          let res = await fetch('/api/auth/firebase-config');
+          if (!res || !res.ok && (res.status === 502 || res.status === 503)) {
+            res = await fetch('https://litsphere.onrender.com/api/auth/firebase-config', { credentials: 'include' });
+          }
+          if (res && res.ok) {
             const data = await res.json();
             if (data && data.config) {
               config = data.config;
             }
           }
         } catch (fetchErr) {
-          console.warn('⚠️ [Firebase] Could not fetch remote config:', fetchErr.message);
+          console.warn('⚠️ [Firebase] Could not fetch remote config, using live defaults:', fetchErr.message);
         }
       }
 
       if (!config) {
         config = {
-          apiKey: 'AIzaSyLitSphereDemoApiKeyForResearch2026',
-          authDomain: 'litsphere-research.firebaseapp.com',
-          projectId: 'litsphere-research',
-          storageBucket: 'litsphere-research.appspot.com',
-          messagingSenderId: '849201938472',
-          appId: '1:849201938472:web:9c8d7e6f5a4b3c2d1e0f'
+          apiKey: 'AIzaSyD0SS5oFgigBTO9FNUBC5jn2PH_JAmWf80',
+          authDomain: 'litsphere-5dd30.firebaseapp.com',
+          projectId: 'litsphere-5dd30',
+          storageBucket: 'litsphere-5dd30.firebasestorage.app',
+          messagingSenderId: '886868852571',
+          appId: '1:886868852571:web:a7f67bf76b509b073fe47e',
+          measurementId: 'G-01LYD44Q41'
         };
       }
 
@@ -123,20 +127,45 @@
         }
 
         console.log('6. Syncing with Backend: POST /api/auth/google');
-        const syncRes = await fetch('/api/auth/google', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: user.email,
-            name: user.displayName || user.email.split('@')[0],
-            displayName: user.displayName,
-            avatar_url: user.photoURL,
-            photoURL: user.photoURL,
-            firebase_uid: user.uid,
-            uid: user.uid,
-            idToken
-          })
-        });
+        const syncPayload = {
+          email: user.email,
+          name: user.displayName || user.email.split('@')[0],
+          displayName: user.displayName,
+          avatar_url: user.photoURL,
+          photoURL: user.photoURL,
+          firebase_uid: user.uid,
+          uid: user.uid,
+          idToken
+        };
+
+        let syncRes;
+        try {
+          syncRes = await fetch('/api/auth/google', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(syncPayload)
+          });
+        } catch (_) {
+          syncRes = null;
+        }
+
+        // Resilient fallback to live backend if local proxy failed
+        if (!syncRes || (!syncRes.ok && (syncRes.status === 502 || syncRes.status === 503 || syncRes.status === 404))) {
+          try {
+            syncRes = await fetch('https://litsphere.onrender.com/api/auth/google', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify(syncPayload)
+            });
+          } catch (retryErr) {
+            console.warn('Fallback sync failed:', retryErr);
+          }
+        }
+
+        if (!syncRes) {
+          throw new Error('Could not connect to LitSphere authentication service.');
+        }
 
         const data = await syncRes.json();
         console.log('7. Server Response Status:', syncRes.status);
