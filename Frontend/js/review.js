@@ -2441,27 +2441,22 @@
     if (viewport) viewport.style.display = 'flex';
     if (toolbar) toolbar.style.display = 'flex';
 
+    if (pdfViewMode === 'native') {
+      setPdfViewMode('native');
+      return;
+    }
+
     if (typeof pdfjsLib === 'undefined') {
       hidePdfLoader();
       return;
     }
 
-    // Configure same-origin Blob Worker wrapper for cross-browser safety (Firefox, Chrome, Safari)
-    try {
-      if (!window._pdfWorkerBlobUrl) {
-        const workerBlob = new Blob(
-          [`importScripts('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js');`],
-          { type: 'application/javascript' }
-        );
-        window._pdfWorkerBlobUrl = URL.createObjectURL(workerBlob);
-      }
-      pdfjsLib.GlobalWorkerOptions.workerSrc = window._pdfWorkerBlobUrl;
-    } catch (_) {
+    // Direct PDF.js Worker setup (avoids Blob URL CSP restrictions and 5-10s timeout lag)
+    if (typeof pdfjsLib !== 'undefined') {
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    }
-
-    if (pdfjsLib.VerbosityLevel) {
-      pdfjsLib.GlobalWorkerOptions.verbosity = pdfjsLib.VerbosityLevel.ERRORS;
+      if (pdfjsLib.VerbosityLevel) {
+        pdfjsLib.GlobalWorkerOptions.verbosity = pdfjsLib.VerbosityLevel.ERRORS;
+      }
     }
 
     // Determine target stream URL (prioritize backend proxy endpoint which caches & auto-resolves OA DOIs)
@@ -2652,26 +2647,77 @@
     });
   }
 
-  // --- CONTINUOUS SCROLLING & VIEW MODE ENGINE ---
+  // --- CONTINUOUS SCROLLING & NATIVE VIEW ENGINE ---
+  window.openNativePdfTab = function () {
+    let directUrl = '';
+    if (activePaper && activePaper.id) {
+      directUrl = `/api/papers/${activePaper.id}/pdf`;
+    } else if (activePaper && activePaper.pdf_url) {
+      directUrl = activePaper.pdf_url.startsWith('http') || activePaper.pdf_url.startsWith('/')
+        ? activePaper.pdf_url
+        : '/' + activePaper.pdf_url;
+    } else if (activePaper && activePaper.doi) {
+      directUrl = activePaper.doi.startsWith('http') ? activePaper.doi : `https://doi.org/${activePaper.doi}`;
+    }
+    if (directUrl) {
+      window.open(directUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   window.setPdfViewMode = function (mode) {
-    const targetMode = (mode === 'single') ? 'single' : 'continuous';
-    if (pdfViewMode === targetMode) return;
+    const targetMode = (mode === 'single' || mode === 'native') ? mode : 'continuous';
     pdfViewMode = targetMode;
     localStorage.setItem('litsphere_pdf_view_mode', pdfViewMode);
     updateModeButtonsUi();
-    if (currentPdfDoc) {
-      initPdfViewStream(pdfCurrentPageNum);
+
+    const streamContainer = document.getElementById('pdf-scroll-stream');
+    const nativeFrame = document.getElementById('pdf-native-frame');
+    const viewportEl = document.getElementById('pdf-viewport');
+
+    if (targetMode === 'native') {
+      hidePdfLoader();
+      if (streamContainer) streamContainer.style.display = 'none';
+      if (viewportEl) viewportEl.style.display = 'none';
+      if (nativeFrame) {
+        let pdfSrc = '';
+        if (activePaper && activePaper.id) {
+          pdfSrc = `/api/papers/${activePaper.id}/pdf#toolbar=1&navpanes=1`;
+        } else if (activePaper && activePaper.pdf_url) {
+          pdfSrc = activePaper.pdf_url.startsWith('http') || activePaper.pdf_url.startsWith('/')
+            ? activePaper.pdf_url
+            : '/' + activePaper.pdf_url;
+        }
+        nativeFrame.src = pdfSrc;
+        nativeFrame.style.display = 'block';
+      }
+      showToast('⚡ Instant Native Browser PDF Viewer activated');
+      return;
+    } else {
+      if (nativeFrame) {
+        nativeFrame.style.display = 'none';
+        nativeFrame.src = 'about:blank';
+      }
+      if (viewportEl) viewportEl.style.display = 'block';
+      if (streamContainer) streamContainer.style.display = 'flex';
+      if (currentPdfDoc) {
+        initPdfViewStream(pdfCurrentPageNum);
+      } else if (activePaper) {
+        loadPdf(activePaper.pdf_url || `/api/papers/${activePaper.id}/pdf`);
+      }
+      showToast(pdfViewMode === 'continuous' ? 'Continuous vertical scrolling enabled' : 'Single page view enabled');
     }
-    showToast(pdfViewMode === 'continuous' ? 'Continuous vertical scrolling enabled' : 'Single page view enabled');
   };
 
   function updateModeButtonsUi() {
     const btnScroll = document.getElementById('btn-pdf-mode-scroll');
     const btnSingle = document.getElementById('btn-pdf-mode-single');
+    const btnNative = document.getElementById('btn-pdf-mode-native');
     if (btnScroll && btnSingle) {
-      const isScroll = (pdfViewMode === 'continuous' || pdfViewMode === 'scroll');
-      btnScroll.classList.toggle('active', isScroll);
-      btnSingle.classList.toggle('active', !isScroll);
+      btnScroll.classList.toggle('active', pdfViewMode === 'continuous');
+      btnSingle.classList.toggle('active', pdfViewMode === 'single');
+    }
+    if (btnNative) {
+      btnNative.classList.toggle('active', pdfViewMode === 'native');
     }
   }
 
@@ -2712,18 +2758,13 @@
       console.warn('Could not probe page 1 viewport:', e);
     }
 
-    // Build page containers in stream
-    streamContainer.innerHTML = '';
-
-    const pagesToBuild = (pdfViewMode === 'single') ? [pdfCurrentPageNum] : Array.from({ length: pdfTotalPages }, (_, i) => i + 1);
-
-    pagesToBuild.forEach(p => {
+    function createPageWrapper(p, defWidth, defHeight) {
       const wrapper = document.createElement('div');
       wrapper.className = `pdf-canvas-wrapper pdf-page-container ${p === pdfCurrentPageNum ? 'active-scroll-page' : ''}`;
       wrapper.id = `pdf-page-container-${p}`;
       wrapper.dataset.pageNumber = String(p);
-      wrapper.style.width = `${defaultWidth}px`;
-      wrapper.style.minHeight = `${defaultHeight}px`;
+      wrapper.style.width = `${defWidth}px`;
+      wrapper.style.minHeight = `${defHeight}px`;
       wrapper.style.setProperty('--scale-factor', pdfScale);
 
       const tag = document.createElement('div');
@@ -2734,28 +2775,41 @@
       const canvas = document.createElement('canvas');
       canvas.id = `pdf-canvas-${p}`;
       canvas.className = 'pdf-page-canvas';
-      canvas.width = defaultWidth;
-      canvas.height = defaultHeight;
+      canvas.width = defWidth;
+      canvas.height = defHeight;
       wrapper.appendChild(canvas);
 
       const hlLayer = document.createElement('div');
       hlLayer.id = `pdf-highlight-layer-${p}`;
       hlLayer.className = 'highlightLayer';
-      hlLayer.style.width = `${defaultWidth}px`;
-      hlLayer.style.height = `${defaultHeight}px`;
+      hlLayer.style.width = `${defWidth}px`;
+      hlLayer.style.height = `${defHeight}px`;
       hlLayer.style.setProperty('--scale-factor', pdfScale);
       wrapper.appendChild(hlLayer);
 
       const txtLayer = document.createElement('div');
       txtLayer.id = `pdf-text-layer-${p}`;
       txtLayer.className = 'textLayer';
-      txtLayer.style.width = `${defaultWidth}px`;
-      txtLayer.style.height = `${defaultHeight}px`;
+      txtLayer.style.width = `${defWidth}px`;
+      txtLayer.style.height = `${defHeight}px`;
       txtLayer.style.setProperty('--scale-factor', pdfScale);
       wrapper.appendChild(txtLayer);
 
-      streamContainer.appendChild(wrapper);
-    });
+      return wrapper;
+    }
+
+    // Build page containers into stream with DocumentFragment for maximum rendering speed
+    streamContainer.innerHTML = '';
+
+    if (pdfViewMode === 'single') {
+      streamContainer.appendChild(createPageWrapper(pdfCurrentPageNum, defaultWidth, defaultHeight));
+    } else {
+      const frag = document.createDocumentFragment();
+      for (let p = 1; p <= pdfTotalPages; p++) {
+        frag.appendChild(createPageWrapper(p, defaultWidth, defaultHeight));
+      }
+      streamContainer.appendChild(frag);
+    }
 
     // Update toolbar page indicators
     const pageCountEl = document.getElementById('pdf-page-count');
