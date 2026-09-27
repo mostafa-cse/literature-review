@@ -1,7 +1,7 @@
 const assert = require('assert');
 const http = require('http');
 const app = require('../server');
-const { getDb } = require('../src/db');
+const { getDb, hashPassword } = require('../src/db');
 const { generateToken } = require('../src/utils/auth');
 
 let server;
@@ -75,7 +75,7 @@ async function runClusterReorderTests() {
     let adminUser = db.prepare("SELECT * FROM users WHERE role = 'admin' LIMIT 1").get() || db.prepare("SELECT * FROM users LIMIT 1").get();
     let adminId;
     if (!adminUser) {
-      const aRes = db.prepare("INSERT INTO users (username, name, email, password_hash, role, status) VALUES ('admin_reorder', 'Platform Admin', 'admin_reorder@litsphere.ac', 'hash', 'admin', 'active')").run();
+      const aRes = db.prepare("INSERT INTO users (username, name, email, password_hash, role, status) VALUES ('admin_reorder', 'Platform Admin', 'admin_reorder@litsphere.ac', ?, 'admin', 'active')").run(hashPassword('admin123'));
       adminId = aRes.lastInsertRowid;
       adminUser = db.prepare("SELECT * FROM users WHERE id = ?").get(adminId);
     } else {
@@ -86,7 +86,7 @@ async function runClusterReorderTests() {
     let viewerUser = db.prepare("SELECT * FROM users WHERE email = 'test_viewer_reorder@litsphere.ac'").get();
     let viewerId;
     if (!viewerUser) {
-      const vRes = db.prepare("INSERT INTO users (name, email, password_hash, role) VALUES ('Viewer Test', 'test_viewer_reorder@litsphere.ac', 'hash', 'user')").run();
+      const vRes = db.prepare("INSERT INTO users (name, email, password_hash, role) VALUES ('Viewer Test', 'test_viewer_reorder@litsphere.ac', ?, 'user')").run(hashPassword('viewer123'));
       viewerId = vRes.lastInsertRowid;
       viewerUser = db.prepare("SELECT * FROM users WHERE id = ?").get(viewerId);
     } else {
@@ -94,8 +94,9 @@ async function runClusterReorderTests() {
     }
     const viewerToken = generateToken(viewerUser || { id: viewerId, email: 'test_viewer_reorder@litsphere.ac', role: 'user', name: 'Viewer Test' });
 
-    // Create a new test project
-    const pRes = db.prepare("INSERT INTO projects (name, description, owner_id) VALUES ('Cluster Reorder Test Project', 'Testing cluster repositioning', ?)").run(adminId);
+    // Create a new test project with unique name
+    const projectName = `Cluster Reorder Test Project ${Date.now()}`;
+    const pRes = db.prepare("INSERT INTO projects (name, description, owner_id) VALUES (?, 'Testing cluster repositioning', ?)").run(projectName, adminId);
     const testProjectId = pRes.lastInsertRowid;
     db.prepare("INSERT OR REPLACE INTO project_members (project_id, user_id, role) VALUES (?, ?, 'owner')").run(testProjectId, adminId);
     db.prepare("INSERT OR REPLACE INTO project_members (project_id, user_id, role) VALUES (?, ?, 'viewer')").run(testProjectId, viewerId);

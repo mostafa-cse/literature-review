@@ -369,6 +369,7 @@ function initDb() {
     CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
     CREATE INDEX IF NOT EXISTS idx_projects_owner ON projects(owner_id);
     CREATE INDEX IF NOT EXISTS idx_projects_token ON projects(share_token);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_owner_name ON projects(owner_id, name);
     CREATE INDEX IF NOT EXISTS idx_clusters_project ON clusters(project_id);
     CREATE INDEX IF NOT EXISTS idx_clusters_position ON clusters(project_id, position);
     CREATE INDEX IF NOT EXISTS idx_papers_project ON papers(project_id);
