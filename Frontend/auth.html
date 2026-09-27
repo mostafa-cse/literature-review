@@ -1886,6 +1886,13 @@
       // Dynamically populate accounts for the current browser profile
       renderGoogleAccountsModal();
 
+      // Pre-fill email if entered in main login box
+      const customInput = document.getElementById('custom-google-email');
+      const mainId = document.getElementById('auth-identifier');
+      if (customInput && !customInput.value && mainId && mainId.value && mainId.value.includes('@')) {
+        customInput.value = mainId.value.trim();
+      }
+
       const feedback = document.getElementById('google-modal-feedback');
       if (feedback) {
         let code = '';
@@ -1899,13 +1906,14 @@
         }
 
         if (code === 'auth/unauthorized-domain' || (msg && msg.includes('unauthorized-domain'))) {
+          const currentHost = window.location.hostname;
           feedback.innerHTML = `
             <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.22); border-radius: 10px; padding: 0.75rem 0.95rem; text-align: left; font-size: 0.8rem; line-height: 1.45; color: #94a3b8; margin-top: 0.6rem;">
               <div style="display: flex; align-items: center; gap: 0.45rem; color: #38bdf8; font-weight: 600; margin-bottom: 0.3rem;">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                 Direct Google Sign-In Portal
               </div>
-              <span>Click <strong>1-Click</strong> above or enter your Google email to sign in immediately without popup restrictions.</span>
+              <span>Enter your Google email above to sign in instantly.<br><span style="color: #64748b; font-size: 0.75rem;">(To enable the native Google popup on <strong>${currentHost}</strong>, add this domain to Firebase Console &rarr; Authentication &rarr; Settings &rarr; Authorized Domains).</span></span>
             </div>
           `;
           feedback.style.display = 'block';
