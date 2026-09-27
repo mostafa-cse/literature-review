@@ -4,6 +4,8 @@ literature.db-shm
 literature.db-wal
 literature.db.bak
 literature_backup_*.db
+*.db
+*.bak
 *.db-shm
 *.db-wal
 *.sqlite
