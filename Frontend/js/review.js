@@ -77,13 +77,20 @@
     summary: {}   // Key-value pairs object for summary breakdown
   };
 
-  // PDF.js & Text Highlighting State
+  // PDF.js & Continuous Scrolling & Text Highlighting State
   let currentPdfDoc = null;
   let pdfCurrentPageNum = 1;
   let pdfTotalPages = 1;
   let pdfScale = 1.0;
   let isRenderingPdf = false;
   let pdfRenderQueue = null;
+  let pdfViewMode = localStorage.getItem('litsphere_pdf_view_mode') || 'continuous'; // 'continuous' | 'single'
+  let renderedPages = new Set();
+  let pageRenderingTasks = new Map();
+  let pdfIntersectionObserver = null;
+  let isScrollListenerAttached = false;
+  let scrollTicking = false;
+  let currentRenderedScale = null;
   let paperHighlights = [];
   let defaultHighlightColor = '#fef08a';
   let defaultHighlightLabel = 'Key Point';
@@ -118,6 +125,9 @@
 
     // Initialize Draggable Resizer
     initResizerDrag();
+
+    // Initialize PDF view mode button state (Continuous vs Single)
+    updateModeButtonsUi();
 
     // Fetch workspace data
     await loadInitialData();
@@ -2642,36 +2652,233 @@
     });
   }
 
-  function renderPdfPage(num) {
-    if (!currentPdfDoc) return;
-    isRenderingPdf = true;
+  // --- CONTINUOUS SCROLLING & VIEW MODE ENGINE ---
+  window.setPdfViewMode = function (mode) {
+    const targetMode = (mode === 'single') ? 'single' : 'continuous';
+    if (pdfViewMode === targetMode) return;
+    pdfViewMode = targetMode;
+    localStorage.setItem('litsphere_pdf_view_mode', pdfViewMode);
+    updateModeButtonsUi();
+    if (currentPdfDoc) {
+      initPdfViewStream(pdfCurrentPageNum);
+    }
+    showToast(pdfViewMode === 'continuous' ? 'Continuous vertical scrolling enabled' : 'Single page view enabled');
+  };
 
-    const overlay = document.getElementById('pdf-loader');
-    const isInitialLoad = overlay && overlay.classList.contains('active');
-    if (isInitialLoad) {
-      updatePdfLoaderProgress(95, `Rendering high-res Page ${num}...`);
-    } else {
-      showPageTransitionPill(`Rendering Page ${num}...`);
+  function updateModeButtonsUi() {
+    const btnScroll = document.getElementById('btn-pdf-mode-scroll');
+    const btnSingle = document.getElementById('btn-pdf-mode-single');
+    if (btnScroll && btnSingle) {
+      const isScroll = (pdfViewMode === 'continuous' || pdfViewMode === 'scroll');
+      btnScroll.classList.toggle('active', isScroll);
+      btnSingle.classList.toggle('active', !isScroll);
+    }
+  }
+
+  async function initPdfViewStream(targetPage = 1) {
+    if (!currentPdfDoc) return;
+    targetPage = Math.max(1, Math.min(pdfTotalPages, targetPage || 1));
+    pdfCurrentPageNum = targetPage;
+
+    updateModeButtonsUi();
+
+    const streamContainer = document.getElementById('pdf-scroll-stream');
+    const viewportEl = document.getElementById('pdf-viewport');
+    if (!streamContainer || !viewportEl) return;
+
+    // Disconnect old observer and cancel running tasks
+    if (pdfIntersectionObserver) {
+      pdfIntersectionObserver.disconnect();
+      pdfIntersectionObserver = null;
+    }
+    pageRenderingTasks.forEach(task => {
+      try {
+        if (task && typeof task.cancel === 'function') task.cancel();
+      } catch (_) {}
+    });
+    pageRenderingTasks.clear();
+    renderedPages.clear();
+    currentRenderedScale = pdfScale;
+
+    // Probe base viewport dimensions from page 1 to eliminate layout jumps
+    let defaultWidth = 800;
+    let defaultHeight = 1100;
+    try {
+      const page1 = await currentPdfDoc.getPage(1);
+      const vp1 = page1.getViewport({ scale: pdfScale });
+      defaultWidth = vp1.width;
+      defaultHeight = vp1.height;
+    } catch (e) {
+      console.warn('Could not probe page 1 viewport:', e);
     }
 
-    currentPdfDoc.getPage(num).then(page => {
-      const canvas = document.getElementById('pdf-canvas');
-      const textLayer = document.getElementById('pdf-text-layer');
-      const highlightLayer = document.getElementById('pdf-highlight-layer');
-      const container = document.getElementById('pdf-page-container');
-      if (!canvas || !container) {
-        isRenderingPdf = false;
-        hidePdfLoader();
-        hidePageTransitionPill();
-        return;
+    // Build page containers in stream
+    streamContainer.innerHTML = '';
+
+    const pagesToBuild = (pdfViewMode === 'single') ? [pdfCurrentPageNum] : Array.from({ length: pdfTotalPages }, (_, i) => i + 1);
+
+    pagesToBuild.forEach(p => {
+      const wrapper = document.createElement('div');
+      wrapper.className = `pdf-canvas-wrapper pdf-page-container ${p === pdfCurrentPageNum ? 'active-scroll-page' : ''}`;
+      wrapper.id = `pdf-page-container-${p}`;
+      wrapper.dataset.pageNumber = String(p);
+      wrapper.style.width = `${defaultWidth}px`;
+      wrapper.style.minHeight = `${defaultHeight}px`;
+      wrapper.style.setProperty('--scale-factor', pdfScale);
+
+      const tag = document.createElement('div');
+      tag.className = 'pdf-page-number-tag';
+      tag.textContent = `Page ${p} / ${pdfTotalPages}`;
+      wrapper.appendChild(tag);
+
+      const canvas = document.createElement('canvas');
+      canvas.id = `pdf-canvas-${p}`;
+      canvas.className = 'pdf-page-canvas';
+      canvas.width = defaultWidth;
+      canvas.height = defaultHeight;
+      wrapper.appendChild(canvas);
+
+      const hlLayer = document.createElement('div');
+      hlLayer.id = `pdf-highlight-layer-${p}`;
+      hlLayer.className = 'highlightLayer';
+      hlLayer.style.width = `${defaultWidth}px`;
+      hlLayer.style.height = `${defaultHeight}px`;
+      hlLayer.style.setProperty('--scale-factor', pdfScale);
+      wrapper.appendChild(hlLayer);
+
+      const txtLayer = document.createElement('div');
+      txtLayer.id = `pdf-text-layer-${p}`;
+      txtLayer.className = 'textLayer';
+      txtLayer.style.width = `${defaultWidth}px`;
+      txtLayer.style.height = `${defaultHeight}px`;
+      txtLayer.style.setProperty('--scale-factor', pdfScale);
+      wrapper.appendChild(txtLayer);
+
+      streamContainer.appendChild(wrapper);
+    });
+
+    // Update toolbar page indicators
+    const pageCountEl = document.getElementById('pdf-page-count');
+    const pageNumInput = document.getElementById('pdf-page-num');
+    if (pageCountEl) pageCountEl.textContent = pdfTotalPages;
+    if (pageNumInput) pageNumInput.value = pdfCurrentPageNum;
+
+    // Render active target page immediately
+    await renderSingleStreamPage(pdfCurrentPageNum);
+
+    // If continuous mode, setup lazy intersection observer & scroll tracking
+    if (pdfViewMode === 'continuous') {
+      pdfIntersectionObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const pNum = parseInt(entry.target.dataset.pageNumber, 10);
+            if (pNum && !renderedPages.has(pNum)) {
+              renderSingleStreamPage(pNum);
+            }
+          }
+        });
+      }, {
+        root: viewportEl,
+        rootMargin: '500px 0px 500px 0px',
+        threshold: 0.01
+      });
+
+      const allWrappers = streamContainer.querySelectorAll('.pdf-page-container');
+      allWrappers.forEach(w => pdfIntersectionObserver.observe(w));
+
+      if (!isScrollListenerAttached) {
+        isScrollListenerAttached = true;
+        viewportEl.addEventListener('scroll', handleViewportScroll, { passive: true });
       }
 
-      const ctx = canvas.getContext('2d');
+      // Smooth scroll to target page if targetPage > 1
+      if (targetPage > 1) {
+        const targetWrapper = document.getElementById(`pdf-page-container-${targetPage}`);
+        if (targetWrapper) {
+          setTimeout(() => {
+            targetWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 60);
+        }
+      }
+    }
+  }
+
+  function handleViewportScroll() {
+    if (pdfViewMode !== 'continuous' || !currentPdfDoc) return;
+    if (!scrollTicking) {
+      window.requestAnimationFrame(() => {
+        updateActivePageOnScroll();
+        scrollTicking = false;
+      });
+      scrollTicking = true;
+    }
+  }
+
+  function updateActivePageOnScroll() {
+    const viewportEl = document.getElementById('pdf-viewport');
+    if (!viewportEl) return;
+
+    const wrappers = document.querySelectorAll('#pdf-scroll-stream .pdf-page-container');
+    if (wrappers.length === 0) return;
+
+    const viewportRect = viewportEl.getBoundingClientRect();
+    const probeY = viewportRect.top + Math.min(220, viewportRect.height * 0.35);
+
+    let activeWrapper = null;
+    let closestDistance = Infinity;
+
+    wrappers.forEach(wrapper => {
+      const rect = wrapper.getBoundingClientRect();
+      if (rect.top <= probeY && rect.bottom >= probeY) {
+        activeWrapper = wrapper;
+      } else {
+        const dist = Math.abs(rect.top - probeY);
+        if (dist < closestDistance) {
+          closestDistance = dist;
+          if (!activeWrapper) activeWrapper = wrapper;
+        }
+      }
+    });
+
+    if (activeWrapper) {
+      const pNum = parseInt(activeWrapper.dataset.pageNumber, 10);
+      if (pNum && pNum !== pdfCurrentPageNum) {
+        pdfCurrentPageNum = pNum;
+        const pageNumInput = document.getElementById('pdf-page-num');
+        if (pageNumInput && document.activeElement !== pageNumInput) {
+          pageNumInput.value = pNum;
+        }
+
+        wrappers.forEach(w => {
+          if (w === activeWrapper) {
+            w.classList.add('active-scroll-page');
+          } else {
+            w.classList.remove('active-scroll-page');
+          }
+        });
+      }
+    }
+  }
+
+  async function renderSingleStreamPage(num) {
+    if (!currentPdfDoc || num < 1 || num > pdfTotalPages) return;
+    if (renderedPages.has(num) && currentRenderedScale === pdfScale) return;
+    if (pageRenderingTasks.has(num)) return;
+
+    const canvas = document.getElementById(`pdf-canvas-${num}`);
+    const container = document.getElementById(`pdf-page-container-${num}`);
+    const textLayer = document.getElementById(`pdf-text-layer-${num}`);
+    const highlightLayer = document.getElementById(`pdf-highlight-layer-${num}`);
+
+    if (!canvas || !container) return;
+
+    try {
+      const page = await currentPdfDoc.getPage(num);
       const viewport = page.getViewport({ scale: pdfScale });
 
-      // Synchronize container and canvas dimensions & PDF.js scale factor
-      canvas.height = viewport.height;
+      // Match canvas and container dimensions
       canvas.width = viewport.width;
+      canvas.height = viewport.height;
       container.style.width = `${viewport.width}px`;
       container.style.height = `${viewport.height}px`;
       container.style.setProperty('--scale-factor', viewport.scale);
@@ -2690,56 +2897,74 @@
         textLayer.innerHTML = '';
       }
 
-      // 1. Render canvas
-      const renderContext = { canvasContext: ctx, viewport: viewport };
-      const renderTask = page.render(renderContext);
+      const ctx = canvas.getContext('2d');
+      const renderTask = page.render({ canvasContext: ctx, viewport: viewport });
+      pageRenderingTasks.set(num, renderTask);
 
-      renderTask.promise.then(() => {
-        isRenderingPdf = false;
-        hidePdfLoader();
-        hidePageTransitionPill();
+      await renderTask.promise;
+      pageRenderingTasks.delete(num);
+      renderedPages.add(num);
 
-        // 2. Render TextLayer for Selection & Copying
-        page.getTextContent().then(textContent => {
-          if (textLayer && typeof pdfjsLib.renderTextLayer === 'function') {
-            const textLayerRenderTask = pdfjsLib.renderTextLayer({
-              textContentSource: textContent,
-              container: textLayer,
-              viewport: viewport,
-              textDivs: []
-            });
-            if (textLayerRenderTask && textLayerRenderTask.promise) {
-              textLayerRenderTask.promise.then(() => {
-                setupPdfSelectionHandlers();
-              });
-            } else {
-              setupPdfSelectionHandlers();
-            }
-          }
-        }).catch(err => console.warn('TextLayer fetch notice:', err));
-
-        // 3. Render Multi-Color Highlight Marks on this page
-        renderPageHighlights(num, viewport);
-
-        if (pdfRenderQueue !== null) {
-          renderPdfPage(pdfRenderQueue);
-          pdfRenderQueue = null;
-        }
-      }).catch(err => {
-        isRenderingPdf = false;
-        hidePdfLoader();
-        hidePageTransitionPill();
-        console.warn('Canvas render notice:', err);
-      });
-    }).catch(err => {
-      isRenderingPdf = false;
+      // Hide loading overlays once first page renders
       hidePdfLoader();
       hidePageTransitionPill();
-      console.warn('Page fetch notice:', err);
-    });
 
-    const pageNumInput = document.getElementById('pdf-page-num');
-    if (pageNumInput) pageNumInput.value = num;
+      // Render text layer for live selection and highlighting
+      try {
+        const textContent = await page.getTextContent();
+        if (textLayer && typeof pdfjsLib.renderTextLayer === 'function') {
+          const textLayerRenderTask = pdfjsLib.renderTextLayer({
+            textContentSource: textContent,
+            container: textLayer,
+            viewport: viewport,
+            textDivs: []
+          });
+          if (textLayerRenderTask && textLayerRenderTask.promise) {
+            await textLayerRenderTask.promise;
+          }
+          setupPdfSelectionHandlers();
+        }
+      } catch (textErr) {
+        console.warn(`TextLayer page ${num} notice:`, textErr);
+      }
+
+      // Render highlight marks on this page
+      renderPageHighlights(num, viewport);
+
+    } catch (err) {
+      pageRenderingTasks.delete(num);
+      console.warn(`Stream render error page ${num}:`, err);
+      hidePdfLoader();
+      hidePageTransitionPill();
+    }
+  }
+
+  function renderPdfPage(num) {
+    if (!currentPdfDoc) return;
+    num = Math.max(1, Math.min(pdfTotalPages, num || pdfCurrentPageNum || 1));
+    pdfCurrentPageNum = num;
+
+    const overlay = document.getElementById('pdf-loader');
+    const isInitialLoad = overlay && overlay.classList.contains('active');
+    if (isInitialLoad) {
+      updatePdfLoaderProgress(95, `Rendering Page ${num} of ${pdfTotalPages}...`);
+    }
+
+    if (pdfViewMode === 'continuous') {
+      const container = document.getElementById(`pdf-page-container-${num}`);
+      if (container && currentRenderedScale === pdfScale) {
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        renderSingleStreamPage(num);
+        const pageNumInput = document.getElementById('pdf-page-num');
+        if (pageNumInput && document.activeElement !== pageNumInput) {
+          pageNumInput.value = num;
+        }
+      } else {
+        initPdfViewStream(num);
+      }
+    } else {
+      initPdfViewStream(num);
+    }
   }
 
   // --- HIGHLIGHTS API & PERSISTENCE ---
@@ -2763,12 +2988,7 @@
     }
 
     updateHighlightsUi();
-    if (currentPdfDoc) {
-      currentPdfDoc.getPage(pdfCurrentPageNum).then(page => {
-        const viewport = page.getViewport({ scale: pdfScale });
-        renderPageHighlights(pdfCurrentPageNum, viewport);
-      }).catch(() => {});
-    }
+    refreshVisiblePageHighlights();
   }
 
   function updateHighlightsUi() {
@@ -2794,7 +3014,10 @@
   }
 
   function renderPageHighlights(pageNum, viewport) {
-    const highlightLayer = document.getElementById('pdf-highlight-layer');
+    let highlightLayer = document.getElementById(`pdf-highlight-layer-${pageNum}`);
+    if (!highlightLayer) {
+      highlightLayer = document.getElementById('pdf-highlight-layer');
+    }
     if (!highlightLayer) return;
     highlightLayer.innerHTML = '';
 
@@ -2828,6 +3051,26 @@
     });
   }
 
+  function refreshVisiblePageHighlights() {
+    if (!currentPdfDoc) return;
+    if (pdfViewMode === 'continuous') {
+      renderedPages.forEach(pNum => {
+        const hlLayer = document.getElementById(`pdf-highlight-layer-${pNum}`);
+        if (hlLayer) {
+          currentPdfDoc.getPage(pNum).then(page => {
+            const vp = page.getViewport({ scale: pdfScale });
+            renderPageHighlights(pNum, vp);
+          }).catch(() => {});
+        }
+      });
+    } else {
+      currentPdfDoc.getPage(pdfCurrentPageNum).then(page => {
+        const vp = page.getViewport({ scale: pdfScale });
+        renderPageHighlights(pdfCurrentPageNum, vp);
+      }).catch(() => {});
+    }
+  }
+
   // --- TEXT SELECTION & FLOATING TOOLBAR LOGIC ---
   let selectionHandlerBound = false;
 
@@ -2858,10 +3101,8 @@
 
     const selection = window.getSelection();
     const toolbar = document.getElementById('pdf-floating-toolbar');
-    const container = document.getElementById('pdf-page-container');
-    const textLayer = document.getElementById('pdf-text-layer');
 
-    if (!selection || selection.isCollapsed || !container || !textLayer) {
+    if (!selection || selection.isCollapsed) {
       if (toolbar && targetEl && !targetEl.closest('#pdf-floating-toolbar')) {
         toolbar.style.display = 'none';
       }
@@ -2874,13 +3115,20 @@
       return;
     }
 
-    // Check if selection is inside our PDF container
+    if (selection.rangeCount === 0) return;
     const range = selection.getRangeAt(0);
     const commonAncestor = range.commonAncestorContainer;
-    if (!container.contains(commonAncestor) && !textLayer.contains(commonAncestor)) {
-      if (toolbar) toolbar.style.display = 'none';
+    const node = (commonAncestor.nodeType === Node.ELEMENT_NODE) ? commonAncestor : commonAncestor.parentElement;
+    const container = node ? node.closest('.pdf-page-container') : null;
+
+    if (!container) {
+      if (toolbar && targetEl && !targetEl.closest('#pdf-floating-toolbar')) {
+        toolbar.style.display = 'none';
+      }
       return;
     }
+
+    const selectedPageNum = parseInt(container.dataset.pageNumber, 10) || pdfCurrentPageNum;
 
     const containerRect = container.getBoundingClientRect();
     const rangeRect = range.getBoundingClientRect();
@@ -2901,7 +3149,7 @@
     activeSelectionData = {
       text: selectedText,
       rects: normalizedRects,
-      page_number: pdfCurrentPageNum
+      page_number: selectedPageNum
     };
 
     if (toolbar) {
@@ -2952,7 +3200,8 @@
       return;
     }
     if (!activeSelectionData || !activeSelectionData.text) {
-      handlePdfSelectionEnd({ target: document.getElementById('pdf-page-container') });
+      const activeContainer = document.querySelector('.pdf-page-container.active-scroll-page') || document.querySelector('.pdf-page-container');
+      handlePdfSelectionEnd({ target: activeContainer });
     }
     if (!activeSelectionData || !activeSelectionData.text || !activePaper) return;
 
@@ -2972,12 +3221,8 @@
     localStorage.setItem(`litsphere_hl_${activePaper.id}`, JSON.stringify(paperHighlights));
     updateHighlightsUi();
 
-    if (currentPdfDoc) {
-      currentPdfDoc.getPage(pdfCurrentPageNum).then(page => {
-        const viewport = page.getViewport({ scale: pdfScale });
-        renderPageHighlights(pdfCurrentPageNum, viewport);
-      });
-    }
+    // Re-render highlight marks across visible pages
+    refreshVisiblePageHighlights();
 
     // Dismiss selection & floating toolbar
     window.getSelection().removeAllRanges();
@@ -3069,13 +3314,7 @@
       localStorage.setItem(`litsphere_hl_${activePaper.id}`, JSON.stringify(paperHighlights));
     }
     updateHighlightsUi();
-
-    if (currentPdfDoc) {
-      currentPdfDoc.getPage(pdfCurrentPageNum).then(page => {
-        const viewport = page.getViewport({ scale: pdfScale });
-        renderPageHighlights(pdfCurrentPageNum, viewport);
-      });
-    }
+    refreshVisiblePageHighlights();
 
     const popover = document.getElementById('pdf-highlight-popover');
     if (popover) popover.style.display = 'none';
@@ -3119,13 +3358,7 @@
       localStorage.setItem(`litsphere_hl_${activePaper.id}`, JSON.stringify(paperHighlights));
     }
     updateHighlightsUi();
-
-    if (currentPdfDoc) {
-      currentPdfDoc.getPage(pdfCurrentPageNum).then(page => {
-        const viewport = page.getViewport({ scale: pdfScale });
-        renderPageHighlights(pdfCurrentPageNum, viewport);
-      });
-    }
+    refreshVisiblePageHighlights();
 
     const popover = document.getElementById('pdf-highlight-popover');
     if (popover) popover.style.display = 'none';
@@ -3181,10 +3414,10 @@
     currentPdfDoc.getPage(pdfCurrentPageNum).then(page => {
       const baseViewport = page.getViewport({ scale: 1.0 });
       const availableWidth = Math.max(300, leftPane.clientWidth - 48);
-      pdfScale = Math.max(0.5, Math.min(2.5, availableWidth / baseViewport.width));
+      pdfScale = Math.max(0.5, Math.min(2.5, Math.round((availableWidth / baseViewport.width) * 100) / 100));
       const zoomVal = document.getElementById('pdf-zoom-val');
       if (zoomVal) zoomVal.textContent = `${Math.round(pdfScale * 100)}%`;
-      renderPdfPage(pdfCurrentPageNum);
+      initPdfViewStream(pdfCurrentPageNum);
     });
   };
 
@@ -3238,12 +3471,21 @@
   window.jumpToHighlightPage = function (pageNum, hlId) {
     if (!currentPdfDoc || pageNum < 1 || pageNum > pdfTotalPages) return;
     pdfCurrentPageNum = pageNum;
-    renderPdfPage(pageNum);
 
-    const viewportEl = document.getElementById('pdf-viewport');
-    if (viewportEl) {
-      viewportEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (pdfViewMode === 'continuous') {
+      const targetContainer = document.getElementById(`pdf-page-container-${pageNum}`);
+      if (targetContainer) {
+        targetContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        renderSingleStreamPage(pageNum);
+      } else {
+        initPdfViewStream(pageNum);
+      }
+    } else {
+      initPdfViewStream(pageNum);
     }
+
+    const pageNumInput = document.getElementById('pdf-page-num');
+    if (pageNumInput) pageNumInput.value = pageNum;
 
     setTimeout(() => {
       const marks = document.querySelectorAll(`[data-hl-id="${hlId}"]`);
@@ -3251,7 +3493,7 @@
         m.classList.add('pulse-highlight');
         setTimeout(() => m.classList.remove('pulse-highlight'), 2400);
       });
-    }, 350);
+    }, 400);
   };
 
   window.copyHighlightQuoteFromList = async function (encodedQuote, e) {
@@ -3277,13 +3519,7 @@
       localStorage.setItem(`litsphere_hl_${activePaper.id}`, JSON.stringify(paperHighlights));
     }
     updateHighlightsUi();
-
-    if (currentPdfDoc) {
-      currentPdfDoc.getPage(pdfCurrentPageNum).then(page => {
-        const viewport = page.getViewport({ scale: pdfScale });
-        renderPageHighlights(pdfCurrentPageNum, viewport);
-      });
-    }
+    refreshVisiblePageHighlights();
 
     showToast('Highlight deleted');
 
@@ -3350,18 +3586,18 @@
   };
 
   window.pdfZoomIn = function () {
-    pdfScale += 0.2;
+    pdfScale = Math.min(3.0, Math.round((pdfScale + 0.2) * 10) / 10);
     const zoomVal = document.getElementById('pdf-zoom-val');
     if (zoomVal) zoomVal.textContent = `${Math.round(pdfScale * 100)}%`;
-    renderPdfPage(pdfCurrentPageNum);
+    initPdfViewStream(pdfCurrentPageNum);
   };
 
   window.pdfZoomOut = function () {
     if (pdfScale <= 0.6) return;
-    pdfScale -= 0.2;
+    pdfScale = Math.max(0.5, Math.round((pdfScale - 0.2) * 10) / 10);
     const zoomVal = document.getElementById('pdf-zoom-val');
     if (zoomVal) zoomVal.textContent = `${Math.round(pdfScale * 100)}%`;
-    renderPdfPage(pdfCurrentPageNum);
+    initPdfViewStream(pdfCurrentPageNum);
   };
 
   window.handleDirectPdfUpload = async function (input) {

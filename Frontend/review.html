@@ -196,6 +196,38 @@
                     <button type="button" class="pdf-mini-btn" onclick="pdfFitWidth()" title="Fit to width">Fit</button>
                 </div>
 
+                <!-- View Mode: Continuous Scroll vs Single Page -->
+                <div class="pdf-nav-group pdf-view-mode-group">
+                    <button
+                        type="button"
+                        class="pdf-mini-btn pdf-mode-btn active"
+                        id="btn-pdf-mode-scroll"
+                        onclick="setPdfViewMode('continuous')"
+                        title="Continuous Vertical Scrolling (Scroll all pages seamlessly)"
+                    >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="5" y="2" width="14" height="6" rx="1"></rect>
+                            <rect x="5" y="9" width="14" height="6" rx="1"></rect>
+                            <rect x="5" y="16" width="14" height="6" rx="1"></rect>
+                        </svg>
+                        <span>Scroll</span>
+                    </button>
+                    <button
+                        type="button"
+                        class="pdf-mini-btn pdf-mode-btn"
+                        id="btn-pdf-mode-single"
+                        onclick="setPdfViewMode('single')"
+                        title="Single Page Flipping"
+                    >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="4" y="2" width="16" height="20" rx="2"></rect>
+                            <line x1="8" y1="6" x2="16" y2="6"></line>
+                            <line x1="8" y1="10" x2="16" y2="10"></line>
+                        </svg>
+                        <span>Single</span>
+                    </button>
+                </div>
+
                 <!-- Multi-Color Highlighter Bar & Mode Controls -->
                 <div class="pdf-nav-group pdf-highlight-controls-group">
                     <button
@@ -289,12 +321,8 @@
 
             <!-- PDF Viewport with Synchronized Canvas, Highlight Layer, and Text Selection Layer -->
             <div class="pdf-viewport-container" id="pdf-viewport" style="display: none;">
-                <div class="pdf-canvas-wrapper" id="pdf-page-container">
-                    <canvas id="pdf-canvas"></canvas>
-                    <!-- Highlight Layer for Multi-Color Marks -->
-                    <div id="pdf-highlight-layer" class="highlightLayer"></div>
-                    <!-- PDF.js Synchronized Text Layer for Selection & Copying -->
-                    <div id="pdf-text-layer" class="textLayer"></div>
+                <div class="pdf-scroll-stream" id="pdf-scroll-stream">
+                    <!-- Dynamic page wrappers injected for continuous scrolling or single-page view -->
                 </div>
             </div>
 
