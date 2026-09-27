@@ -166,7 +166,8 @@ body, html {
 /* Outer header shell */
 .header {
   display: flex;
-  height: 76px;
+  height: 86px;
+  min-height: 86px;
   border-bottom: 1px solid var(--border-header);
   background-color: var(--bg-header);
   flex-shrink: 0;
@@ -183,10 +184,11 @@ body, html {
   min-width: 0;
   background-color: var(--bg-header-left);
   border-right: 1px solid var(--border-header);
-  padding: 6px 18px 6px;
+  padding: 8px 18px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: center;
+  gap: 8px;
   overflow: hidden;
   position: relative;
   transition: background-color 0.2s ease;
@@ -194,21 +196,23 @@ body, html {
 
 /* Row 1 Left: Breadcrumbs */
 .header-left-row1 {
-  height: 24px;
+  height: 28px;
   display: flex;
   align-items: center;
   min-width: 0;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 /* Row 2 Left: Title + Tags */
 .header-left-row2 {
-  height: 36px;
+  height: 34px;
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 /* Gradient accent strip at bottom of left pane */
@@ -519,30 +523,33 @@ body, html {
   flex: 1;
   min-width: 0;
   background-color: var(--bg-header);
-  padding: 6px 18px 6px;
+  padding: 8px 18px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: center;
+  gap: 8px;
   overflow: hidden;
 }
 
 /* Row 1 Right: Save Status + Icon Actions */
 .header-right-row1 {
-  height: 24px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
   min-width: 0;
+  flex-shrink: 0;
 }
 
 /* Row 2 Right: DOI Search Bar */
 .header-right-row2 {
-  height: 36px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
   min-width: 0;
+  flex-shrink: 0;
 }
 
 /* DOI Search Bar (pill-shaped, icon-prefixed) */
@@ -750,20 +757,9 @@ body.is-full-page {
   overflow: hidden;
 }
 
-body.is-full-page .header {
-  height: 64px;
-  transition: height 0.2s ease;
-}
-
-body.is-full-page .header-left,
-body.is-full-page .header-right {
-  padding-top: 4px;
-  padding-bottom: 4px;
-}
-
-body.is-full-page .main-body {
-  height: calc(100vh - 64px);
-  transition: height 0.2s ease;
+body.is-full-page .window-container {
+  width: 100vw;
+  height: 100vh;
 }
 
 .icon-action-btn.danger {
@@ -832,10 +828,10 @@ body.is-full-page .main-body {
 .main-body {
   display: flex;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
   position: relative;
   width: 100%;
-  height: calc(100vh - 74px);
 }
 
 /* --- Left Pane (PDF Preview) --- */
