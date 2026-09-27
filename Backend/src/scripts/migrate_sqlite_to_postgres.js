@@ -679,7 +679,7 @@ async function runMigration({ clean = true } = {}) {
 }
 
 if (require.main === module) {
-  const shouldClean = !process.argv.includes('--no-clean');
+  const shouldClean = process.argv.includes('--clean') || process.env.MIGRATE_CLEAN === 'true';
   runMigration({ clean: shouldClean })
     .then(() => {
       console.log('🏁 Migration process completed.');
