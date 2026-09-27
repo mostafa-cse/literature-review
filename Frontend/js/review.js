@@ -175,6 +175,102 @@
     applyTheme(current === 'light' ? 'dark' : 'light');
   };
 
+  // --- FULL PAGE / FULLSCREEN REVIEW MODE ---
+  const SVG_ENTER_FULLSCREEN = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>`;
+  const SVG_EXIT_FULLSCREEN = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>`;
+
+  function isFullPageActive() {
+    return !!(
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement ||
+      document.body.classList.contains('is-full-page')
+    );
+  }
+
+  function updateFullPageButtonUi(isFull) {
+    const btn = document.getElementById('review-fullscreen-btn');
+    const iconSpan = document.getElementById('review-fullscreen-icon');
+    if (!btn || !iconSpan) return;
+
+    if (isFull) {
+      btn.classList.add('active');
+      btn.title = 'Exit Full Page (Esc / F11)';
+      btn.setAttribute('aria-label', 'Exit Full Page');
+      iconSpan.innerHTML = SVG_EXIT_FULLSCREEN;
+    } else {
+      btn.classList.remove('active');
+      btn.title = 'Full Page Mode (F11 / Esc)';
+      btn.setAttribute('aria-label', 'Enter Full Page');
+      iconSpan.innerHTML = SVG_ENTER_FULLSCREEN;
+    }
+  }
+
+  window.toggleFullPageReview = async function () {
+    const isFull = isFullPageActive();
+    if (isFull) {
+      // Exit full page mode
+      document.body.classList.remove('is-full-page');
+      document.documentElement.classList.remove('is-full-page');
+      updateFullPageButtonUi(false);
+
+      try {
+        if (document.exitFullscreen && (document.fullscreenElement || document.webkitFullscreenElement)) {
+          await document.exitFullscreen();
+        } else if (document.webkitExitFullscreen && document.webkitFullscreenElement) {
+          document.webkitExitFullscreen();
+        }
+      } catch (e) {
+        console.warn('Notice: exitFullscreen not supported or blocked:', e);
+      }
+      showToast('Exited Full Page mode');
+    } else {
+      // Enter full page mode
+      document.body.classList.add('is-full-page');
+      document.documentElement.classList.add('is-full-page');
+      updateFullPageButtonUi(true);
+
+      try {
+        const root = document.documentElement;
+        if (root.requestFullscreen) {
+          await root.requestFullscreen();
+        } else if (root.webkitRequestFullscreen) {
+          root.webkitRequestFullscreen();
+        } else if (root.msRequestFullscreen) {
+          root.msRequestFullscreen();
+        }
+      } catch (e) {
+        console.warn('Notice: requestFullscreen blocked or restricted:', e);
+      }
+      showToast('⚡ Full Page mode activated (Press Esc to exit)');
+    }
+  };
+
+  function handleFullscreenStateChange() {
+    const hasNativeFull = !!(
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement
+    );
+    if (!hasNativeFull && document.body.classList.contains('is-full-page')) {
+      document.body.classList.remove('is-full-page');
+      document.documentElement.classList.remove('is-full-page');
+      updateFullPageButtonUi(false);
+      showToast('Exited Full Page mode');
+    } else if (hasNativeFull && !document.body.classList.contains('is-full-page')) {
+      document.body.classList.add('is-full-page');
+      document.documentElement.classList.add('is-full-page');
+      updateFullPageButtonUi(true);
+    }
+  }
+
+  document.addEventListener('fullscreenchange', handleFullscreenStateChange);
+  document.addEventListener('webkitfullscreenchange', handleFullscreenStateChange);
+  document.addEventListener('mozfullscreenchange', handleFullscreenStateChange);
+  document.addEventListener('MSFullscreenChange', handleFullscreenStateChange);
+
   let surveyDynamicColumns = [];
   let surveyPapers = [];
 
@@ -3843,10 +3939,15 @@
     }
   };
 
-  // Close modal on escape key or backdrop click
+  // Close modal or exit full page mode on escape key
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      window.closeDeleteModal();
+      const modal = document.getElementById('delete-paper-modal');
+      if (modal && modal.style.display !== 'none' && modal.classList.contains('active')) {
+        window.closeDeleteModal();
+      } else if (isFullPageActive()) {
+        window.toggleFullPageReview();
+      }
     }
   });
 

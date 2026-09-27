@@ -731,6 +731,41 @@ body, html {
   color: #0284c7;
 }
 
+.icon-action-btn.active {
+  background: rgba(212, 175, 55, 0.22) !important;
+  color: #fbbf24 !important;
+  border-color: rgba(212, 175, 55, 0.55) !important;
+}
+
+[data-theme="light"] .icon-action-btn.active {
+  background: #e0f2fe !important;
+  color: #0284c7 !important;
+  border-color: #38bdf8 !important;
+}
+
+/* --- Full Page / Fullscreen Review Mode --- */
+body.is-full-page {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+body.is-full-page .header {
+  height: 64px;
+  transition: height 0.2s ease;
+}
+
+body.is-full-page .header-left,
+body.is-full-page .header-right {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+body.is-full-page .main-body {
+  height: calc(100vh - 64px);
+  transition: height 0.2s ease;
+}
+
 .icon-action-btn.danger {
   color: #f87171;
   border-color: rgba(239, 68, 68, 0.3);
