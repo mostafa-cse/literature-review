@@ -1694,8 +1694,13 @@
       }
     }
 
-    // Google Sign-In Handler (Direct Firebase Google Popup Authentication)
+    // Google Sign-In Handler (Direct Firebase Google Authentication with Popup & Redirect)
+    let isGoogleAuthClickLocked = false;
+
     async function handleGoogleSignIn() {
+      if (isGoogleAuthClickLocked) return;
+      isGoogleAuthClickLocked = true;
+
       const errEl = document.getElementById('auth-error-msg');
       if (errEl) {
         errEl.style.display = 'none';
@@ -1706,19 +1711,22 @@
       const googleBtnText = document.getElementById('google-btn-text');
       const originalText = googleBtnText ? googleBtnText.textContent : 'Continue with Google';
 
-      function setButtonLoading(loading) {
+      function setButtonLoading(loading, message = 'Connecting to Google...') {
         if (!googleBtn) return;
         if (loading) {
           googleBtn.disabled = true;
           googleBtn.style.opacity = '0.75';
           googleBtn.style.cursor = 'wait';
+          googleBtn.style.pointerEvents = 'none';
           if (googleBtnText) {
-            googleBtnText.innerHTML = '<span style="display:inline-flex; align-items:center; gap:0.5rem;"><svg class="spin-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation: spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path></svg> Connecting to Google...</span>';
+            googleBtnText.innerHTML = `<span style="display:inline-flex; align-items:center; gap:0.5rem;"><svg class="spin-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation: spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path></svg> ${message}</span>`;
           }
         } else {
+          isGoogleAuthClickLocked = false;
           googleBtn.disabled = false;
           googleBtn.style.opacity = '1';
           googleBtn.style.cursor = 'pointer';
+          googleBtn.style.pointerEvents = 'auto';
           if (googleBtnText) {
             googleBtnText.textContent = originalText;
           }
@@ -1726,6 +1734,7 @@
       }
 
       function showGoogleError(message) {
+        isGoogleAuthClickLocked = false;
         if (errEl) {
           errEl.textContent = message;
           errEl.style.display = 'flex';
@@ -1736,7 +1745,7 @@
         }
       }
 
-      setButtonLoading(true);
+      setButtonLoading(true, 'Connecting to Google...');
 
       try {
         if (!window.LitSphereFirebase || typeof window.LitSphereFirebase.signInWithGoogle !== 'function') {
@@ -1757,6 +1766,9 @@
           onSuccess: (data) => {
             if (googleBtnText) googleBtnText.textContent = 'Authenticated! Redirecting...';
             completeAuthRedirect(data);
+          },
+          onRedirecting: () => {
+            setButtonLoading(true, 'Redirecting to Google...');
           },
           onError: (err) => {
             setButtonLoading(false);

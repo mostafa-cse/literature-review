@@ -124,12 +124,12 @@
     // 5. Defend window.open against accidental file:/// protocols
     if (typeof window.open === 'function') {
       const origOpen = window.open;
-      window.open = function(url, target, features) {
+      window.open = function(url) {
         if (typeof url === 'string' && (url.toLowerCase().startsWith('file:') || url.toLowerCase().startsWith('file:///'))) {
           console.warn('[LitSphere Security Shield] Blocked window.open for local file protocol:', url);
           return null;
         }
-        return origOpen.call(window, url, target, features);
+        return origOpen.apply(window, arguments);
       };
     }
   })();
