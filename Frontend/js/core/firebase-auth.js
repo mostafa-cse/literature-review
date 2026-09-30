@@ -1,7 +1,7 @@
 /**
  * LitSphere Firebase Authentication Integration Module
  * Handles Firebase App initialization, Google Auth Provider, popup sign-in,
- * ID token acquisition, and backend session synchronization with developer fallback.
+ * ID token acquisition, and backend session synchronization.
  */
 
 (function () {
@@ -70,7 +70,6 @@
 
       window._LITSPHERE_FIREBASE_CONFIG = config;
 
-      // Only initialize Firebase Auth SDK if API key is live/configured
       if (isConfiguredFirebaseKey(config.apiKey)) {
         if (!firebase.apps.length) {
           firebaseApp = firebase.initializeApp(config);
@@ -80,7 +79,7 @@
         firebaseAuth = firebase.auth();
         console.log('🔥 [Firebase] Live Firebase Authentication initialized for project:', config.projectId);
       } else {
-        console.log('🔥 [Firebase] Local/Developer Mode Active. Google SSO ready for instant authentication.');
+        console.warn('⚠️ [Firebase] API Key is not configured properly.');
       }
 
       return firebaseAuth;
@@ -93,128 +92,140 @@
   }
 
   /**
-   * Perform Google Sign In via Firebase or Local Fallback
+   * Perform Google Sign In directly via Firebase Popup
    * @param {Object} options Options { onSuccess, onError, onCancel }
    */
   async function signInWithGoogleFirebase(options = {}) {
-    const auth = await initFirebase();
-    const config = window._LITSPHERE_FIREBASE_CONFIG || {};
-
     console.group('🔥 [Firebase Google Sign-In]');
-
-    // If live Firebase API key is configured, use standard Firebase Popup
-    if (auth && isConfiguredFirebaseKey(config.apiKey)) {
-      console.log('1. Launching Live Firebase signInWithPopup...');
-      const provider = new firebase.auth.GoogleAuthProvider();
-      provider.addScope('email');
-      provider.addScope('profile');
-      provider.setCustomParameters({ prompt: 'select_account' });
-
-      try {
-        const result = await auth.signInWithPopup(provider);
-        const user = result.user;
-
-        console.log('2. Google Authentication Succeeded for:', user.email);
-        console.log('3. Firebase User UID:', user.uid);
-        console.log('4. Display Name:', user.displayName);
-
-        let idToken = '';
-        try {
-          idToken = await user.getIdToken();
-          console.log('5. Firebase ID Token:', idToken.slice(0, 18) + '...');
-        } catch (tokenErr) {
-          console.warn('Could not fetch ID token:', tokenErr);
-        }
-
-        console.log('6. Syncing with Backend: POST /api/auth/google');
-        const syncPayload = {
-          email: user.email,
-          name: user.displayName || user.email.split('@')[0],
-          displayName: user.displayName,
-          avatar_url: user.photoURL,
-          photoURL: user.photoURL,
-          firebase_uid: user.uid,
-          uid: user.uid,
-          idToken
-        };
-
-        let syncRes;
-        try {
-          syncRes = await fetch('/api/auth/google', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(syncPayload)
-          });
-        } catch (_) {
-          syncRes = null;
-        }
-
-        // Resilient fallback to live backend if local proxy failed
-        if (!syncRes || (!syncRes.ok && (syncRes.status === 502 || syncRes.status === 503 || syncRes.status === 404))) {
-          try {
-            syncRes = await fetch('https://litsphere.onrender.com/api/auth/google', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify(syncPayload)
-            });
-          } catch (retryErr) {
-            console.warn('Fallback sync failed:', retryErr);
-          }
-        }
-
-        if (!syncRes) {
-          throw new Error('Could not connect to LitSphere authentication service.');
-        }
-
-        const data = await syncRes.json();
-        console.log('7. Server Response Status:', syncRes.status);
-
-        if (!syncRes.ok) {
-          throw new Error(data.error || 'Backend session creation failed.');
-        }
-
-        console.log('8. User Profile Synced:');
-        console.table(data.user);
-        console.groupEnd();
-
-        if (data.token) {
-          localStorage.setItem('litsphere_auth_token', data.token);
-          localStorage.setItem('litsphere_user', JSON.stringify(data.user));
-          const _wKey = 'litsphere_welcome_dismissed_' + data.token.slice(-12);
-          localStorage.removeItem(_wKey);
-        }
-
-        if (typeof options.onSuccess === 'function') {
-          options.onSuccess(data);
-        } else {
-          completeRedirect(data);
-        }
-        return;
-      } catch (err) {
-        console.warn('Firebase Popup Notice:', err.code, err.message);
-        console.groupEnd();
-
-        if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
-          if (typeof options.onCancel === 'function') options.onCancel(err);
-          return;
-        }
-
-        // Open fallback modal with error context
-        if (typeof window.openGoogleFallbackModal === 'function') {
-          window.openGoogleFallbackModal(err);
-        }
-        return;
-      }
+    let auth = null;
+    try {
+      auth = await initFirebase();
+    } catch (e) {
+      console.warn('Firebase init error:', e);
     }
 
-    // Developer / Local Environment Mode:
-    console.log('1. Direct Google SSO Gateway initialized.');
-    console.log('2. Opening Google Profile Authorization Portal...');
-    console.groupEnd();
+    if (!auth) {
+      console.groupEnd();
+      const err = new Error('Google Authentication service is not initialized. Please verify your internet connection.');
+      if (typeof options.onError === 'function') {
+        options.onError(err);
+      } else {
+        alert(err.message);
+      }
+      return;
+    }
 
-    if (typeof window.openGoogleFallbackModal === 'function') {
-      window.openGoogleFallbackModal();
+    console.log('1. Launching Live Firebase signInWithPopup...');
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.addScope('email');
+    provider.addScope('profile');
+    provider.setCustomParameters({ prompt: 'select_account' });
+
+    try {
+      const result = await auth.signInWithPopup(provider);
+      const user = result.user;
+
+      console.log('2. Google Authentication Succeeded for:', user.email);
+      console.log('3. Firebase User UID:', user.uid);
+      console.log('4. Display Name:', user.displayName);
+
+      let idToken = '';
+      try {
+        idToken = await user.getIdToken();
+        console.log('5. Firebase ID Token acquired.');
+      } catch (tokenErr) {
+        console.warn('Could not fetch ID token:', tokenErr);
+      }
+
+      console.log('6. Syncing with Backend: POST /api/auth/google');
+      const syncPayload = {
+        email: user.email,
+        name: user.displayName || user.email.split('@')[0],
+        displayName: user.displayName,
+        avatar_url: user.photoURL,
+        photoURL: user.photoURL,
+        firebase_uid: user.uid,
+        uid: user.uid,
+        idToken
+      };
+
+      let syncRes;
+      try {
+        syncRes = await fetch('/api/auth/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(syncPayload)
+        });
+      } catch (_) {
+        syncRes = null;
+      }
+
+      // Resilient fallback to live backend if local proxy failed
+      if (!syncRes || (!syncRes.ok && (syncRes.status === 502 || syncRes.status === 503 || syncRes.status === 404))) {
+        try {
+          syncRes = await fetch('https://litsphere.onrender.com/api/auth/google', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(syncPayload)
+          });
+        } catch (retryErr) {
+          console.warn('Fallback sync failed:', retryErr);
+        }
+      }
+
+      if (!syncRes) {
+        throw new Error('Could not connect to LitSphere authentication service.');
+      }
+
+      const data = await syncRes.json();
+      console.log('7. Server Response Status:', syncRes.status);
+
+      if (!syncRes.ok) {
+        throw new Error(data.error || 'Backend session creation failed.');
+      }
+
+      console.log('8. User Profile Synced Successfully.');
+      console.groupEnd();
+
+      if (data.token) {
+        localStorage.setItem('litsphere_auth_token', data.token);
+        localStorage.setItem('litsphere_user', JSON.stringify(data.user));
+        const _wKey = 'litsphere_welcome_dismissed_' + data.token.slice(-12);
+        localStorage.removeItem(_wKey);
+      }
+
+      if (typeof options.onSuccess === 'function') {
+        options.onSuccess(data);
+      } else {
+        completeRedirect(data);
+      }
+      return data;
+    } catch (err) {
+      console.warn('Firebase Popup Notice:', err.code, err.message);
+      console.groupEnd();
+
+      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+        if (typeof options.onCancel === 'function') options.onCancel(err);
+        return;
+      }
+
+      let friendlyMessage = err.message || 'Google sign-in was unsuccessful.';
+      if (err.code === 'auth/unauthorized-domain') {
+        friendlyMessage = `This domain (${window.location.hostname}) is not authorized in Firebase Console. Please add '${window.location.hostname}' to Firebase Console > Authentication > Settings > Authorized domains.`;
+      } else if (err.code === 'auth/popup-blocked') {
+        friendlyMessage = 'Popup was blocked by your browser. Please allow popups for this site and try again.';
+      }
+
+      const enhancedErr = new Error(friendlyMessage);
+      enhancedErr.code = err.code;
+
+      if (typeof options.onError === 'function') {
+        options.onError(enhancedErr);
+      } else {
+        alert(friendlyMessage);
+      }
+      return;
     }
   }
 

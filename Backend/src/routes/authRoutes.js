@@ -154,13 +154,13 @@ router.get('/check-email', (req, res) => {
 // GET /api/auth/firebase-config - Return public Firebase configuration for client SDK
 router.get('/firebase-config', (req, res) => {
   const config = {
-    apiKey: process.env.FIREBASE_API_KEY || "AIzaSyLitSphereDemoApiKeyForResearch2026",
-    authDomain: process.env.FIREBASE_AUTH_DOMAIN || "litsphere-research.firebaseapp.com",
-    projectId: process.env.FIREBASE_PROJECT_ID || "litsphere-research",
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "litsphere-research.appspot.com",
-    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "849201938472",
-    appId: process.env.FIREBASE_APP_ID || "1:849201938472:web:9c8d7e6f5a4b3c2d1e0f",
-    measurementId: process.env.FIREBASE_MEASUREMENT_ID || ""
+    apiKey: process.env.FIREBASE_API_KEY || "AIzaSyD0SS5oFgigBTO9FNUBC5jn2PH_JAmWf80",
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN || "litsphere-5dd30.firebaseapp.com",
+    projectId: process.env.FIREBASE_PROJECT_ID || "litsphere-5dd30",
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "litsphere-5dd30.firebasestorage.app",
+    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "886868852571",
+    appId: process.env.FIREBASE_APP_ID || "1:886868852571:web:a7f67bf76b509b073fe47e",
+    measurementId: process.env.FIREBASE_MEASUREMENT_ID || "G-01LYD44Q41"
   };
   res.json({ success: true, config });
 });
